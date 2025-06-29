@@ -108,7 +108,7 @@ impl Postgres {
         let impl_struct_tt = if need_lifetime {
             quote::quote! {
                 impl <#lifetime> #struct_ident<#lifetime>{
-                    const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
+                    pub const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
                         #builder_ident{
                             fields: (#fields_tuple),
                             _phantom: std::marker::PhantomData
@@ -211,7 +211,7 @@ impl DbCrate for Postgres {
             .zip(row.column_types.iter())
             .map(|(col, rs_type)| {
                 let col_t = rs_type.to_row_tokens();
-                quote::quote! {#col:#col_t}
+                quote::quote! {pub #col:#col_t}
             })
             .collect::<Vec<_>>();
 

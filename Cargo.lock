@@ -44,6 +44,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "authors"
+version = "0.1.0"
+dependencies = [
+ "deadpool-postgres",
+ "postgres",
+ "postgres-types",
+ "serde_json",
+ "test-context",
+ "test-utils",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -201,6 +216,9 @@ dependencies = [
  "postgres",
  "postgres-types",
  "serde_json",
+ "test-context",
+ "test-utils",
+ "tokio",
  "tokio-postgres",
  "uuid",
 ]

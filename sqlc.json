@@ -40,6 +40,21 @@
                     }
                 }
             ]
+        },
+        {
+            "schema": "examples/authors/schema.sql",
+            "queries": "examples/authors/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/authors/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "tokio_postgres"
+                    }
+                }
+            ]
         }
     ]
 }

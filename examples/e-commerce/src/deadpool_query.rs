@@ -13,13 +13,13 @@ pub enum OrderStatus {
     Cancelled,
 }
 pub struct CreateUserRow {
-    users_id: uuid::Uuid,
-    users_username: String,
-    users_email: String,
-    users_hashed_password: String,
-    users_full_name: Option<String>,
-    users_created_at: std::time::SystemTime,
-    users_updated_at: std::time::SystemTime,
+    pub users_id: uuid::Uuid,
+    pub users_username: String,
+    pub users_email: String,
+    pub users_hashed_password: String,
+    pub users_full_name: Option<String>,
+    pub users_created_at: std::time::SystemTime,
+    pub users_updated_at: std::time::SystemTime,
 }
 impl CreateUserRow {
     fn from_row(
@@ -88,7 +88,7 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
     }
 }
 impl<'a> CreateUser<'a> {
-    const fn builder() -> CreateUserBuilder<'a, ((), (), (), ())> {
+    pub const fn builder() -> CreateUserBuilder<'a, ((), (), (), ())> {
         CreateUserBuilder {
             fields: ((), (), (), ()),
             _phantom: std::marker::PhantomData,
@@ -199,13 +199,13 @@ impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
     }
 }
 pub struct GetUserByEmailRow {
-    users_id: uuid::Uuid,
-    users_username: String,
-    users_email: String,
-    users_hashed_password: String,
-    users_full_name: Option<String>,
-    users_created_at: std::time::SystemTime,
-    users_updated_at: std::time::SystemTime,
+    pub users_id: uuid::Uuid,
+    pub users_username: String,
+    pub users_email: String,
+    pub users_hashed_password: String,
+    pub users_full_name: Option<String>,
+    pub users_created_at: std::time::SystemTime,
+    pub users_updated_at: std::time::SystemTime,
 }
 impl GetUserByEmailRow {
     fn from_row(
@@ -247,7 +247,7 @@ WHERE email = $1 LIMIT 1";
     }
 }
 impl<'a> GetUserByEmail<'a> {
-    const fn builder() -> GetUserByEmailBuilder<'a, ((),)> {
+    pub const fn builder() -> GetUserByEmailBuilder<'a, ((),)> {
         GetUserByEmailBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
@@ -275,11 +275,11 @@ impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
     }
 }
 pub struct ListUsersRow {
-    users_id: uuid::Uuid,
-    users_username: String,
-    users_email: String,
-    users_full_name: Option<String>,
-    users_created_at: std::time::SystemTime,
+    pub users_id: uuid::Uuid,
+    pub users_username: String,
+    pub users_email: String,
+    pub users_full_name: Option<String>,
+    pub users_created_at: std::time::SystemTime,
 }
 impl ListUsersRow {
     fn from_row(
@@ -354,15 +354,15 @@ impl<'a> ListUsersBuilder<'a, (i32, i32)> {
     }
 }
 pub struct CreateProductRow {
-    products_id: uuid::Uuid,
-    products_category_id: i32,
-    products_name: String,
-    products_description: Option<String>,
-    products_price: i32,
-    products_stock_quantity: i32,
-    products_attributes: Option<serde_json::Value>,
-    products_created_at: std::time::SystemTime,
-    products_updated_at: std::time::SystemTime,
+    pub products_id: uuid::Uuid,
+    pub products_category_id: i32,
+    pub products_name: String,
+    pub products_description: Option<String>,
+    pub products_price: i32,
+    pub products_stock_quantity: i32,
+    pub products_attributes: Option<serde_json::Value>,
+    pub products_created_at: std::time::SystemTime,
+    pub products_updated_at: std::time::SystemTime,
 }
 impl CreateProductRow {
     fn from_row(
@@ -439,7 +439,7 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
     }
 }
 impl<'a> CreateProduct<'a> {
-    const fn builder() -> CreateProductBuilder<'a, ((), (), (), (), (), ())> {
+    pub const fn builder() -> CreateProductBuilder<'a, ((), (), (), (), (), ())> {
         CreateProductBuilder {
             fields: ((), (), (), (), (), ()),
             _phantom: std::marker::PhantomData,
@@ -805,15 +805,15 @@ impl<'a>
     }
 }
 pub struct GetProductWithCategoryRow {
-    products_id: uuid::Uuid,
-    products_name: String,
-    products_description: Option<String>,
-    products_price: i32,
-    products_stock_quantity: i32,
-    products_attributes: Option<serde_json::Value>,
-    products_created_at: std::time::SystemTime,
-    categories_category_name: String,
-    categories_category_slug: String,
+    pub products_id: uuid::Uuid,
+    pub products_name: String,
+    pub products_description: Option<String>,
+    pub products_price: i32,
+    pub products_stock_quantity: i32,
+    pub products_attributes: Option<serde_json::Value>,
+    pub products_created_at: std::time::SystemTime,
+    pub categories_category_name: String,
+    pub categories_category_slug: String,
 }
 impl GetProductWithCategoryRow {
     fn from_row(
@@ -902,16 +902,16 @@ impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
     }
 }
 pub struct SearchProductsRow {
-    products_id: uuid::Uuid,
-    products_category_id: i32,
-    products_name: String,
-    products_description: Option<String>,
-    products_price: i32,
-    products_stock_quantity: i32,
-    products_attributes: Option<serde_json::Value>,
-    products_created_at: std::time::SystemTime,
-    products_updated_at: std::time::SystemTime,
-    average_rating: f64,
+    pub products_id: uuid::Uuid,
+    pub products_category_id: i32,
+    pub products_name: String,
+    pub products_description: Option<String>,
+    pub products_price: i32,
+    pub products_stock_quantity: i32,
+    pub products_attributes: Option<serde_json::Value>,
+    pub products_created_at: std::time::SystemTime,
+    pub products_updated_at: std::time::SystemTime,
+    pub average_rating: f64,
 }
 impl SearchProductsRow {
     fn from_row(
@@ -981,7 +981,7 @@ OFFSET $2";
     }
 }
 impl<'a> SearchProducts<'a> {
-    const fn builder() -> SearchProductsBuilder<'a, ((), (), (), (), (), ())> {
+    pub const fn builder() -> SearchProductsBuilder<'a, ((), (), (), (), (), ())> {
         SearchProductsBuilder {
             fields: ((), (), (), (), (), ()),
             _phantom: std::marker::PhantomData,
@@ -1274,15 +1274,15 @@ impl<'a>
     }
 }
 pub struct GetProductsWithSpecificAttributeRow {
-    products_id: uuid::Uuid,
-    products_category_id: i32,
-    products_name: String,
-    products_description: Option<String>,
-    products_price: i32,
-    products_stock_quantity: i32,
-    products_attributes: Option<serde_json::Value>,
-    products_created_at: std::time::SystemTime,
-    products_updated_at: std::time::SystemTime,
+    pub products_id: uuid::Uuid,
+    pub products_category_id: i32,
+    pub products_name: String,
+    pub products_description: Option<String>,
+    pub products_price: i32,
+    pub products_stock_quantity: i32,
+    pub products_attributes: Option<serde_json::Value>,
+    pub products_created_at: std::time::SystemTime,
+    pub products_updated_at: std::time::SystemTime,
 }
 impl GetProductsWithSpecificAttributeRow {
     fn from_row(
@@ -1319,7 +1319,7 @@ WHERE attributes @> $1::jsonb";
     }
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
-    const fn builder() -> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
+    pub const fn builder() -> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
         GetProductsWithSpecificAttributeBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
@@ -1425,11 +1425,11 @@ impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
     }
 }
 pub struct CreateOrderRow {
-    orders_id: i64,
-    orders_user_id: uuid::Uuid,
-    orders_status: OrderStatus,
-    orders_total_amount: i32,
-    orders_ordered_at: std::time::SystemTime,
+    pub orders_id: i64,
+    pub orders_user_id: uuid::Uuid,
+    pub orders_status: OrderStatus,
+    pub orders_total_amount: i32,
+    pub orders_ordered_at: std::time::SystemTime,
 }
 impl CreateOrderRow {
     fn from_row(
@@ -1555,11 +1555,11 @@ impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
     }
 }
 pub struct CreateOrderItemRow {
-    order_items_id: i64,
-    order_items_order_id: i64,
-    order_items_product_id: uuid::Uuid,
-    order_items_quantity: i32,
-    order_items_price_at_purchase: i32,
+    pub order_items_id: i64,
+    pub order_items_order_id: i64,
+    pub order_items_product_id: uuid::Uuid,
+    pub order_items_quantity: i32,
+    pub order_items_price_at_purchase: i32,
 }
 impl CreateOrderItemRow {
     fn from_row(
@@ -1798,13 +1798,13 @@ impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
     }
 }
 pub struct GetOrderDetailsRow {
-    orders_order_id: i64,
-    orders_status: OrderStatus,
-    orders_total_amount: i32,
-    orders_ordered_at: std::time::SystemTime,
-    users_user_id: uuid::Uuid,
-    users_username: String,
-    users_email: String,
+    pub orders_order_id: i64,
+    pub orders_status: OrderStatus,
+    pub orders_total_amount: i32,
+    pub orders_ordered_at: std::time::SystemTime,
+    pub users_user_id: uuid::Uuid,
+    pub users_username: String,
+    pub users_email: String,
 }
 impl GetOrderDetailsRow {
     fn from_row(
@@ -1883,10 +1883,10 @@ impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
     }
 }
 pub struct ListOrderItemsByOrderIdRow {
-    order_items_quantity: i32,
-    order_items_price_at_purchase: i32,
-    products_product_id: uuid::Uuid,
-    products_product_name: String,
+    pub order_items_quantity: i32,
+    pub order_items_price_at_purchase: i32,
+    pub products_product_id: uuid::Uuid,
+    pub products_product_name: String,
 }
 impl ListOrderItemsByOrderIdRow {
     fn from_row(
@@ -1958,12 +1958,12 @@ impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
     }
 }
 pub struct CreateReviewRow {
-    reviews_id: i64,
-    reviews_user_id: uuid::Uuid,
-    reviews_product_id: uuid::Uuid,
-    reviews_rating: i32,
-    reviews_comment: Option<String>,
-    reviews_created_at: std::time::SystemTime,
+    pub reviews_id: i64,
+    pub reviews_user_id: uuid::Uuid,
+    pub reviews_product_id: uuid::Uuid,
+    pub reviews_rating: i32,
+    pub reviews_comment: Option<String>,
+    pub reviews_created_at: std::time::SystemTime,
 }
 impl CreateReviewRow {
     fn from_row(
@@ -2028,7 +2028,7 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
     }
 }
 impl<'a> CreateReview<'a> {
-    const fn builder() -> CreateReviewBuilder<'a, ((), (), (), ())> {
+    pub const fn builder() -> CreateReviewBuilder<'a, ((), (), (), ())> {
         CreateReviewBuilder {
             fields: ((), (), (), ()),
             _phantom: std::marker::PhantomData,
@@ -2140,9 +2140,9 @@ impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)>
     }
 }
 pub struct GetProductAverageRatingRow {
-    reviews_product_id: uuid::Uuid,
-    average_rating: f64,
-    review_count: i64,
+    pub reviews_product_id: uuid::Uuid,
+    pub average_rating: f64,
+    pub review_count: i64,
 }
 impl GetProductAverageRatingRow {
     fn from_row(
@@ -2220,10 +2220,10 @@ impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
     }
 }
 pub struct GetCategorySalesRankingRow {
-    categories_category_id: i32,
-    categories_category_name: String,
-    total_sales: i64,
-    total_orders: i64,
+    pub categories_category_id: i32,
+    pub categories_category_name: String,
+    pub total_sales: i64,
+    pub total_orders: i64,
 }
 impl GetCategorySalesRankingRow {
     fn from_row(
