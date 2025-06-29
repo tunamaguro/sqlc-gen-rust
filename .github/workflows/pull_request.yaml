@@ -94,4 +94,4 @@ jobs:
           POSTGRES_PASSWORD: password
           POSTGRES_PORT: 5432
         run: |
-          cargo test --workspace
+          just test
