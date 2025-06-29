@@ -1,0 +1,463 @@
+
+õ
+2
+postgresqlexamples/e-commerce/schema.sql"examples/e-commerce/queries.sqlb¢
+examples/e-commerce/srcsqlc-gen-rust2x
+4file://target/wasm32-wasip1/debug/sqlc-gen-rust.wasm@ba557f870061ca909fc203261e1197e3fa8e83b23d5d041b300e50b566142d56øpublic"âpublicë
+users"
+id0ÿÿÿÿÿÿÿÿÿRusersbuuid7
+username0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarchar4
+email0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarchar/
+hashed_password0ÿÿÿÿÿÿÿÿÿRusersbtext6
+	full_name0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarchar1
+
+created_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptz1
+
+updated_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptzç
+
+categories)
+id0ÿÿÿÿÿÿÿÿÿR
+categoriesbserial8
+	parent_id0ÿÿÿÿÿÿÿÿÿR
+categoriesb
+pg_catalogint48
+name0ÿÿÿÿÿÿÿÿÿR
+categoriesb
+pg_catalogvarchar8
+slug0ÿÿÿÿÿÿÿÿÿR
+categoriesb
+pg_catalogvarcharä
+
+products%
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuid:
+category_id0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint46
+name0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogvarchar,
+description0ÿÿÿÿÿÿÿÿÿR
+productsbtext4
+price0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4=
+stock_quantity0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4,
+
+attributes0ÿÿÿÿÿÿÿÿÿR
+productsbjsonb4
+
+created_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptz4
+
+updated_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzş
+orders(
+id0ÿÿÿÿÿÿÿÿÿRordersb	bigserial(
+user_id0ÿÿÿÿÿÿÿÿÿRordersbuuid/
+status0ÿÿÿÿÿÿÿÿÿRordersborder_status9
+total_amount0ÿÿÿÿÿÿÿÿÿRordersb
+pg_catalogint42
+
+ordered_at0ÿÿÿÿÿÿÿÿÿRordersbtimestamptz­
+order_items-
+id0ÿÿÿÿÿÿÿÿÿRorder_itemsb	bigserial:
+order_id0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint80
+
+product_id0ÿÿÿÿÿÿÿÿÿRorder_itemsbuuid:
+quantity0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint4C
+price_at_purchase0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint4£
+	reviews)
+id0ÿÿÿÿÿÿÿÿÿR	reviewsb	bigserial)
+user_id0ÿÿÿÿÿÿÿÿÿR	reviewsbuuid,
+
+product_id0ÿÿÿÿÿÿÿÿÿR	reviewsbuuid4
+rating0ÿÿÿÿÿÿÿÿÿR	reviewsb
+pg_catalogint4'
+comment0ÿÿÿÿÿÿÿÿÿR	reviewsbtext3
+
+created_at0ÿÿÿÿÿÿÿÿÿR	reviewsbtimestamptz"B
+order_statuspending
+processingshipped	delivered	cancelled"	pg_temp½
+µINSERT INTO users (
+    username, email, hashed_password, full_name
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, username, email, hashed_password, full_name, created_at, updated_at
+CreateUser:one"&
+id0ÿÿÿÿÿÿÿÿÿRusersbuuidzid"A
+username0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzusername";
+email0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzemail"@
+hashed_password0ÿÿÿÿÿÿÿÿÿRusersbtextzhashed_password"A
+	full_name0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharz	full_name"=
+
+created_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptzz
+created_at"=
+
+updated_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptzz
+updated_at*LH
+username0ÿÿÿÿÿÿÿÿÿRpublicusersbpg_catalog.varcharzusername*FB
+email0ÿÿÿÿÿÿÿÿÿRpublicusersbpg_catalog.varcharzemail*LH
+hashed_password0ÿÿÿÿÿÿÿÿÿRpublicusersbtextzhashed_password*LH
+	full_name0ÿÿÿÿÿÿÿÿÿRpublicusersbpg_catalog.varcharz	full_name:queries.sqlBusers‚
+rSELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+WHERE email = $1 LIMIT 1GetUserByEmail:one"&
+id0ÿÿÿÿÿÿÿÿÿRusersbuuidzid"A
+username0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzusername";
+email0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzemail"@
+hashed_password0ÿÿÿÿÿÿÿÿÿRusersbtextzhashed_password"A
+	full_name0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharz	full_name"=
+
+created_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptzz
+created_at"=
+
+updated_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptzz
+updated_at*>:
+email0ÿÿÿÿÿÿÿÿÿRusersbpg_catalog.varcharzemail:queries.sqlş
+hSELECT id, username, email, full_name, created_at FROM users
+ORDER BY created_at DESC
+LIMIT $1
+OFFSET $2	ListUsers:many"&
+id0ÿÿÿÿÿÿÿÿÿRusersbuuidzid"A
+username0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzusername";
+email0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzemail"A
+	full_name0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharz	full_name"=
+
+created_at0ÿÿÿÿÿÿÿÿÿRusersbtimestamptzz
+created_at*#
+limit0ÿÿÿÿÿÿÿÿÿb	integer*$ 
+offset0ÿÿÿÿÿÿÿÿÿb	integer:queries.sql 
+
+ìINSERT INTO products (
+    category_id, name, description, price, stock_quantity, attributes
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_atCreateProduct:one")
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid"G
+category_id0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zcategory_id"<
+name0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogvarcharzname"9
+description0ÿÿÿÿÿÿÿÿÿR
+productsbtextzdescription";
+price0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zprice"M
+stock_quantity0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zstock_quantity"8
+
+attributes0ÿÿÿÿÿÿÿÿÿR
+productsbjsonbz
+attributes"@
+
+created_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+created_at"@
+
+updated_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+updated_at*RN
+category_id0ÿÿÿÿÿÿÿÿÿRpublicproductsbpg_catalog.int4zcategory_id*GC
+name0ÿÿÿÿÿÿÿÿÿRpublicproductsbpg_catalog.varcharzname*EA
+description0ÿÿÿÿÿÿÿÿÿRpublicproductsbtextzdescription*FB
+price0ÿÿÿÿÿÿÿÿÿRpublicproductsbpg_catalog.int4zprice*XT
+stock_quantity0ÿÿÿÿÿÿÿÿÿRpublicproductsbpg_catalog.int4zstock_quantity*D@
+
+attributes0ÿÿÿÿÿÿÿÿÿRpublicproductsbjsonbz
+attributes:queries.sqlB
+products 
+…SELECT
+    p.id,
+    p.name,
+    p.description,
+    p.price,
+    p.stock_quantity,
+    p.attributes,
+    p.created_at,
+    c.name as category_name,
+    c.slug as category_slug
+FROM
+    products p
+JOIN
+    categories c ON p.category_id = c.id
+WHERE
+    p.id = $1GetProductWithCategory:one")
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid"<
+name0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogvarcharzname"9
+description0ÿÿÿÿÿÿÿÿÿR
+productsbtextzdescription";
+price0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zprice"M
+stock_quantity0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zstock_quantity"8
+
+attributes0ÿÿÿÿÿÿÿÿÿR
+productsbjsonbz
+attributes"@
+
+created_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+created_at"G
+category_name0ÿÿÿÿÿÿÿÿÿR
+categoriesb
+pg_catalogvarcharzname"G
+category_slug0ÿÿÿÿÿÿÿÿÿR
+categoriesb
+pg_catalogvarcharzslug*-)
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid:queries.sqlš
+¹SELECT
+    p.id, p.category_id, p.name, p.description, p.price, p.stock_quantity, p.attributes, p.created_at, p.updated_at,
+    (SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id) as average_rating
+FROM products p
+WHERE
+    (p.name ILIKE $3 OR p.description ILIKE $3)
+AND
+    p.category_id = ANY($4::int[])
+AND
+    p.price >= $5
+AND
+    p.price <= $6
+AND
+    p.stock_quantity > 0
+ORDER BY
+    p.created_at DESC
+LIMIT $1
+OFFSET $2SearchProducts:many")
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid"G
+category_id0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zcategory_id"<
+name0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogvarcharzname"9
+description0ÿÿÿÿÿÿÿÿÿR
+productsbtextzdescription";
+price0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zprice"M
+stock_quantity0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zstock_quantity"8
+
+attributes0ÿÿÿÿÿÿÿÿÿR
+productsbjsonbz
+attributes"@
+
+created_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+created_at"@
+
+updated_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+updated_at"3
+average_rating0ÿÿÿÿÿÿÿÿÿ@bdouble precision*#
+limit0ÿÿÿÿÿÿÿÿÿb	integer*$ 
+offset0ÿÿÿÿÿÿÿÿÿb	integer*?;
+name0ÿÿÿÿÿÿÿÿÿ8R
+productsbpg_catalog.varcharzname*84
+category_ids 0ÿÿÿÿÿÿÿÿÿb
+pg_catalogint4ˆ*B>
+	min_price0ÿÿÿÿÿÿÿÿÿ8R
+productsbpg_catalog.int4zprice*B>
+	max_price0ÿÿÿÿÿÿÿÿÿ8R
+productsbpg_catalog.int4zprice:queries.sql
+SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
+WHERE attributes @> $1::jsonb GetProductsWithSpecificAttribute:many")
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid"G
+category_id0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zcategory_id"<
+name0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogvarcharzname"9
+description0ÿÿÿÿÿÿÿÿÿR
+productsbtextzdescription";
+price0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zprice"M
+stock_quantity0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogint4zstock_quantity"8
+
+attributes0ÿÿÿÿÿÿÿÿÿR
+productsbjsonbz
+attributes"@
+
+created_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+created_at"@
+
+updated_at0ÿÿÿÿÿÿÿÿÿR
+productsbtimestamptzz
+updated_at*0ÿÿÿÿÿÿÿÿÿbjsonb2< JSONBå†…ã®ç‰¹å®šã®ã‚­ãƒ¼ã¨å€¤ã§å•†å“ã‚’æ¤œç´¢ã™ã‚‹ä¾‹21 e.g., '{"brand": "super-brand", "color": "red"}':queries.sqlñ
+FUPDATE products
+SET stock_quantity = stock_quantity + $2
+WHERE id = $1UpdateProductStock:exec*-)
+id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid*PL
+add_quantity0ÿÿÿÿÿÿÿÿÿ8R
+productsbpg_catalog.int4zstock_quantity:queries.sqlƒ
+~INSERT INTO orders (user_id, status, total_amount)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, status, total_amount, ordered_atCreateOrder:one",
+id0ÿÿÿÿÿÿÿÿÿRordersb	bigserialzid"1
+user_id0ÿÿÿÿÿÿÿÿÿRordersbuuidzuser_id"7
+status0ÿÿÿÿÿÿÿÿÿRordersborder_statuszstatus"G
+total_amount0ÿÿÿÿÿÿÿÿÿRordersb
+pg_catalogint4ztotal_amount">
+
+ordered_at0ÿÿÿÿÿÿÿÿÿRordersbtimestamptzz
+ordered_at*=9
+user_id0ÿÿÿÿÿÿÿÿÿRpublicordersbuuidzuser_id*C?
+status0ÿÿÿÿÿÿÿÿÿRpublicordersborder_statuszstatus*RN
+total_amount0ÿÿÿÿÿÿÿÿÿRpublicordersbpg_catalog.int4ztotal_amount2\ å®Ÿéš›ã«ã¯ãƒˆãƒ©ãƒ³ã‚¶ã‚¯ã‚·ãƒ§ãƒ³å†…ã§ order_items ã‚‚ä½œæˆã™ã‚‹å¿…è¦ãŒã‚ã‚Šã¾ã™:queries.sqlBordersı
+£INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
+VALUES ($1, $2, $3, $4)
+RETURNING id, order_id, product_id, quantity, price_at_purchaseCreateOrderItem:one"1
+id0ÿÿÿÿÿÿÿÿÿRorder_itemsb	bigserialzid"D
+order_id0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint8zorder_id"<
+
+product_id0ÿÿÿÿÿÿÿÿÿRorder_itemsbuuidz
+product_id"D
+quantity0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint4zquantity"V
+price_at_purchase0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint4zprice_at_purchase*OK
+order_id0ÿÿÿÿÿÿÿÿÿRpublicorder_itemsbpg_catalog.int8zorder_id*HD
+
+product_id0ÿÿÿÿÿÿÿÿÿRpublicorder_itemsbuuidz
+product_id*OK
+quantity0ÿÿÿÿÿÿÿÿÿRpublicorder_itemsbpg_catalog.int4zquantity*a]
+price_at_purchase0ÿÿÿÿÿÿÿÿÿRpublicorder_itemsbpg_catalog.int4zprice_at_purchase:queries.sqlBorder_items¼
+ÀSELECT
+    o.id as order_id,
+    o.status,
+    o.total_amount,
+    o.ordered_at,
+    u.id as user_id,
+    u.username,
+    u.email
+FROM orders o
+JOIN users u ON o.user_id = u.id
+WHERE o.id = $1GetOrderDetails:one"2
+order_id0ÿÿÿÿÿÿÿÿÿRordersb	bigserialzid"7
+status0ÿÿÿÿÿÿÿÿÿRordersborder_statuszstatus"G
+total_amount0ÿÿÿÿÿÿÿÿÿRordersb
+pg_catalogint4ztotal_amount">
+
+ordered_at0ÿÿÿÿÿÿÿÿÿRordersbtimestamptzz
+ordered_at"+
+user_id0ÿÿÿÿÿÿÿÿÿRusersbuuidzid"A
+username0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzusername";
+email0ÿÿÿÿÿÿÿÿÿRusersb
+pg_catalogvarcharzemail*0,
+id0ÿÿÿÿÿÿÿÿÿRordersb	bigserialzid:queries.sqlÇ
+·SELECT
+    oi.quantity,
+    oi.price_at_purchase,
+    p.id as product_id,
+    p.name as product_name
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id
+WHERE oi.order_id = $1ListOrderItemsByOrderID:many"D
+quantity0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint4zquantity"V
+price_at_purchase0ÿÿÿÿÿÿÿÿÿRorder_itemsb
+pg_catalogint4zprice_at_purchase"1
+
+product_id0ÿÿÿÿÿÿÿÿÿR
+productsbuuidzid"D
+product_name0ÿÿÿÿÿÿÿÿÿR
+productsb
+pg_catalogvarcharzname*GC
+order_id0ÿÿÿÿÿÿÿÿÿRorder_itemsbpg_catalog.int8zorder_id:queries.sql›
+‘INSERT INTO reviews (user_id, product_id, rating, comment)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, product_id, rating, comment, created_atCreateReview:one"-
+id0ÿÿÿÿÿÿÿÿÿR	reviewsb	bigserialzid"2
+user_id0ÿÿÿÿÿÿÿÿÿR	reviewsbuuidzuser_id"8
+
+product_id0ÿÿÿÿÿÿÿÿÿR	reviewsbuuidz
+product_id"<
+rating0ÿÿÿÿÿÿÿÿÿR	reviewsb
+pg_catalogint4zrating"0
+comment0ÿÿÿÿÿÿÿÿÿR	reviewsbtextzcomment"?
+
+created_at0ÿÿÿÿÿÿÿÿÿR	reviewsbtimestamptzz
+created_at*>:
+user_id0ÿÿÿÿÿÿÿÿÿRpublicreviewsbuuidzuser_id*D@
+
+product_id0ÿÿÿÿÿÿÿÿÿRpublicreviewsbuuidz
+product_id*GC
+rating0ÿÿÿÿÿÿÿÿÿRpublicreviewsbpg_catalog.int4zrating*<8
+comment0ÿÿÿÿÿÿÿÿÿRpublicreviewsbtextzcomment:queries.sqlB	reviewsš
+•SELECT
+    product_id,
+    AVG(rating)::float as average_rating,
+    COUNT(id) as review_count
+FROM reviews
+WHERE product_id = $1
+GROUP BY product_idGetProductAverageRating:one"8
+
+product_id0ÿÿÿÿÿÿÿÿÿR	reviewsbuuidz
+product_id"3
+average_rating0ÿÿÿÿÿÿÿÿÿb
+pg_catalogfloat8"'
+review_count0ÿÿÿÿÿÿÿÿÿ@bbigint*<8
+
+product_id0ÿÿÿÿÿÿÿÿÿR	reviewsbuuidz
+product_id:queries.sql§
+†SELECT
+    c.id as category_id,
+    c.name as category_name,
+    SUM(oi.quantity * oi.price_at_purchase) as total_sales,
+    COUNT(DISTINCT o.id) as total_orders
+FROM categories c
+JOIN products p ON c.id = p.category_id
+JOIN order_items oi ON p.id = oi.product_id
+JOIN orders o ON oi.order_id = o.id
+WHERE o.status IN ('delivered', 'shipped')
+GROUP BY c.id, c.name
+ORDER BY total_sales DESCGetCategorySalesRanking:many"6
+category_id0ÿÿÿÿÿÿÿÿÿR
+categoriesbserialzid"G
+category_name0ÿÿÿÿÿÿÿÿÿR
+categoriesb
+pg_catalogvarcharzname"&
+total_sales0ÿÿÿÿÿÿÿÿÿ@bbigint"'
+total_orders0ÿÿÿÿÿÿÿÿÿ@bbigint2 è¤‡é›‘ãªJOINã¨é›†è¨ˆã®ä¾‹:queries.sql¡
+DELETE FROM users WHERE id = $1DeleteUserAndRelatedData:exec**&
+id0ÿÿÿÿÿÿÿÿÿRusersbuuidzid2$ ON DELETE CASCADEã®å‹•ä½œç¢ºèªç”¨:queries.sql"v1.28.0
