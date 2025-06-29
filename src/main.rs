@@ -524,10 +524,7 @@ struct TokioPostgres;
 
 impl TokioPostgres {
     fn need_lifetime(query: &Query) -> bool {
-        query
-            .param_types
-            .iter()
-            .fold(false, |acc, x| acc | x.need_lifetime())
+        query.param_types.iter().any(|x| x.need_lifetime())
     }
     /// Generate type-state builder
     fn create_builder(query: &Query) -> proc_macro2::TokenStream {
