@@ -211,14 +211,19 @@ pub(crate) trait DbCrate {
     fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, Default)]
 struct OverrideType {
+    /// Override db type
     db_type: String,
+    /// Override Rust type
     rs_type: String,
+    /// Rust type's slice if have
+    rs_slice: Option<String>,
+    /// Marker is copy cheap
     copy_cheap: bool,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
 struct Config {
     output: String,
@@ -247,11 +252,21 @@ pub fn try_main() -> Result<(), Error> {
 
     let request = deserialize_codegen_request(&buffer)?;
     let config = Config::from_option(&request.plugin_options)?;
-    str::from_utf8(&request.plugin_options).map_err(|e| Error::any(e.into()))?;
-
-    let mut response = plugin::GenerateResponse::default();
 
     let mut db_type = DbTypeMap::new_for_postgres();
+    for override_type in config.overrides {
+        let owned_type = syn::parse_str::<syn::Type>(&override_type.rs_type)
+            .map_err(|e| Error::any(e.into()))?;
+        let slice_type = override_type
+            .rs_slice
+            .map(|s| syn::parse_str::<syn::Type>(&s))
+            .transpose()
+            .map_err(|e| Error::any(e.into()))?;
+        db_type.insert_type(
+            &override_type.db_type,
+            RsType::new(owned_type, slice_type, override_type.copy_cheap),
+        );
+    }
 
     let defined_enums = request
         .catalog
@@ -310,6 +325,7 @@ pub fn try_main() -> Result<(), Error> {
         #enums_tt
         #queries_tt
     };
+    let mut response = plugin::GenerateResponse::default();
     let ast = syn::parse2(tt).map_err(|e| Error::any(e.into()))?;
     let query_file = plugin::File {
         name: config.output,
