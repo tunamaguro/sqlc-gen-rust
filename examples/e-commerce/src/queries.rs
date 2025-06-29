@@ -97,6 +97,94 @@ struct CreateUserBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a, UsersEmail, UsersHashedPassword, UsersFullName>
+    CreateUserBuilder<'a, ((), UsersEmail, UsersHashedPassword, UsersFullName)>
+{
+    fn users_username(
+        self,
+        users_username: &'a str,
+    ) -> CreateUserBuilder<'a, (&'a str, UsersEmail, UsersHashedPassword, UsersFullName)> {
+        let ((), users_email, users_hashed_password, users_full_name) = self.fields;
+        let _phantom = self._phantom;
+        CreateUserBuilder {
+            fields: (
+                users_username,
+                users_email,
+                users_hashed_password,
+                users_full_name,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, UsersUsername, UsersHashedPassword, UsersFullName>
+    CreateUserBuilder<'a, (UsersUsername, (), UsersHashedPassword, UsersFullName)>
+{
+    fn users_email(
+        self,
+        users_email: &'a str,
+    ) -> CreateUserBuilder<'a, (UsersUsername, &'a str, UsersHashedPassword, UsersFullName)> {
+        let (users_username, (), users_hashed_password, users_full_name) = self.fields;
+        let _phantom = self._phantom;
+        CreateUserBuilder {
+            fields: (
+                users_username,
+                users_email,
+                users_hashed_password,
+                users_full_name,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, UsersUsername, UsersEmail, UsersFullName>
+    CreateUserBuilder<'a, (UsersUsername, UsersEmail, (), UsersFullName)>
+{
+    fn users_hashed_password(
+        self,
+        users_hashed_password: &'a str,
+    ) -> CreateUserBuilder<'a, (UsersUsername, UsersEmail, &'a str, UsersFullName)> {
+        let (users_username, users_email, (), users_full_name) = self.fields;
+        let _phantom = self._phantom;
+        CreateUserBuilder {
+            fields: (
+                users_username,
+                users_email,
+                users_hashed_password,
+                users_full_name,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, UsersUsername, UsersEmail, UsersHashedPassword>
+    CreateUserBuilder<'a, (UsersUsername, UsersEmail, UsersHashedPassword, ())>
+{
+    fn users_full_name(
+        self,
+        users_full_name: Option<&'a str>,
+    ) -> CreateUserBuilder<
+        'a,
+        (
+            UsersUsername,
+            UsersEmail,
+            UsersHashedPassword,
+            Option<&'a str>,
+        ),
+    > {
+        let (users_username, users_email, users_hashed_password, ()) = self.fields;
+        let _phantom = self._phantom;
+        CreateUserBuilder {
+            fields: (
+                users_username,
+                users_email,
+                users_hashed_password,
+                users_full_name,
+            ),
+            _phantom,
+        }
+    }
+}
 impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
     const fn build(self) -> CreateUser<'a> {
         let (users_username, users_email, users_hashed_password, users_full_name) = self.fields;
@@ -166,6 +254,16 @@ struct GetUserByEmailBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a> GetUserByEmailBuilder<'a, ((),)> {
+    fn users_email(self, users_email: &'a str) -> GetUserByEmailBuilder<'a, (&'a str,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        GetUserByEmailBuilder {
+            fields: (users_email,),
+            _phantom,
+        }
+    }
+}
 impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
     const fn build(self) -> GetUserByEmail<'a> {
         let (users_email,) = self.fields;
@@ -222,6 +320,26 @@ impl ListUsers {
 struct ListUsersBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a, Offset> ListUsersBuilder<'a, ((), Offset)> {
+    fn limit(self, limit: i32) -> ListUsersBuilder<'a, (i32, Offset)> {
+        let ((), offset) = self.fields;
+        let _phantom = self._phantom;
+        ListUsersBuilder {
+            fields: (limit, offset),
+            _phantom,
+        }
+    }
+}
+impl<'a, Limit> ListUsersBuilder<'a, (Limit, ())> {
+    fn offset(self, offset: i32) -> ListUsersBuilder<'a, (Limit, i32)> {
+        let (limit, ()) = self.fields;
+        let _phantom = self._phantom;
+        ListUsersBuilder {
+            fields: (limit, offset),
+            _phantom,
+        }
+    }
 }
 impl<'a> ListUsersBuilder<'a, (i32, i32)> {
     const fn build(self) -> ListUsers {
@@ -323,6 +441,328 @@ impl<'a> CreateProduct<'a> {
 struct CreateProductBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<
+    'a,
+    ProductsName,
+    ProductsDescription,
+    ProductsPrice,
+    ProductsStockQuantity,
+    ProductsAttributes,
+>
+    CreateProductBuilder<
+        'a,
+        (
+            (),
+            ProductsName,
+            ProductsDescription,
+            ProductsPrice,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    >
+{
+    fn products_category_id(
+        self,
+        products_category_id: i32,
+    ) -> CreateProductBuilder<
+        'a,
+        (
+            i32,
+            ProductsName,
+            ProductsDescription,
+            ProductsPrice,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    > {
+        let (
+            (),
+            products_name,
+            products_description,
+            products_price,
+            products_stock_quantity,
+            products_attributes,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        CreateProductBuilder {
+            fields: (
+                products_category_id,
+                products_name,
+                products_description,
+                products_price,
+                products_stock_quantity,
+                products_attributes,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    ProductsCategoryId,
+    ProductsDescription,
+    ProductsPrice,
+    ProductsStockQuantity,
+    ProductsAttributes,
+>
+    CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            (),
+            ProductsDescription,
+            ProductsPrice,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    >
+{
+    fn products_name(
+        self,
+        products_name: &'a str,
+    ) -> CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            &'a str,
+            ProductsDescription,
+            ProductsPrice,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    > {
+        let (
+            products_category_id,
+            (),
+            products_description,
+            products_price,
+            products_stock_quantity,
+            products_attributes,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        CreateProductBuilder {
+            fields: (
+                products_category_id,
+                products_name,
+                products_description,
+                products_price,
+                products_stock_quantity,
+                products_attributes,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, ProductsCategoryId, ProductsName, ProductsPrice, ProductsStockQuantity, ProductsAttributes>
+    CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            (),
+            ProductsPrice,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    >
+{
+    fn products_description(
+        self,
+        products_description: Option<&'a str>,
+    ) -> CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            Option<&'a str>,
+            ProductsPrice,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    > {
+        let (
+            products_category_id,
+            products_name,
+            (),
+            products_price,
+            products_stock_quantity,
+            products_attributes,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        CreateProductBuilder {
+            fields: (
+                products_category_id,
+                products_name,
+                products_description,
+                products_price,
+                products_stock_quantity,
+                products_attributes,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    ProductsCategoryId,
+    ProductsName,
+    ProductsDescription,
+    ProductsStockQuantity,
+    ProductsAttributes,
+>
+    CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            ProductsDescription,
+            (),
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    >
+{
+    fn products_price(
+        self,
+        products_price: i32,
+    ) -> CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            ProductsDescription,
+            i32,
+            ProductsStockQuantity,
+            ProductsAttributes,
+        ),
+    > {
+        let (
+            products_category_id,
+            products_name,
+            products_description,
+            (),
+            products_stock_quantity,
+            products_attributes,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        CreateProductBuilder {
+            fields: (
+                products_category_id,
+                products_name,
+                products_description,
+                products_price,
+                products_stock_quantity,
+                products_attributes,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, ProductsCategoryId, ProductsName, ProductsDescription, ProductsPrice, ProductsAttributes>
+    CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            ProductsDescription,
+            ProductsPrice,
+            (),
+            ProductsAttributes,
+        ),
+    >
+{
+    fn products_stock_quantity(
+        self,
+        products_stock_quantity: i32,
+    ) -> CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            ProductsDescription,
+            ProductsPrice,
+            i32,
+            ProductsAttributes,
+        ),
+    > {
+        let (
+            products_category_id,
+            products_name,
+            products_description,
+            products_price,
+            (),
+            products_attributes,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        CreateProductBuilder {
+            fields: (
+                products_category_id,
+                products_name,
+                products_description,
+                products_price,
+                products_stock_quantity,
+                products_attributes,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    ProductsCategoryId,
+    ProductsName,
+    ProductsDescription,
+    ProductsPrice,
+    ProductsStockQuantity,
+>
+    CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            ProductsDescription,
+            ProductsPrice,
+            ProductsStockQuantity,
+            (),
+        ),
+    >
+{
+    fn products_attributes(
+        self,
+        products_attributes: Option<&'a serde_json::Value>,
+    ) -> CreateProductBuilder<
+        'a,
+        (
+            ProductsCategoryId,
+            ProductsName,
+            ProductsDescription,
+            ProductsPrice,
+            ProductsStockQuantity,
+            Option<&'a serde_json::Value>,
+        ),
+    > {
+        let (
+            products_category_id,
+            products_name,
+            products_description,
+            products_price,
+            products_stock_quantity,
+            (),
+        ) = self.fields;
+        let _phantom = self._phantom;
+        CreateProductBuilder {
+            fields: (
+                products_category_id,
+                products_name,
+                products_description,
+                products_price,
+                products_stock_quantity,
+                products_attributes,
+            ),
+            _phantom,
+        }
+    }
 }
 impl<'a>
     CreateProductBuilder<
@@ -432,6 +872,19 @@ struct GetProductWithCategoryBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a> GetProductWithCategoryBuilder<'a, ((),)> {
+    fn products_id(
+        self,
+        products_id: uuid::Uuid,
+    ) -> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        GetProductWithCategoryBuilder {
+            fields: (products_id,),
+            _phantom,
+        }
+    }
+}
 impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
     const fn build(self) -> GetProductWithCategory {
         let (products_id,) = self.fields;
@@ -527,6 +980,261 @@ struct SearchProductsBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a, Offset, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
+    SearchProductsBuilder<
+        'a,
+        (
+            (),
+            Offset,
+            ProductsName,
+            CategoryIds,
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    >
+{
+    fn limit(
+        self,
+        limit: i32,
+    ) -> SearchProductsBuilder<
+        'a,
+        (
+            i32,
+            Offset,
+            ProductsName,
+            CategoryIds,
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    > {
+        let ((), offset, products_name, category_ids, products_min_price, products_max_price) =
+            self.fields;
+        let _phantom = self._phantom;
+        SearchProductsBuilder {
+            fields: (
+                limit,
+                offset,
+                products_name,
+                category_ids,
+                products_min_price,
+                products_max_price,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, Limit, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
+    SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            (),
+            ProductsName,
+            CategoryIds,
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    >
+{
+    fn offset(
+        self,
+        offset: i32,
+    ) -> SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            i32,
+            ProductsName,
+            CategoryIds,
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    > {
+        let (limit, (), products_name, category_ids, products_min_price, products_max_price) =
+            self.fields;
+        let _phantom = self._phantom;
+        SearchProductsBuilder {
+            fields: (
+                limit,
+                offset,
+                products_name,
+                category_ids,
+                products_min_price,
+                products_max_price,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, Limit, Offset, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
+    SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            (),
+            CategoryIds,
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    >
+{
+    fn products_name(
+        self,
+        products_name: Option<&'a str>,
+    ) -> SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            Option<&'a str>,
+            CategoryIds,
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    > {
+        let (limit, offset, (), category_ids, products_min_price, products_max_price) = self.fields;
+        let _phantom = self._phantom;
+        SearchProductsBuilder {
+            fields: (
+                limit,
+                offset,
+                products_name,
+                category_ids,
+                products_min_price,
+                products_max_price,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, Limit, Offset, ProductsName, ProductsMinPrice, ProductsMaxPrice>
+    SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            ProductsName,
+            (),
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    >
+{
+    fn category_ids(
+        self,
+        category_ids: &'a [i32],
+    ) -> SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            ProductsName,
+            &'a [i32],
+            ProductsMinPrice,
+            ProductsMaxPrice,
+        ),
+    > {
+        let (limit, offset, products_name, (), products_min_price, products_max_price) =
+            self.fields;
+        let _phantom = self._phantom;
+        SearchProductsBuilder {
+            fields: (
+                limit,
+                offset,
+                products_name,
+                category_ids,
+                products_min_price,
+                products_max_price,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMaxPrice>
+    SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            ProductsName,
+            CategoryIds,
+            (),
+            ProductsMaxPrice,
+        ),
+    >
+{
+    fn products_min_price(
+        self,
+        products_min_price: Option<i32>,
+    ) -> SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            ProductsName,
+            CategoryIds,
+            Option<i32>,
+            ProductsMaxPrice,
+        ),
+    > {
+        let (limit, offset, products_name, category_ids, (), products_max_price) = self.fields;
+        let _phantom = self._phantom;
+        SearchProductsBuilder {
+            fields: (
+                limit,
+                offset,
+                products_name,
+                category_ids,
+                products_min_price,
+                products_max_price,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMinPrice>
+    SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            ProductsName,
+            CategoryIds,
+            ProductsMinPrice,
+            (),
+        ),
+    >
+{
+    fn products_max_price(
+        self,
+        products_max_price: Option<i32>,
+    ) -> SearchProductsBuilder<
+        'a,
+        (
+            Limit,
+            Offset,
+            ProductsName,
+            CategoryIds,
+            ProductsMinPrice,
+            Option<i32>,
+        ),
+    > {
+        let (limit, offset, products_name, category_ids, products_min_price, ()) = self.fields;
+        let _phantom = self._phantom;
+        SearchProductsBuilder {
+            fields: (
+                limit,
+                offset,
+                products_name,
+                category_ids,
+                products_min_price,
+                products_max_price,
+            ),
+            _phantom,
+        }
+    }
+}
 impl<'a>
     SearchProductsBuilder<
         'a,
@@ -607,6 +1315,19 @@ struct GetProductsWithSpecificAttributeBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
+    fn param(
+        self,
+        param: &'a serde_json::Value,
+    ) -> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        GetProductsWithSpecificAttributeBuilder {
+            fields: (param,),
+            _phantom,
+        }
+    }
+}
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
     const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
         let (param,) = self.fields;
@@ -650,6 +1371,32 @@ impl UpdateProductStock {
 struct UpdateProductStockBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a, ProductsAddQuantity> UpdateProductStockBuilder<'a, ((), ProductsAddQuantity)> {
+    fn products_id(
+        self,
+        products_id: uuid::Uuid,
+    ) -> UpdateProductStockBuilder<'a, (uuid::Uuid, ProductsAddQuantity)> {
+        let ((), products_add_quantity) = self.fields;
+        let _phantom = self._phantom;
+        UpdateProductStockBuilder {
+            fields: (products_id, products_add_quantity),
+            _phantom,
+        }
+    }
+}
+impl<'a, ProductsId> UpdateProductStockBuilder<'a, (ProductsId, ())> {
+    fn products_add_quantity(
+        self,
+        products_add_quantity: i32,
+    ) -> UpdateProductStockBuilder<'a, (ProductsId, i32)> {
+        let (products_id, ()) = self.fields;
+        let _phantom = self._phantom;
+        UpdateProductStockBuilder {
+            fields: (products_id, products_add_quantity),
+            _phantom,
+        }
+    }
 }
 impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
     const fn build(self) -> UpdateProductStock {
@@ -734,6 +1481,49 @@ impl CreateOrder {
 struct CreateOrderBuilder<'a, Fields = ((), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a, OrdersStatus, OrdersTotalAmount>
+    CreateOrderBuilder<'a, ((), OrdersStatus, OrdersTotalAmount)>
+{
+    fn orders_user_id(
+        self,
+        orders_user_id: uuid::Uuid,
+    ) -> CreateOrderBuilder<'a, (uuid::Uuid, OrdersStatus, OrdersTotalAmount)> {
+        let ((), orders_status, orders_total_amount) = self.fields;
+        let _phantom = self._phantom;
+        CreateOrderBuilder {
+            fields: (orders_user_id, orders_status, orders_total_amount),
+            _phantom,
+        }
+    }
+}
+impl<'a, OrdersUserId, OrdersTotalAmount>
+    CreateOrderBuilder<'a, (OrdersUserId, (), OrdersTotalAmount)>
+{
+    fn orders_status(
+        self,
+        orders_status: OrderStatus,
+    ) -> CreateOrderBuilder<'a, (OrdersUserId, OrderStatus, OrdersTotalAmount)> {
+        let (orders_user_id, (), orders_total_amount) = self.fields;
+        let _phantom = self._phantom;
+        CreateOrderBuilder {
+            fields: (orders_user_id, orders_status, orders_total_amount),
+            _phantom,
+        }
+    }
+}
+impl<'a, OrdersUserId, OrdersStatus> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, ())> {
+    fn orders_total_amount(
+        self,
+        orders_total_amount: i32,
+    ) -> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, i32)> {
+        let (orders_user_id, orders_status, ()) = self.fields;
+        let _phantom = self._phantom;
+        CreateOrderBuilder {
+            fields: (orders_user_id, orders_status, orders_total_amount),
+            _phantom,
+        }
+    }
 }
 impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
     const fn build(self) -> CreateOrder {
@@ -823,6 +1613,153 @@ struct CreateOrderItemBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a, OrderItemsProductId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
+    CreateOrderItemBuilder<
+        'a,
+        (
+            (),
+            OrderItemsProductId,
+            OrderItemsQuantity,
+            OrderItemsPriceAtPurchase,
+        ),
+    >
+{
+    fn order_items_order_id(
+        self,
+        order_items_order_id: i64,
+    ) -> CreateOrderItemBuilder<
+        'a,
+        (
+            i64,
+            OrderItemsProductId,
+            OrderItemsQuantity,
+            OrderItemsPriceAtPurchase,
+        ),
+    > {
+        let ((), order_items_product_id, order_items_quantity, order_items_price_at_purchase) =
+            self.fields;
+        let _phantom = self._phantom;
+        CreateOrderItemBuilder {
+            fields: (
+                order_items_order_id,
+                order_items_product_id,
+                order_items_quantity,
+                order_items_price_at_purchase,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, OrderItemsOrderId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
+    CreateOrderItemBuilder<
+        'a,
+        (
+            OrderItemsOrderId,
+            (),
+            OrderItemsQuantity,
+            OrderItemsPriceAtPurchase,
+        ),
+    >
+{
+    fn order_items_product_id(
+        self,
+        order_items_product_id: uuid::Uuid,
+    ) -> CreateOrderItemBuilder<
+        'a,
+        (
+            OrderItemsOrderId,
+            uuid::Uuid,
+            OrderItemsQuantity,
+            OrderItemsPriceAtPurchase,
+        ),
+    > {
+        let (order_items_order_id, (), order_items_quantity, order_items_price_at_purchase) =
+            self.fields;
+        let _phantom = self._phantom;
+        CreateOrderItemBuilder {
+            fields: (
+                order_items_order_id,
+                order_items_product_id,
+                order_items_quantity,
+                order_items_price_at_purchase,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsPriceAtPurchase>
+    CreateOrderItemBuilder<
+        'a,
+        (
+            OrderItemsOrderId,
+            OrderItemsProductId,
+            (),
+            OrderItemsPriceAtPurchase,
+        ),
+    >
+{
+    fn order_items_quantity(
+        self,
+        order_items_quantity: i32,
+    ) -> CreateOrderItemBuilder<
+        'a,
+        (
+            OrderItemsOrderId,
+            OrderItemsProductId,
+            i32,
+            OrderItemsPriceAtPurchase,
+        ),
+    > {
+        let (order_items_order_id, order_items_product_id, (), order_items_price_at_purchase) =
+            self.fields;
+        let _phantom = self._phantom;
+        CreateOrderItemBuilder {
+            fields: (
+                order_items_order_id,
+                order_items_product_id,
+                order_items_quantity,
+                order_items_price_at_purchase,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsQuantity>
+    CreateOrderItemBuilder<
+        'a,
+        (
+            OrderItemsOrderId,
+            OrderItemsProductId,
+            OrderItemsQuantity,
+            (),
+        ),
+    >
+{
+    fn order_items_price_at_purchase(
+        self,
+        order_items_price_at_purchase: i32,
+    ) -> CreateOrderItemBuilder<
+        'a,
+        (
+            OrderItemsOrderId,
+            OrderItemsProductId,
+            OrderItemsQuantity,
+            i32,
+        ),
+    > {
+        let (order_items_order_id, order_items_product_id, order_items_quantity, ()) = self.fields;
+        let _phantom = self._phantom;
+        CreateOrderItemBuilder {
+            fields: (
+                order_items_order_id,
+                order_items_product_id,
+                order_items_quantity,
+                order_items_price_at_purchase,
+            ),
+            _phantom,
+        }
+    }
+}
 impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
     const fn build(self) -> CreateOrderItem {
         let (
@@ -906,6 +1843,16 @@ struct GetOrderDetailsBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a> GetOrderDetailsBuilder<'a, ((),)> {
+    fn orders_id(self, orders_id: i64) -> GetOrderDetailsBuilder<'a, (i64,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        GetOrderDetailsBuilder {
+            fields: (orders_id,),
+            _phantom,
+        }
+    }
+}
 impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
     const fn build(self) -> GetOrderDetails {
         let (orders_id,) = self.fields;
@@ -963,6 +1910,19 @@ impl ListOrderItemsByOrderId {
 struct ListOrderItemsByOrderIdBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> ListOrderItemsByOrderIdBuilder<'a, ((),)> {
+    fn order_items_order_id(
+        self,
+        order_items_order_id: i64,
+    ) -> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        ListOrderItemsByOrderIdBuilder {
+            fields: (order_items_order_id,),
+            _phantom,
+        }
+    }
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
     const fn build(self) -> ListOrderItemsByOrderId {
@@ -1052,6 +2012,95 @@ struct CreateReviewBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
+impl<'a, ReviewsProductId, ReviewsRating, ReviewsComment>
+    CreateReviewBuilder<'a, ((), ReviewsProductId, ReviewsRating, ReviewsComment)>
+{
+    fn reviews_user_id(
+        self,
+        reviews_user_id: uuid::Uuid,
+    ) -> CreateReviewBuilder<'a, (uuid::Uuid, ReviewsProductId, ReviewsRating, ReviewsComment)>
+    {
+        let ((), reviews_product_id, reviews_rating, reviews_comment) = self.fields;
+        let _phantom = self._phantom;
+        CreateReviewBuilder {
+            fields: (
+                reviews_user_id,
+                reviews_product_id,
+                reviews_rating,
+                reviews_comment,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, ReviewsUserId, ReviewsRating, ReviewsComment>
+    CreateReviewBuilder<'a, (ReviewsUserId, (), ReviewsRating, ReviewsComment)>
+{
+    fn reviews_product_id(
+        self,
+        reviews_product_id: uuid::Uuid,
+    ) -> CreateReviewBuilder<'a, (ReviewsUserId, uuid::Uuid, ReviewsRating, ReviewsComment)> {
+        let (reviews_user_id, (), reviews_rating, reviews_comment) = self.fields;
+        let _phantom = self._phantom;
+        CreateReviewBuilder {
+            fields: (
+                reviews_user_id,
+                reviews_product_id,
+                reviews_rating,
+                reviews_comment,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, ReviewsUserId, ReviewsProductId, ReviewsComment>
+    CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, (), ReviewsComment)>
+{
+    fn reviews_rating(
+        self,
+        reviews_rating: i32,
+    ) -> CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, i32, ReviewsComment)> {
+        let (reviews_user_id, reviews_product_id, (), reviews_comment) = self.fields;
+        let _phantom = self._phantom;
+        CreateReviewBuilder {
+            fields: (
+                reviews_user_id,
+                reviews_product_id,
+                reviews_rating,
+                reviews_comment,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a, ReviewsUserId, ReviewsProductId, ReviewsRating>
+    CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, ReviewsRating, ())>
+{
+    fn reviews_comment(
+        self,
+        reviews_comment: Option<&'a str>,
+    ) -> CreateReviewBuilder<
+        'a,
+        (
+            ReviewsUserId,
+            ReviewsProductId,
+            ReviewsRating,
+            Option<&'a str>,
+        ),
+    > {
+        let (reviews_user_id, reviews_product_id, reviews_rating, ()) = self.fields;
+        let _phantom = self._phantom;
+        CreateReviewBuilder {
+            fields: (
+                reviews_user_id,
+                reviews_product_id,
+                reviews_rating,
+                reviews_comment,
+            ),
+            _phantom,
+        }
+    }
+}
 impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)> {
     const fn build(self) -> CreateReview<'a> {
         let (reviews_user_id, reviews_product_id, reviews_rating, reviews_comment) = self.fields;
@@ -1121,6 +2170,19 @@ impl GetProductAverageRating {
 struct GetProductAverageRatingBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetProductAverageRatingBuilder<'a, ((),)> {
+    fn reviews_product_id(
+        self,
+        reviews_product_id: uuid::Uuid,
+    ) -> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        GetProductAverageRatingBuilder {
+            fields: (reviews_product_id,),
+            _phantom,
+        }
+    }
 }
 impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
     const fn build(self) -> GetProductAverageRating {
@@ -1197,6 +2259,16 @@ impl DeleteUserAndRelatedData {
 struct DeleteUserAndRelatedDataBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> DeleteUserAndRelatedDataBuilder<'a, ((),)> {
+    fn users_id(self, users_id: uuid::Uuid) -> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        DeleteUserAndRelatedDataBuilder {
+            fields: (users_id,),
+            _phantom,
+        }
+    }
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
     const fn build(self) -> DeleteUserAndRelatedData {

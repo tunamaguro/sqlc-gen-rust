@@ -19,7 +19,7 @@ GenerateRequest {
                     wasm: Some(
                         Wasm {
                             url: "file://target/wasm32-wasip1/debug/sqlc-gen-rust.wasm",
-                            sha256: "fbcbbff7934ffb550cea6c9560be6f3923c4802cdf493556d51a839d43958514",
+                            sha256: "809c089679bce8a15f09c7583c90d30fc71e24d864edb3affa6313edbdd64d6d",
                         },
                     ),
                 },

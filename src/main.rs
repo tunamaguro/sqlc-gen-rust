@@ -529,7 +529,7 @@ impl TokioPostgres {
             .iter()
             .fold(false, |acc, x| acc | x.need_lifetime())
     }
-
+    /// Generate type-state builder
     fn create_builder(query: &Query) -> proc_macro2::TokenStream {
         let num_params = query.param_names.len();
 
@@ -555,6 +555,7 @@ impl TokioPostgres {
             .map(|typ| typ.to_param_tokens(&lifetime))
             .collect::<Vec<_>>();
 
+        // implement `GetXXX::builder`
         let impl_struct_tt = if need_lifetime {
             quote::quote! {
                 impl <#lifetime> #struct_ident<#lifetime>{
@@ -579,11 +580,51 @@ impl TokioPostgres {
             }
         };
 
+        // implement `GetXXXBuilder`
         let builder_tt = quote::quote! {
             struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
                 fields: Fields,
                 _phantom: std::marker::PhantomData<&#lifetime ()>
             }
+        };
+
+        // implement `GetXXXBuilder`
+        let builder_setter_tt = {
+            let typ_generics = query
+                .param_names
+                .iter()
+                .map(|n| value_ident(&n.to_string()))
+                .collect::<Vec<_>>();
+
+            let mut result = quote::quote! {};
+            for (idx, (typ, name)) in typ_list.iter().zip(field_list.iter()).enumerate() {
+                let (generics_head, rest) = typ_generics.split_at(idx);
+                let generics_tail = if rest.is_empty() { &[] } else { &rest[1..] };
+
+                let (field_head, rest) = field_list.split_at(idx);
+                let field_tail = if rest.is_empty() { &[] } else { &rest[1..] };
+
+                let tt = quote::quote! {
+                    impl <#lifetime,#(#generics_head,)* #(#generics_tail,)*> #builder_ident<#lifetime,(#(#generics_head,)* (), #(#generics_tail,)*)>{
+                        fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
+                            let (#(#field_head,)* (), #(#field_tail,)*) = self.fields;
+                            let _phantom = self._phantom;
+
+                            #builder_ident{
+                                fields: (#(#field_head,)* #name, #(#field_tail,)*),
+                                _phantom
+                            }
+                        }
+                    }
+                };
+
+                result = quote::quote! {
+                    #result
+                    #tt
+                }
+            }
+
+            result
         };
 
         let builder_build_tt = {
@@ -607,6 +648,7 @@ impl TokioPostgres {
         quote::quote! {
             #impl_struct_tt
             #builder_tt
+            #builder_setter_tt
             #builder_build_tt
         }
     }
