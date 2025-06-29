@@ -295,10 +295,35 @@ impl DbCrate for TokioPostgres {
         // struct XXXRow {
         //  table_col: i32,...
         // }
-        quote::quote! {
+        let row_tt = quote::quote! {
             struct #ident {
                 #(#fields,)*
             }
+        };
+
+        let arg_ident = quote::format_ident!("row");
+        let from_fields = row
+            .column_names
+            .iter()
+            .enumerate()
+            .map(|(idx, r)| {
+                let literal = proc_macro2::Literal::usize_unsuffixed(idx);
+                quote::quote! {#r:#arg_ident.try_get(#literal)?}
+            })
+            .collect::<Vec<_>>();
+        let from_tt = quote::quote! {
+            impl #ident {
+                async fn from_row(#arg_ident: &tokio_postgres::Row)->Result<Self,tokio_postgres::Error>{
+                    Ok(Self{
+                        #(#from_fields,)*
+                    })
+                }
+            }
+        };
+
+        quote::quote! {
+            #row_tt
+            #from_tt
         }
     }
     fn defined_enum(enum_type: &DbEnum) -> proc_macro2::TokenStream {
