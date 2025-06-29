@@ -522,6 +522,135 @@ trait DbCrate {
 
 struct TokioPostgres;
 
+impl TokioPostgres {
+    fn need_lifetime(query: &Query) -> bool {
+        query.param_types.iter().any(|x| x.need_lifetime())
+    }
+    /// Generate type-state builder
+    fn create_builder(query: &Query) -> proc_macro2::TokenStream {
+        let num_params = query.param_names.len();
+
+        if num_params == 0 {
+            return quote::quote! {};
+        }
+
+        let fields_tuple =
+            (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
+        let need_lifetime = Self::need_lifetime(query);
+        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+        let struct_ident = value_ident(&query.query_name);
+        let builder_ident = value_ident(&format!("{}Builder", query.query_name));
+
+        let field_list = query
+            .param_names
+            .iter()
+            .map(|n| n.to_token_stream())
+            .collect::<Vec<_>>();
+        let typ_list = query
+            .param_types
+            .iter()
+            .map(|typ| typ.to_param_tokens(&lifetime))
+            .collect::<Vec<_>>();
+
+        // implement `GetXXX::builder`
+        let impl_struct_tt = if need_lifetime {
+            quote::quote! {
+                impl <#lifetime> #struct_ident<#lifetime>{
+                    const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
+                        #builder_ident{
+                            fields: (#fields_tuple),
+                            _phantom: std::marker::PhantomData
+                        }
+                    }
+                }
+            }
+        } else {
+            quote::quote! {
+                impl #struct_ident{
+                    pub const fn builder()->#builder_ident<'static, (#fields_tuple)>{
+                        #builder_ident{
+                            fields: (#fields_tuple),
+                            _phantom: std::marker::PhantomData
+                        }
+                    }
+                }
+            }
+        };
+
+        // implement `GetXXXBuilder`
+        let builder_tt = quote::quote! {
+            pub struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
+                fields: Fields,
+                _phantom: std::marker::PhantomData<&#lifetime ()>
+            }
+        };
+
+        // implement `GetXXXBuilder`
+        let builder_setter_tt = {
+            let typ_generics = query
+                .param_names
+                .iter()
+                .map(|n| value_ident(&n.to_string()))
+                .collect::<Vec<_>>();
+
+            let mut result = quote::quote! {};
+            for (idx, (typ, name)) in typ_list.iter().zip(field_list.iter()).enumerate() {
+                let (generics_head, rest) = typ_generics.split_at(idx);
+                let generics_tail = if rest.is_empty() { &[] } else { &rest[1..] };
+
+                let (field_head, rest) = field_list.split_at(idx);
+                let field_tail = if rest.is_empty() { &[] } else { &rest[1..] };
+
+                let tt = quote::quote! {
+                    impl <#lifetime,#(#generics_head,)* #(#generics_tail,)*> #builder_ident<#lifetime,(#(#generics_head,)* (), #(#generics_tail,)*)>{
+                        pub fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
+                            let (#(#field_head,)* (), #(#field_tail,)*) = self.fields;
+                            let _phantom = self._phantom;
+
+                            #builder_ident{
+                                fields: (#(#field_head,)* #name, #(#field_tail,)*),
+                                _phantom
+                            }
+                        }
+                    }
+                };
+
+                result = quote::quote! {
+                    #result
+                    #tt
+                }
+            }
+
+            result
+        };
+
+        let builder_build_tt = {
+            let build_struct = if need_lifetime {
+                quote::quote! {#struct_ident<#lifetime>}
+            } else {
+                quote::quote! {#struct_ident}
+            };
+            quote::quote! {
+                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                    pub const fn build(self)->#build_struct{
+                        let (#(#field_list,)*) = self.fields;
+                        #struct_ident{
+                            #(#field_list,)*
+                        }
+                    }
+                }
+            }
+        };
+
+        quote::quote! {
+            #impl_struct_tt
+            #builder_tt
+            #builder_setter_tt
+            #builder_build_tt
+        }
+    }
+}
+
 impl DbCrate for TokioPostgres {
     fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream {
         let fields = row
@@ -540,7 +669,7 @@ impl DbCrate for TokioPostgres {
         //  table_col: i32,...
         // }
         let row_tt = quote::quote! {
-            struct #ident {
+            pub struct #ident {
                 #(#fields,)*
             }
         };
@@ -588,13 +717,13 @@ impl DbCrate for TokioPostgres {
         quote::quote! {
             #[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]
             #[postgres(name = #original_name)]
-            enum #enum_name {
+            pub enum #enum_name {
                 #(#fields,)*
             }
         }
     }
     fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let struct_ident = quote::format_ident!("{}", &query.query_name);
+        let struct_ident = value_ident(&query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
         let fields = query
@@ -607,29 +736,26 @@ impl DbCrate for TokioPostgres {
             })
             .collect::<Vec<_>>();
 
-        let need_lifetime = query
-            .param_types
-            .iter()
-            .fold(false, |acc, x| acc | x.need_lifetime());
+        let need_lifetime = TokioPostgres::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
                 quote::quote! {
-                    struct #struct_ident<#lifetime>{
+                    pub struct #struct_ident<#lifetime>{
                         #(#fields,)*
                     }
                 }
             }
             (false, true) => {
                 quote::quote! {
-                    struct #struct_ident{
+                    pub struct #struct_ident{
                         #(#fields,)*
                     }
                 }
             }
             (false, false) => {
                 quote::quote! {
-                    struct #struct_ident;
+                    pub struct #struct_ident;
                 }
             }
         };
@@ -647,12 +773,12 @@ impl DbCrate for TokioPostgres {
                 let row_ident = row.struct_ident();
 
                 quote::quote! {
-                    async fn query_one(&self,#client_ident: &#client_typ)->Result<#row_ident,tokio_postgres::Error>{
+                    pub async fn query_one(&self,#client_ident: &#client_typ)->Result<#row_ident,tokio_postgres::Error>{
                         let row = client.query_one(Self::QUERY, &#params).await?;
                         #row_ident::from_row(&row)
                     }
 
-                    async fn query_opt(&self,#client_ident: &#client_typ)->Result<Option<#row_ident>,tokio_postgres::Error>{
+                    pub async fn query_opt(&self,#client_ident: &#client_typ)->Result<Option<#row_ident>,tokio_postgres::Error>{
                         let row = client.query_opt(Self::QUERY, &#params).await?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
@@ -665,7 +791,7 @@ impl DbCrate for TokioPostgres {
                 let row_ident = row.struct_ident();
 
                 quote::quote! {
-                    async fn query_many(&self,#client_ident: &#client_typ)->Result<Vec<#row_ident>,tokio_postgres::Error>{
+                    pub async fn query_many(&self,#client_ident: &#client_typ)->Result<Vec<#row_ident>,tokio_postgres::Error>{
                         let rows = client.query(Self::QUERY, &#params).await?;
                         rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
                     }
@@ -673,7 +799,7 @@ impl DbCrate for TokioPostgres {
             }
             Annotation::Exec => {
                 quote::quote! {
-                    async fn execute(&self,#client_ident: &#client_typ)->Result<u64,tokio_postgres::Error>{
+                    pub async fn execute(&self,#client_ident: &#client_typ)->Result<u64,tokio_postgres::Error>{
                         client.execute(Self::QUERY, &#params).await
                     }
                 }
@@ -699,9 +825,11 @@ impl DbCrate for TokioPostgres {
             }
         };
 
+        let builder = Self::create_builder(query);
         quote::quote! {
             #struct_tt
             #fetch_tt
+            #builder
         }
     }
 }
