@@ -432,7 +432,7 @@ struct Query {
     /// WHERE id = $1 LIMIT 1;
     /// ^^^^^^^^^^^^^^^^^^^^^^
     /// ```
-    query_str: proc_macro2::Literal,
+    query_str: proc_macro2::TokenStream,
 }
 
 impl Query {
@@ -463,7 +463,41 @@ impl Query {
 
         let annotation = query.cmd.parse::<Annotation>().unwrap();
         let query_name = query.name.to_string();
-        let query_str = proc_macro2::Literal::string(&query.text);
+
+        fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
+            // 文字列内の"#の組み合わせを検出して、必要なハッシュ数を決定
+            let mut hash_count = 0;
+            let mut current_hashes = 0;
+            let mut in_quote = false;
+
+            for ch in s.chars() {
+                match ch {
+                    '"' => {
+                        if in_quote {
+                            hash_count = hash_count.max(current_hashes + 1);
+                        }
+                        in_quote = !in_quote;
+                        current_hashes = 0;
+                    }
+                    '#' if in_quote => {
+                        current_hashes += 1;
+                    }
+                    _ => {
+                        current_hashes = 0;
+                    }
+                }
+            }
+
+            // raw string literalを構築
+            let hashes = "#".repeat(hash_count);
+            let raw_str = format!("r{0}\"{1}\"{0}", hashes, s);
+
+            raw_str
+                .parse::<proc_macro2::TokenStream>()
+                .unwrap_or_else(|_| proc_macro2::Literal::string(s).to_token_stream())
+        }
+
+        let query_str = make_raw_string_literal(&query.text);
 
         Self {
             param_names,
@@ -558,9 +592,9 @@ impl DbCrate for TokioPostgres {
         }
     }
     fn call_query(_row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+        let struct_ident = quote::format_ident!("{}", &query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
-        let struct_ident = quote::format_ident!("{}", &query.query_name);
         let fields = query
             .param_names
             .iter()
@@ -571,19 +605,33 @@ impl DbCrate for TokioPostgres {
             })
             .collect::<Vec<_>>();
 
-        let struct_tt = if query.param_names.is_empty() {
-            quote::quote! {
-                struct #struct_ident;
-            }
-        } else {
+        let has_params = !query.param_names.is_empty();
+        let struct_tt = if has_params {
             quote::quote! {
                 struct #struct_ident<#lifetime>{
                     #(#fields,)*
                 }
             }
+        } else {
+            // no param
+            quote::quote! {
+                struct #struct_ident;
+            }
         };
 
-        struct_tt
+        let fetch_tt = {
+            let query_str = &query.query_str;
+            quote::quote! {
+                impl #struct_ident {
+                    pub const QUERY:&str = #query_str;
+                }
+            }
+        };
+
+        quote::quote! {
+            #struct_tt
+            #fetch_tt
+        }
     }
 }
 

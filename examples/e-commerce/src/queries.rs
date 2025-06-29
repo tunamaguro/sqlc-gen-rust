@@ -40,6 +40,14 @@ struct CreateUser<'a> {
     users_hashed_password: std::borrow::Cow<'a, str>,
     users_full_name: Option<std::borrow::Cow<'a, str>>,
 }
+impl CreateUser {
+    pub const QUERY: &str = r"INSERT INTO users (
+    username, email, hashed_password, full_name
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, username, email, hashed_password, full_name, created_at, updated_at";
+}
 struct GetUserByEmailRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -65,6 +73,10 @@ impl GetUserByEmailRow {
 struct GetUserByEmail<'a> {
     users_email: std::borrow::Cow<'a, str>,
 }
+impl GetUserByEmail {
+    pub const QUERY: &str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+WHERE email = $1 LIMIT 1";
+}
 struct ListUsersRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -86,6 +98,12 @@ impl ListUsersRow {
 struct ListUsers<'a> {
     limit: std::borrow::Cow<'a, i32>,
     offset: std::borrow::Cow<'a, i32>,
+}
+impl ListUsers {
+    pub const QUERY: &str = r"SELECT id, username, email, full_name, created_at FROM users
+ORDER BY created_at DESC
+LIMIT $1
+OFFSET $2";
 }
 struct CreateProductRow {
     products_id: uuid::Uuid,
@@ -121,6 +139,14 @@ struct CreateProduct<'a> {
     products_stock_quantity: std::borrow::Cow<'a, i32>,
     products_attributes: Option<std::borrow::Cow<'a, serde_json::Value>>,
 }
+impl CreateProduct {
+    pub const QUERY: &str = r"INSERT INTO products (
+    category_id, name, description, price, stock_quantity, attributes
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at";
+}
 struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
     products_name: String,
@@ -149,6 +175,24 @@ impl GetProductWithCategoryRow {
 }
 struct GetProductWithCategory<'a> {
     products_id: std::borrow::Cow<'a, uuid::Uuid>,
+}
+impl GetProductWithCategory {
+    pub const QUERY: &str = r"SELECT
+    p.id,
+    p.name,
+    p.description,
+    p.price,
+    p.stock_quantity,
+    p.attributes,
+    p.created_at,
+    c.name as category_name,
+    c.slug as category_slug
+FROM
+    products p
+JOIN
+    categories c ON p.category_id = c.id
+WHERE
+    p.id = $1";
 }
 struct SearchProductsRow {
     products_id: uuid::Uuid,
@@ -186,6 +230,26 @@ struct SearchProducts<'a> {
     products_min_price: Option<std::borrow::Cow<'a, i32>>,
     products_max_price: Option<std::borrow::Cow<'a, i32>>,
 }
+impl SearchProducts {
+    pub const QUERY: &str = r"SELECT
+    p.id, p.category_id, p.name, p.description, p.price, p.stock_quantity, p.attributes, p.created_at, p.updated_at,
+    (SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id) as average_rating
+FROM products p
+WHERE
+    (p.name ILIKE $3 OR p.description ILIKE $3)
+AND
+    p.category_id = ANY($4::int[])
+AND
+    p.price >= $5
+AND
+    p.price <= $6
+AND
+    p.stock_quantity > 0
+ORDER BY
+    p.created_at DESC
+LIMIT $1
+OFFSET $2";
+}
 struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
@@ -215,6 +279,10 @@ impl GetProductsWithSpecificAttributeRow {
 struct GetProductsWithSpecificAttribute<'a> {
     param: std::borrow::Cow<'a, serde_json::Value>,
 }
+impl GetProductsWithSpecificAttribute {
+    pub const QUERY: &str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
+WHERE attributes @> $1::jsonb";
+}
 struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
     async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
@@ -224,6 +292,11 @@ impl UpdateProductStockRow {
 struct UpdateProductStock<'a> {
     products_id: std::borrow::Cow<'a, uuid::Uuid>,
     products_add_quantity: std::borrow::Cow<'a, i32>,
+}
+impl UpdateProductStock {
+    pub const QUERY: &str = r"UPDATE products
+SET stock_quantity = stock_quantity + $2
+WHERE id = $1";
 }
 struct CreateOrderRow {
     orders_id: i64,
@@ -248,6 +321,11 @@ struct CreateOrder<'a> {
     orders_status: std::borrow::Cow<'a, OrderStatus>,
     orders_total_amount: std::borrow::Cow<'a, i32>,
 }
+impl CreateOrder {
+    pub const QUERY: &str = r"INSERT INTO orders (user_id, status, total_amount)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, status, total_amount, ordered_at";
+}
 struct CreateOrderItemRow {
     order_items_id: i64,
     order_items_order_id: i64,
@@ -271,6 +349,11 @@ struct CreateOrderItem<'a> {
     order_items_product_id: std::borrow::Cow<'a, uuid::Uuid>,
     order_items_quantity: std::borrow::Cow<'a, i32>,
     order_items_price_at_purchase: std::borrow::Cow<'a, i32>,
+}
+impl CreateOrderItem {
+    pub const QUERY: &str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
+VALUES ($1, $2, $3, $4)
+RETURNING id, order_id, product_id, quantity, price_at_purchase";
 }
 struct GetOrderDetailsRow {
     orders_order_id: i64,
@@ -297,6 +380,19 @@ impl GetOrderDetailsRow {
 struct GetOrderDetails<'a> {
     orders_id: std::borrow::Cow<'a, i64>,
 }
+impl GetOrderDetails {
+    pub const QUERY: &str = r"SELECT
+    o.id as order_id,
+    o.status,
+    o.total_amount,
+    o.ordered_at,
+    u.id as user_id,
+    u.username,
+    u.email
+FROM orders o
+JOIN users u ON o.user_id = u.id
+WHERE o.id = $1";
+}
 struct ListOrderItemsByOrderIdRow {
     order_items_quantity: i32,
     order_items_price_at_purchase: i32,
@@ -315,6 +411,16 @@ impl ListOrderItemsByOrderIdRow {
 }
 struct ListOrderItemsByOrderID<'a> {
     order_items_order_id: std::borrow::Cow<'a, i64>,
+}
+impl ListOrderItemsByOrderID {
+    pub const QUERY: &str = r"SELECT
+    oi.quantity,
+    oi.price_at_purchase,
+    p.id as product_id,
+    p.name as product_name
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id
+WHERE oi.order_id = $1";
 }
 struct CreateReviewRow {
     reviews_id: i64,
@@ -342,6 +448,11 @@ struct CreateReview<'a> {
     reviews_rating: std::borrow::Cow<'a, i32>,
     reviews_comment: Option<std::borrow::Cow<'a, str>>,
 }
+impl CreateReview {
+    pub const QUERY: &str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, product_id, rating, comment, created_at";
+}
 struct GetProductAverageRatingRow {
     reviews_product_id: uuid::Uuid,
     average_rating: f64,
@@ -358,6 +469,15 @@ impl GetProductAverageRatingRow {
 }
 struct GetProductAverageRating<'a> {
     reviews_product_id: std::borrow::Cow<'a, uuid::Uuid>,
+}
+impl GetProductAverageRating {
+    pub const QUERY: &str = r"SELECT
+    product_id,
+    AVG(rating)::float as average_rating,
+    COUNT(id) as review_count
+FROM reviews
+WHERE product_id = $1
+GROUP BY product_id";
 }
 struct GetCategorySalesRankingRow {
     categories_category_id: i32,
@@ -376,6 +496,20 @@ impl GetCategorySalesRankingRow {
     }
 }
 struct GetCategorySalesRanking;
+impl GetCategorySalesRanking {
+    pub const QUERY: &str = r"SELECT
+    c.id as category_id,
+    c.name as category_name,
+    SUM(oi.quantity * oi.price_at_purchase) as total_sales,
+    COUNT(DISTINCT o.id) as total_orders
+FROM categories c
+JOIN products p ON c.id = p.category_id
+JOIN order_items oi ON p.id = oi.product_id
+JOIN orders o ON oi.order_id = o.id
+WHERE o.status IN ('delivered', 'shipped')
+GROUP BY c.id, c.name
+ORDER BY total_sales DESC";
+}
 struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
     async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
@@ -384,4 +518,7 @@ impl DeleteUserAndRelatedDataRow {
 }
 struct DeleteUserAndRelatedData<'a> {
     users_id: std::borrow::Cow<'a, uuid::Uuid>,
+}
+impl DeleteUserAndRelatedData {
+    pub const QUERY: &str = r"DELETE FROM users WHERE id = $1";
 }
