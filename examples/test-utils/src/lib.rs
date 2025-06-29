@@ -19,10 +19,11 @@ fn postgres_config() -> postgres::Config {
     let database_url = std::env::var("DATABASE_URL").unwrap();
     let postgres_url = url::Url::parse(&database_url).unwrap();
     dbg!(&postgres_url);
-    let db_name = {
-        let path = postgres_url.path().trim_start_matches('/');
-        if path.is_empty() { "db" } else { path }
-    };
+    let db_name = match postgres_url.path_segments() {
+        Some(mut res) => res.next(),
+        None => None,
+    }
+    .unwrap_or("postgres");
     let host = postgres_url
         .host()
         .map(|h| h.to_string())
@@ -46,10 +47,11 @@ fn tokio_postgres_config() -> tokio_postgres::Config {
     let database_url = std::env::var("DATABASE_URL").unwrap();
     let postgres_url = url::Url::parse(&database_url).unwrap();
     dbg!(&postgres_url);
-    let db_name = {
-        let path = postgres_url.path().trim_start_matches('/');
-        if path.is_empty() { "db" } else { path }
-    };
+    let db_name = match postgres_url.path_segments() {
+        Some(mut res) => res.next(),
+        None => None,
+    }
+    .unwrap_or("postgres");
     let host = postgres_url
         .host()
         .map(|h| h.to_string())
@@ -68,6 +70,7 @@ fn tokio_postgres_config() -> tokio_postgres::Config {
 
     config
 }
+
 fn generate_tmp_db() -> String {
     let db_rand = std::iter::repeat_with(fastrand::alphanumeric)
         .take(10)
