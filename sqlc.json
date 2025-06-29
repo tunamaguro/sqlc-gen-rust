@@ -1,0 +1,25 @@
+{
+    "version": "2",
+    "plugins": [
+        {
+            "name": "sqlc-gen-rust",
+            "wasm": {
+                "url": "file://target/wasm32-wasip1/debug/sqlc-gen-rust.wasm",
+                "sha256": "$WASM_SHA256"
+            }
+        }
+    ],
+    "sql": [
+        {
+            "schema": "examples/e-commerce/schema.sql",
+            "queries": "examples/e-commerce/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/e-commerce/src"
+                }
+            ]
+        }
+    ]
+}

@@ -1,8 +1,33 @@
 [package]
-name = "workspace"
+name = "sqlc-gen-rust"
 version = "0.1.0"
 edition = "2024"
 authors = ["tunamaguro"]
 license = "MIT OR Apache-2.0"
 
+[workspace]
+members = ["examples/*"]
+
 [dependencies]
+prost = { version = "0.14" }
+
+prettyplease = { version = "0.2" }
+proc-macro2 = { version = "1.0" }
+quote = { version = "1.0" }
+syn = { version = "2" }
+
+convert_case = { version = "0.8.0" }
+regex-lite = "0.1.6"
+
+[build-dependencies]
+prost-build = "0.14"
+
+[workspace.dependencies]
+postgres = { version = "0.19" }
+tokio-postgres = { version = "0.7.13" }
+deadpool-postgres = { version = "0.14" }
+postgres-types = { version = "0.2.9", features = ["derive"] }
+test-context = "0.4.1"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1.17.0" }
+serde_json = { version = "1.0.140" }
