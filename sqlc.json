@@ -18,7 +18,26 @@
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/e-commerce/src",
-                    "options": {}
+                    "options": {
+                        "output": "tokio_query.rs",
+                        "db_crate": "tokio_postgres"
+                    }
+                },
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/e-commerce/src",
+                    "options": {
+                        "output": "postgres_query.rs",
+                        "db_crate": "postgres"
+                    }
+                },
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/e-commerce/src",
+                    "options": {
+                        "output": "deadpool_query.rs",
+                        "db_crate": "deadpool_postgres"
+                    }
                 }
             ]
         }

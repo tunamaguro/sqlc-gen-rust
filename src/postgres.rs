@@ -5,9 +5,76 @@ use crate::{
 };
 use quote::ToTokens as _;
 
-pub(crate) struct TokioPostgres;
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) enum Postgres {
+    Sync,
+    #[default]
+    Tokio,
+    DeadPool,
+}
 
-impl TokioPostgres {
+impl<'de> serde::Deserialize<'de> for Postgres {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.trim() {
+            "postgres" => Ok(Self::Sync),
+            "tokio_postgres" => Ok(Self::Tokio),
+            "deadpool_postgres" => Ok(Self::DeadPool),
+            _ => Err(serde::de::Error::custom(format!(
+                "unknown db crate: `{}`",
+                s
+            ))),
+        }
+    }
+}
+
+impl Postgres {
+    fn client_type(&self) -> syn::Type {
+        let s = match self {
+            Postgres::Sync => "&mut impl postgres::GenericClient",
+            Postgres::Tokio => "&impl tokio_postgres::GenericClient",
+            Postgres::DeadPool => "&impl deadpool_postgres::GenericClient",
+        };
+        syn::parse_str(s).unwrap()
+    }
+
+    fn row_type(&self) -> syn::Type {
+        let s = match self {
+            Postgres::Sync => "postgres::Row",
+            Postgres::Tokio => "tokio_postgres::Row",
+            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Row",
+        };
+        syn::parse_str(s).unwrap()
+    }
+
+    fn error_type(&self) -> syn::Type {
+        let s = match self {
+            Postgres::Sync => "postgres::Error",
+            Postgres::Tokio => "tokio_postgres::Error",
+            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Error",
+        };
+        syn::parse_str(s).unwrap()
+    }
+
+    fn async_part(&self) -> proc_macro2::TokenStream {
+        match self {
+            Postgres::Sync => quote::quote! {},
+            Postgres::Tokio => quote::quote! {async},
+            Postgres::DeadPool => quote::quote! {async},
+        }
+    }
+
+    fn await_part(&self) -> proc_macro2::TokenStream {
+        match self {
+            Postgres::Sync => quote::quote! {},
+            Postgres::Tokio => quote::quote! {.await},
+            Postgres::DeadPool => quote::quote! {.await},
+        }
+    }
+
     fn need_lifetime(query: &Query) -> bool {
         query.param_types.iter().any(|x| x.need_lifetime())
     }
@@ -136,8 +203,8 @@ impl TokioPostgres {
     }
 }
 
-impl DbCrate for TokioPostgres {
-    fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream {
+impl DbCrate for Postgres {
+    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let fields = row
             .column_names
             .iter()
@@ -159,6 +226,8 @@ impl DbCrate for TokioPostgres {
             }
         };
 
+        let error_typ = self.error_type();
+        let row_typ = self.row_type();
         let arg_ident = quote::format_ident!("row");
         let from_fields = row
             .column_names
@@ -171,7 +240,7 @@ impl DbCrate for TokioPostgres {
             .collect::<Vec<_>>();
         let from_tt = quote::quote! {
             impl #ident {
-                fn from_row(#arg_ident: &tokio_postgres::Row)->Result<Self,tokio_postgres::Error>{
+                fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
                     Ok(Self{
                         #(#from_fields,)*
                     })
@@ -184,7 +253,7 @@ impl DbCrate for TokioPostgres {
             #from_tt
         }
     }
-    fn defined_enum(enum_type: &DbEnum) -> proc_macro2::TokenStream {
+    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         let fields = enum_type
             .values
             .iter()
@@ -207,7 +276,7 @@ impl DbCrate for TokioPostgres {
             }
         }
     }
-    fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+    fn call_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
         let struct_ident = value_ident(&query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
@@ -221,7 +290,7 @@ impl DbCrate for TokioPostgres {
             })
             .collect::<Vec<_>>();
 
-        let need_lifetime = TokioPostgres::need_lifetime(query);
+        let need_lifetime = Postgres::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
@@ -246,7 +315,11 @@ impl DbCrate for TokioPostgres {
         };
 
         let client_ident = quote::format_ident!("client");
-        let client_typ = syn::parse_str::<syn::Type>("impl tokio_postgres::GenericClient").unwrap();
+        let client_typ = self.client_type();
+        let error_typ = self.error_type();
+        let async_part = self.async_part();
+        let await_part = self.await_part();
+
         let params = query
             .param_names
             .iter()
@@ -258,13 +331,13 @@ impl DbCrate for TokioPostgres {
                 let row_ident = row.struct_ident();
 
                 quote::quote! {
-                    pub async fn query_one(&self,#client_ident: &#client_typ)->Result<#row_ident,tokio_postgres::Error>{
-                        let row = client.query_one(Self::QUERY, &#params).await?;
+                    pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
+                        let row = client.query_one(Self::QUERY, &#params) #await_part?;
                         #row_ident::from_row(&row)
                     }
 
-                    pub async fn query_opt(&self,#client_ident: &#client_typ)->Result<Option<#row_ident>,tokio_postgres::Error>{
-                        let row = client.query_opt(Self::QUERY, &#params).await?;
+                    pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
+                        let row = client.query_opt(Self::QUERY, &#params) #await_part?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
                             None => Ok(None)
@@ -276,16 +349,16 @@ impl DbCrate for TokioPostgres {
                 let row_ident = row.struct_ident();
 
                 quote::quote! {
-                    pub async fn query_many(&self,#client_ident: &#client_typ)->Result<Vec<#row_ident>,tokio_postgres::Error>{
-                        let rows = client.query(Self::QUERY, &#params).await?;
+                    pub #async_part fn query_many(&self,#client_ident: #client_typ)->Result<Vec<#row_ident>,#error_typ>{
+                        let rows = client.query(Self::QUERY, &#params) #await_part?;
                         rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
                     }
                 }
             }
             Annotation::Exec => {
                 quote::quote! {
-                    pub async fn execute(&self,#client_ident: &#client_typ)->Result<u64,tokio_postgres::Error>{
-                        client.execute(Self::QUERY, &#params).await
+                    pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
+                        client.execute(Self::QUERY, &#params) #await_part
                     }
                 }
             }

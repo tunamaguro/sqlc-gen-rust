@@ -8,7 +8,7 @@ pub(crate) mod plugin {
 
 pub(crate) mod postgres;
 pub(crate) mod query;
-use postgres::TokioPostgres;
+use postgres::Postgres;
 use query::{DbEnum, DbTypeMap, Query, ReturningRows, RsType, collect_enums};
 
 pub trait StackError: std::error::Error {
@@ -204,11 +204,11 @@ pub(crate) fn field_ident(ident: &str) -> syn::Ident {
 
 pub(crate) trait DbCrate {
     /// Generate returning row
-    fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream;
+    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream;
     /// Generate enum
-    fn defined_enum(enum_type: &DbEnum) -> proc_macro2::TokenStream;
+    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream;
     /// Generate query fn
-    fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
+    fn call_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Default)]
@@ -227,6 +227,7 @@ struct OverrideType {
 #[serde(default)]
 struct Config {
     output: String,
+    db_crate: Postgres,
     overrides: Vec<OverrideType>,
 }
 
@@ -234,7 +235,8 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             output: "queries.rs".into(),
-            overrides: vec![],
+            db_crate: Default::default(),
+            overrides: Default::default(),
         }
     }
 }
@@ -302,7 +304,7 @@ pub fn try_main() -> Result<(), Error> {
 
     let enums_ts = defined_enums
         .iter()
-        .map(TokioPostgres::defined_enum)
+        .map(|e| config.db_crate.defined_enum(e))
         .collect::<Vec<_>>();
     let enums_tt = quote::quote! {#(#enums_ts)*};
 
@@ -310,8 +312,8 @@ pub fn try_main() -> Result<(), Error> {
         .iter()
         .zip(queries.iter())
         .map(|(r, q)| {
-            let row_tt = TokioPostgres::returning_row(r);
-            let query_tt = TokioPostgres::call_query(r, q);
+            let row_tt = config.db_crate.returning_row(r);
+            let query_tt = config.db_crate.call_query(r, q);
 
             quote::quote! {
                 #row_tt
