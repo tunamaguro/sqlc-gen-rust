@@ -18,7 +18,6 @@ pub struct DeadPoolContext {
 fn postgres_config() -> postgres::Config {
     let database_url = std::env::var("DATABASE_URL").unwrap();
     let postgres_url = url::Url::parse(&database_url).unwrap();
-    dbg!(&postgres_url);
     let db_name = match postgres_url.path_segments() {
         Some(mut res) => res.next(),
         None => None,
@@ -40,13 +39,13 @@ fn postgres_config() -> postgres::Config {
     config.user(user);
     config.password(password);
 
+    dbg!(&postgres_url, &config);
     config
 }
 
 fn tokio_postgres_config() -> tokio_postgres::Config {
     let database_url = std::env::var("DATABASE_URL").unwrap();
     let postgres_url = url::Url::parse(&database_url).unwrap();
-    dbg!(&postgres_url);
     let db_name = match postgres_url.path_segments() {
         Some(mut res) => res.next(),
         None => None,
@@ -67,6 +66,8 @@ fn tokio_postgres_config() -> tokio_postgres::Config {
     config.port(port);
     config.user(user);
     config.password(password);
+
+    dbg!(&postgres_url, &config);
 
     config
 }
