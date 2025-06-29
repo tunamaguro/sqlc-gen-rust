@@ -1,0 +1,28 @@
+_default:
+  just --list 
+
+set dotenv-filename := ".dev.env"
+set dotenv-load
+
+alias f:= format
+alias l:= lint
+alias lf:= lint-fix
+
+setup-tools:
+    rustup target add wasm32-wasip1
+
+# format
+format:
+    cargo fmt --all
+
+# Show lint error
+lint:
+    cargo clippy --workspace --all-targets --all-features --fix
+
+# Fix clippy error
+lint-fix:
+    cargo clippy --fix --workspace --all-targets --all-features --allow-dirty --allow-staged
+
+# Run tests
+test:
+    cargo test --workspace
