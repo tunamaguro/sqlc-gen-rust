@@ -202,30 +202,6 @@ impl DbEnum {
     fn ident(&self) -> syn::Ident {
         value_ident(&self.name)
     }
-
-    fn to_pg_token(&self) -> proc_macro2::TokenStream {
-        let fields = self
-            .values
-            .iter()
-            .map(|field| {
-                let ident = value_ident(field);
-                quote::quote! {
-                    #[postgres(name = #field)]
-                    #ident
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let original_name = &self.name;
-        let enum_name = self.ident();
-        quote::quote! {
-            #[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
-            #[postgres(name = #original_name)]
-            enum #enum_name {
-                #(#fields,)*
-            }
-        }
-    }
 }
 
 fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
@@ -291,25 +267,59 @@ impl ReturningRows {
     fn struct_ident(&self) -> syn::Ident {
         value_ident(&format!("{}Row", self.query_name))
     }
+}
 
-    fn to_pg_token(&self) -> proc_macro2::TokenStream {
-        let fields = self
+trait DbCrate {
+    /// Generate returning row
+    fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream;
+    /// Generate enum
+    fn defined_enum(enum_type: &DbEnum) -> proc_macro2::TokenStream;
+}
+
+struct TokioPostgres;
+
+impl DbCrate for TokioPostgres {
+    fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream {
+        let fields = row
             .column_names
             .iter()
-            .zip(self.column_types.iter())
+            .zip(row.column_types.iter())
             .map(|(col, rs_type)| {
                 let col_t_own = rs_type.owned();
                 quote::quote! {#col:#col_t_own}
             })
             .collect::<Vec<_>>();
 
-        let ident = self.struct_ident();
+        let ident = row.struct_ident();
 
         // struct XXXRow {
         //  table_col: i32,...
         // }
         quote::quote! {
             struct #ident {
+                #(#fields,)*
+            }
+        }
+    }
+    fn defined_enum(enum_type: &DbEnum) -> proc_macro2::TokenStream {
+        let fields = enum_type
+            .values
+            .iter()
+            .map(|field| {
+                let ident = value_ident(field);
+                quote::quote! {
+                    #[postgres(name = #field)]
+                    #ident
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let original_name = &enum_type.name;
+        let enum_name = enum_type.ident();
+        quote::quote! {
+            #[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
+            #[postgres(name = #original_name)]
+            enum #enum_name {
                 #(#fields,)*
             }
         }
@@ -367,12 +377,12 @@ fn main() {
 
     let enums_ts = defined_enums
         .iter()
-        .map(|e| e.to_pg_token())
+        .map(TokioPostgres::defined_enum)
         .collect::<Vec<_>>();
     let enums_tt = quote::quote! {#(#enums_ts)*};
     let rows_ts = returning_rows
         .iter()
-        .map(|r| r.to_pg_token())
+        .map(TokioPostgres::returning_row)
         .collect::<Vec<_>>();
     let rows_tt = quote::quote! {#(#rows_ts)*};
 
