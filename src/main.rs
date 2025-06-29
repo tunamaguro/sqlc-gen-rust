@@ -570,7 +570,7 @@ impl TokioPostgres {
         } else {
             quote::quote! {
                 impl #struct_ident{
-                    const fn builder()->#builder_ident<'static, (#fields_tuple)>{
+                    pub const fn builder()->#builder_ident<'static, (#fields_tuple)>{
                         #builder_ident{
                             fields: (#fields_tuple),
                             _phantom: std::marker::PhantomData
@@ -582,7 +582,7 @@ impl TokioPostgres {
 
         // implement `GetXXXBuilder`
         let builder_tt = quote::quote! {
-            struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
+            pub struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
                 fields: Fields,
                 _phantom: std::marker::PhantomData<&#lifetime ()>
             }
@@ -606,7 +606,7 @@ impl TokioPostgres {
 
                 let tt = quote::quote! {
                     impl <#lifetime,#(#generics_head,)* #(#generics_tail,)*> #builder_ident<#lifetime,(#(#generics_head,)* (), #(#generics_tail,)*)>{
-                        fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
+                        pub fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
                             let (#(#field_head,)* (), #(#field_tail,)*) = self.fields;
                             let _phantom = self._phantom;
 
@@ -635,7 +635,7 @@ impl TokioPostgres {
             };
             quote::quote! {
                   impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                    const fn build(self)->#build_struct{
+                    pub const fn build(self)->#build_struct{
                         let (#(#field_list,)*) = self.fields;
                         #struct_ident{
                             #(#field_list,)*
@@ -672,7 +672,7 @@ impl DbCrate for TokioPostgres {
         //  table_col: i32,...
         // }
         let row_tt = quote::quote! {
-            struct #ident {
+            pub struct #ident {
                 #(#fields,)*
             }
         };
@@ -720,7 +720,7 @@ impl DbCrate for TokioPostgres {
         quote::quote! {
             #[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]
             #[postgres(name = #original_name)]
-            enum #enum_name {
+            pub enum #enum_name {
                 #(#fields,)*
             }
         }
@@ -744,21 +744,21 @@ impl DbCrate for TokioPostgres {
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
                 quote::quote! {
-                    struct #struct_ident<#lifetime>{
+                    pub struct #struct_ident<#lifetime>{
                         #(#fields,)*
                     }
                 }
             }
             (false, true) => {
                 quote::quote! {
-                    struct #struct_ident{
+                    pub struct #struct_ident{
                         #(#fields,)*
                     }
                 }
             }
             (false, false) => {
                 quote::quote! {
-                    struct #struct_ident;
+                    pub struct #struct_ident;
                 }
             }
         };
@@ -776,12 +776,12 @@ impl DbCrate for TokioPostgres {
                 let row_ident = row.struct_ident();
 
                 quote::quote! {
-                    async fn query_one(&self,#client_ident: &#client_typ)->Result<#row_ident,tokio_postgres::Error>{
+                    pub async fn query_one(&self,#client_ident: &#client_typ)->Result<#row_ident,tokio_postgres::Error>{
                         let row = client.query_one(Self::QUERY, &#params).await?;
                         #row_ident::from_row(&row)
                     }
 
-                    async fn query_opt(&self,#client_ident: &#client_typ)->Result<Option<#row_ident>,tokio_postgres::Error>{
+                    pub async fn query_opt(&self,#client_ident: &#client_typ)->Result<Option<#row_ident>,tokio_postgres::Error>{
                         let row = client.query_opt(Self::QUERY, &#params).await?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
@@ -794,7 +794,7 @@ impl DbCrate for TokioPostgres {
                 let row_ident = row.struct_ident();
 
                 quote::quote! {
-                    async fn query_many(&self,#client_ident: &#client_typ)->Result<Vec<#row_ident>,tokio_postgres::Error>{
+                    pub async fn query_many(&self,#client_ident: &#client_typ)->Result<Vec<#row_ident>,tokio_postgres::Error>{
                         let rows = client.query(Self::QUERY, &#params).await?;
                         rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
                     }
@@ -802,7 +802,7 @@ impl DbCrate for TokioPostgres {
             }
             Annotation::Exec => {
                 quote::quote! {
-                    async fn execute(&self,#client_ident: &#client_typ)->Result<u64,tokio_postgres::Error>{
+                    pub async fn execute(&self,#client_ident: &#client_typ)->Result<u64,tokio_postgres::Error>{
                         client.execute(Self::QUERY, &#params).await
                     }
                 }

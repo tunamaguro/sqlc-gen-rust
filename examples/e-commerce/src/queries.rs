@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, Copy, postgres_types::ToSql, postgres_types::FromSql)]
 #[postgres(name = "order_status")]
-enum OrderStatus {
+pub enum OrderStatus {
     #[postgres(name = "pending")]
     Pending,
     #[postgres(name = "processing")]
@@ -12,7 +12,7 @@ enum OrderStatus {
     #[postgres(name = "cancelled")]
     Cancelled,
 }
-struct CreateUserRow {
+pub struct CreateUserRow {
     users_id: uuid::Uuid,
     users_username: String,
     users_email: String,
@@ -34,7 +34,7 @@ impl CreateUserRow {
         })
     }
 }
-struct CreateUser<'a> {
+pub struct CreateUser<'a> {
     users_username: &'a str,
     users_email: &'a str,
     users_hashed_password: &'a str,
@@ -47,7 +47,7 @@ impl<'a> CreateUser<'a> {
     $1, $2, $3, $4
 )
 RETURNING id, username, email, hashed_password, full_name, created_at, updated_at";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateUserRow, tokio_postgres::Error> {
@@ -64,7 +64,7 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
             .await?;
         CreateUserRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateUserRow>, tokio_postgres::Error> {
@@ -93,17 +93,23 @@ impl<'a> CreateUser<'a> {
         }
     }
 }
-struct CreateUserBuilder<'a, Fields = ((), (), (), ())> {
+pub struct CreateUserBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, UsersEmail, UsersHashedPassword, UsersFullName>
-    CreateUserBuilder<'a, ((), UsersEmail, UsersHashedPassword, UsersFullName)>
-{
-    fn users_username(
+impl<
+    'a,
+    UsersEmail,
+    UsersHashedPassword,
+    UsersFullName,
+> CreateUserBuilder<'a, ((), UsersEmail, UsersHashedPassword, UsersFullName)> {
+    pub fn users_username(
         self,
         users_username: &'a str,
-    ) -> CreateUserBuilder<'a, (&'a str, UsersEmail, UsersHashedPassword, UsersFullName)> {
+    ) -> CreateUserBuilder<
+        'a,
+        (&'a str, UsersEmail, UsersHashedPassword, UsersFullName),
+    > {
         let ((), users_email, users_hashed_password, users_full_name) = self.fields;
         let _phantom = self._phantom;
         CreateUserBuilder {
@@ -117,13 +123,19 @@ impl<'a, UsersEmail, UsersHashedPassword, UsersFullName>
         }
     }
 }
-impl<'a, UsersUsername, UsersHashedPassword, UsersFullName>
-    CreateUserBuilder<'a, (UsersUsername, (), UsersHashedPassword, UsersFullName)>
-{
-    fn users_email(
+impl<
+    'a,
+    UsersUsername,
+    UsersHashedPassword,
+    UsersFullName,
+> CreateUserBuilder<'a, (UsersUsername, (), UsersHashedPassword, UsersFullName)> {
+    pub fn users_email(
         self,
         users_email: &'a str,
-    ) -> CreateUserBuilder<'a, (UsersUsername, &'a str, UsersHashedPassword, UsersFullName)> {
+    ) -> CreateUserBuilder<
+        'a,
+        (UsersUsername, &'a str, UsersHashedPassword, UsersFullName),
+    > {
         let (users_username, (), users_hashed_password, users_full_name) = self.fields;
         let _phantom = self._phantom;
         CreateUserBuilder {
@@ -137,10 +149,13 @@ impl<'a, UsersUsername, UsersHashedPassword, UsersFullName>
         }
     }
 }
-impl<'a, UsersUsername, UsersEmail, UsersFullName>
-    CreateUserBuilder<'a, (UsersUsername, UsersEmail, (), UsersFullName)>
-{
-    fn users_hashed_password(
+impl<
+    'a,
+    UsersUsername,
+    UsersEmail,
+    UsersFullName,
+> CreateUserBuilder<'a, (UsersUsername, UsersEmail, (), UsersFullName)> {
+    pub fn users_hashed_password(
         self,
         users_hashed_password: &'a str,
     ) -> CreateUserBuilder<'a, (UsersUsername, UsersEmail, &'a str, UsersFullName)> {
@@ -157,20 +172,18 @@ impl<'a, UsersUsername, UsersEmail, UsersFullName>
         }
     }
 }
-impl<'a, UsersUsername, UsersEmail, UsersHashedPassword>
-    CreateUserBuilder<'a, (UsersUsername, UsersEmail, UsersHashedPassword, ())>
-{
-    fn users_full_name(
+impl<
+    'a,
+    UsersUsername,
+    UsersEmail,
+    UsersHashedPassword,
+> CreateUserBuilder<'a, (UsersUsername, UsersEmail, UsersHashedPassword, ())> {
+    pub fn users_full_name(
         self,
         users_full_name: Option<&'a str>,
     ) -> CreateUserBuilder<
         'a,
-        (
-            UsersUsername,
-            UsersEmail,
-            UsersHashedPassword,
-            Option<&'a str>,
-        ),
+        (UsersUsername, UsersEmail, UsersHashedPassword, Option<&'a str>),
     > {
         let (users_username, users_email, users_hashed_password, ()) = self.fields;
         let _phantom = self._phantom;
@@ -186,8 +199,9 @@ impl<'a, UsersUsername, UsersEmail, UsersHashedPassword>
     }
 }
 impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
-    const fn build(self) -> CreateUser<'a> {
-        let (users_username, users_email, users_hashed_password, users_full_name) = self.fields;
+    pub const fn build(self) -> CreateUser<'a> {
+        let (users_username, users_email, users_hashed_password, users_full_name) = self
+            .fields;
         CreateUser {
             users_username,
             users_email,
@@ -196,7 +210,7 @@ impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
         }
     }
 }
-struct GetUserByEmailRow {
+pub struct GetUserByEmailRow {
     users_id: uuid::Uuid,
     users_username: String,
     users_email: String,
@@ -218,20 +232,20 @@ impl GetUserByEmailRow {
         })
     }
 }
-struct GetUserByEmail<'a> {
+pub struct GetUserByEmail<'a> {
     users_email: &'a str,
 }
 impl<'a> GetUserByEmail<'a> {
     pub const QUERY: &'static str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetUserByEmailRow, tokio_postgres::Error> {
         let row = client.query_one(Self::QUERY, &[&self.users_email]).await?;
         GetUserByEmailRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetUserByEmailRow>, tokio_postgres::Error> {
@@ -250,12 +264,15 @@ impl<'a> GetUserByEmail<'a> {
         }
     }
 }
-struct GetUserByEmailBuilder<'a, Fields = ((),)> {
+pub struct GetUserByEmailBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetUserByEmailBuilder<'a, ((),)> {
-    fn users_email(self, users_email: &'a str) -> GetUserByEmailBuilder<'a, (&'a str,)> {
+    pub fn users_email(
+        self,
+        users_email: &'a str,
+    ) -> GetUserByEmailBuilder<'a, (&'a str,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetUserByEmailBuilder {
@@ -265,12 +282,12 @@ impl<'a> GetUserByEmailBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
-    const fn build(self) -> GetUserByEmail<'a> {
+    pub const fn build(self) -> GetUserByEmail<'a> {
         let (users_email,) = self.fields;
         GetUserByEmail { users_email }
     }
 }
-struct ListUsersRow {
+pub struct ListUsersRow {
     users_id: uuid::Uuid,
     users_username: String,
     users_email: String,
@@ -288,7 +305,7 @@ impl ListUsersRow {
         })
     }
 }
-struct ListUsers {
+pub struct ListUsers {
     limit: i32,
     offset: i32,
 }
@@ -297,32 +314,28 @@ impl ListUsers {
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2";
-    async fn query_many(
+    pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListUsersRow>, tokio_postgres::Error> {
-        let rows = client
-            .query(Self::QUERY, &[&self.limit, &self.offset])
-            .await?;
-        rows.into_iter()
-            .map(|r| ListUsersRow::from_row(&r))
-            .collect()
+        let rows = client.query(Self::QUERY, &[&self.limit, &self.offset]).await?;
+        rows.into_iter().map(|r| ListUsersRow::from_row(&r)).collect()
     }
 }
 impl ListUsers {
-    const fn builder() -> ListUsersBuilder<'static, ((), ())> {
+    pub const fn builder() -> ListUsersBuilder<'static, ((), ())> {
         ListUsersBuilder {
             fields: ((), ()),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct ListUsersBuilder<'a, Fields = ((), ())> {
+pub struct ListUsersBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a, Offset> ListUsersBuilder<'a, ((), Offset)> {
-    fn limit(self, limit: i32) -> ListUsersBuilder<'a, (i32, Offset)> {
+    pub fn limit(self, limit: i32) -> ListUsersBuilder<'a, (i32, Offset)> {
         let ((), offset) = self.fields;
         let _phantom = self._phantom;
         ListUsersBuilder {
@@ -332,7 +345,7 @@ impl<'a, Offset> ListUsersBuilder<'a, ((), Offset)> {
     }
 }
 impl<'a, Limit> ListUsersBuilder<'a, (Limit, ())> {
-    fn offset(self, offset: i32) -> ListUsersBuilder<'a, (Limit, i32)> {
+    pub fn offset(self, offset: i32) -> ListUsersBuilder<'a, (Limit, i32)> {
         let (limit, ()) = self.fields;
         let _phantom = self._phantom;
         ListUsersBuilder {
@@ -342,12 +355,12 @@ impl<'a, Limit> ListUsersBuilder<'a, (Limit, ())> {
     }
 }
 impl<'a> ListUsersBuilder<'a, (i32, i32)> {
-    const fn build(self) -> ListUsers {
+    pub const fn build(self) -> ListUsers {
         let (limit, offset) = self.fields;
         ListUsers { limit, offset }
     }
 }
-struct CreateProductRow {
+pub struct CreateProductRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
     products_name: String,
@@ -373,7 +386,7 @@ impl CreateProductRow {
         })
     }
 }
-struct CreateProduct<'a> {
+pub struct CreateProduct<'a> {
     products_category_id: i32,
     products_name: &'a str,
     products_description: Option<&'a str>,
@@ -388,7 +401,7 @@ impl<'a> CreateProduct<'a> {
     $1, $2, $3, $4, $5, $6
 )
 RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateProductRow, tokio_postgres::Error> {
@@ -407,7 +420,7 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
             .await?;
         CreateProductRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateProductRow>, tokio_postgres::Error> {
@@ -438,7 +451,7 @@ impl<'a> CreateProduct<'a> {
         }
     }
 }
-struct CreateProductBuilder<'a, Fields = ((), (), (), (), (), ())> {
+pub struct CreateProductBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
@@ -449,20 +462,18 @@ impl<
     ProductsPrice,
     ProductsStockQuantity,
     ProductsAttributes,
->
-    CreateProductBuilder<
-        'a,
-        (
-            (),
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
-{
-    fn products_category_id(
+> CreateProductBuilder<
+    'a,
+    (
+        (),
+        ProductsName,
+        ProductsDescription,
+        ProductsPrice,
+        ProductsStockQuantity,
+        ProductsAttributes,
+    ),
+> {
+    pub fn products_category_id(
         self,
         products_category_id: i32,
     ) -> CreateProductBuilder<
@@ -505,20 +516,18 @@ impl<
     ProductsPrice,
     ProductsStockQuantity,
     ProductsAttributes,
->
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            (),
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
-{
-    fn products_name(
+> CreateProductBuilder<
+    'a,
+    (
+        ProductsCategoryId,
+        (),
+        ProductsDescription,
+        ProductsPrice,
+        ProductsStockQuantity,
+        ProductsAttributes,
+    ),
+> {
+    pub fn products_name(
         self,
         products_name: &'a str,
     ) -> CreateProductBuilder<
@@ -554,20 +563,25 @@ impl<
         }
     }
 }
-impl<'a, ProductsCategoryId, ProductsName, ProductsPrice, ProductsStockQuantity, ProductsAttributes>
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            (),
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
-{
-    fn products_description(
+impl<
+    'a,
+    ProductsCategoryId,
+    ProductsName,
+    ProductsPrice,
+    ProductsStockQuantity,
+    ProductsAttributes,
+> CreateProductBuilder<
+    'a,
+    (
+        ProductsCategoryId,
+        ProductsName,
+        (),
+        ProductsPrice,
+        ProductsStockQuantity,
+        ProductsAttributes,
+    ),
+> {
+    pub fn products_description(
         self,
         products_description: Option<&'a str>,
     ) -> CreateProductBuilder<
@@ -610,20 +624,18 @@ impl<
     ProductsDescription,
     ProductsStockQuantity,
     ProductsAttributes,
->
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            (),
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
-{
-    fn products_price(
+> CreateProductBuilder<
+    'a,
+    (
+        ProductsCategoryId,
+        ProductsName,
+        ProductsDescription,
+        (),
+        ProductsStockQuantity,
+        ProductsAttributes,
+    ),
+> {
+    pub fn products_price(
         self,
         products_price: i32,
     ) -> CreateProductBuilder<
@@ -659,20 +671,25 @@ impl<
         }
     }
 }
-impl<'a, ProductsCategoryId, ProductsName, ProductsDescription, ProductsPrice, ProductsAttributes>
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            (),
-            ProductsAttributes,
-        ),
-    >
-{
-    fn products_stock_quantity(
+impl<
+    'a,
+    ProductsCategoryId,
+    ProductsName,
+    ProductsDescription,
+    ProductsPrice,
+    ProductsAttributes,
+> CreateProductBuilder<
+    'a,
+    (
+        ProductsCategoryId,
+        ProductsName,
+        ProductsDescription,
+        ProductsPrice,
+        (),
+        ProductsAttributes,
+    ),
+> {
+    pub fn products_stock_quantity(
         self,
         products_stock_quantity: i32,
     ) -> CreateProductBuilder<
@@ -715,20 +732,18 @@ impl<
     ProductsDescription,
     ProductsPrice,
     ProductsStockQuantity,
->
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            (),
-        ),
-    >
-{
-    fn products_attributes(
+> CreateProductBuilder<
+    'a,
+    (
+        ProductsCategoryId,
+        ProductsName,
+        ProductsDescription,
+        ProductsPrice,
+        ProductsStockQuantity,
+        (),
+    ),
+> {
+    pub fn products_attributes(
         self,
         products_attributes: Option<&'a serde_json::Value>,
     ) -> CreateProductBuilder<
@@ -764,20 +779,13 @@ impl<
         }
     }
 }
-impl<'a>
-    CreateProductBuilder<
-        'a,
-        (
-            i32,
-            &'a str,
-            Option<&'a str>,
-            i32,
-            i32,
-            Option<&'a serde_json::Value>,
-        ),
-    >
-{
-    const fn build(self) -> CreateProduct<'a> {
+impl<
+    'a,
+> CreateProductBuilder<
+    'a,
+    (i32, &'a str, Option<&'a str>, i32, i32, Option<&'a serde_json::Value>),
+> {
+    pub const fn build(self) -> CreateProduct<'a> {
         let (
             products_category_id,
             products_name,
@@ -796,7 +804,7 @@ impl<'a>
         }
     }
 }
-struct GetProductWithCategoryRow {
+pub struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
     products_name: String,
     products_description: Option<String>,
@@ -822,7 +830,7 @@ impl GetProductWithCategoryRow {
         })
     }
 }
-struct GetProductWithCategory {
+pub struct GetProductWithCategory {
     products_id: uuid::Uuid,
 }
 impl GetProductWithCategory {
@@ -842,14 +850,14 @@ JOIN
     categories c ON p.category_id = c.id
 WHERE
     p.id = $1";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetProductWithCategoryRow, tokio_postgres::Error> {
         let row = client.query_one(Self::QUERY, &[&self.products_id]).await?;
         GetProductWithCategoryRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetProductWithCategoryRow>, tokio_postgres::Error> {
@@ -861,19 +869,19 @@ WHERE
     }
 }
 impl GetProductWithCategory {
-    const fn builder() -> GetProductWithCategoryBuilder<'static, ((),)> {
+    pub const fn builder() -> GetProductWithCategoryBuilder<'static, ((),)> {
         GetProductWithCategoryBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct GetProductWithCategoryBuilder<'a, Fields = ((),)> {
+pub struct GetProductWithCategoryBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetProductWithCategoryBuilder<'a, ((),)> {
-    fn products_id(
+    pub fn products_id(
         self,
         products_id: uuid::Uuid,
     ) -> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
@@ -886,12 +894,14 @@ impl<'a> GetProductWithCategoryBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
-    const fn build(self) -> GetProductWithCategory {
+    pub const fn build(self) -> GetProductWithCategory {
         let (products_id,) = self.fields;
-        GetProductWithCategory { products_id }
+        GetProductWithCategory {
+            products_id,
+        }
     }
 }
-struct SearchProductsRow {
+pub struct SearchProductsRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
     products_name: String,
@@ -919,7 +929,7 @@ impl SearchProductsRow {
         })
     }
 }
-struct SearchProducts<'a> {
+pub struct SearchProducts<'a> {
     limit: i32,
     offset: i32,
     products_name: Option<&'a str>,
@@ -946,7 +956,7 @@ ORDER BY
     p.created_at DESC
 LIMIT $1
 OFFSET $2";
-    async fn query_many(
+    pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<SearchProductsRow>, tokio_postgres::Error> {
@@ -963,9 +973,7 @@ OFFSET $2";
                 ],
             )
             .await?;
-        rows.into_iter()
-            .map(|r| SearchProductsRow::from_row(&r))
-            .collect()
+        rows.into_iter().map(|r| SearchProductsRow::from_row(&r)).collect()
     }
 }
 impl<'a> SearchProducts<'a> {
@@ -976,39 +984,36 @@ impl<'a> SearchProducts<'a> {
         }
     }
 }
-struct SearchProductsBuilder<'a, Fields = ((), (), (), (), (), ())> {
+pub struct SearchProductsBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, Offset, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            (),
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
-{
-    fn limit(
+impl<
+    'a,
+    Offset,
+    ProductsName,
+    CategoryIds,
+    ProductsMinPrice,
+    ProductsMaxPrice,
+> SearchProductsBuilder<
+    'a,
+    ((), Offset, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice),
+> {
+    pub fn limit(
         self,
         limit: i32,
     ) -> SearchProductsBuilder<
         'a,
-        (
-            i32,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
+        (i32, Offset, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice),
     > {
-        let ((), offset, products_name, category_ids, products_min_price, products_max_price) =
-            self.fields;
+        let (
+            (),
+            offset,
+            products_name,
+            category_ids,
+            products_min_price,
+            products_max_price,
+        ) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
             fields: (
@@ -1023,35 +1028,32 @@ impl<'a, Offset, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
         }
     }
 }
-impl<'a, Limit, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            (),
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
-{
-    fn offset(
+impl<
+    'a,
+    Limit,
+    ProductsName,
+    CategoryIds,
+    ProductsMinPrice,
+    ProductsMaxPrice,
+> SearchProductsBuilder<
+    'a,
+    (Limit, (), ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice),
+> {
+    pub fn offset(
         self,
         offset: i32,
     ) -> SearchProductsBuilder<
         'a,
-        (
-            Limit,
-            i32,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
+        (Limit, i32, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice),
     > {
-        let (limit, (), products_name, category_ids, products_min_price, products_max_price) =
-            self.fields;
+        let (
+            limit,
+            (),
+            products_name,
+            category_ids,
+            products_min_price,
+            products_max_price,
+        ) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
             fields: (
@@ -1066,34 +1068,26 @@ impl<'a, Limit, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
         }
     }
 }
-impl<'a, Limit, Offset, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            (),
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
-{
-    fn products_name(
+impl<
+    'a,
+    Limit,
+    Offset,
+    CategoryIds,
+    ProductsMinPrice,
+    ProductsMaxPrice,
+> SearchProductsBuilder<
+    'a,
+    (Limit, Offset, (), CategoryIds, ProductsMinPrice, ProductsMaxPrice),
+> {
+    pub fn products_name(
         self,
         products_name: Option<&'a str>,
     ) -> SearchProductsBuilder<
         'a,
-        (
-            Limit,
-            Offset,
-            Option<&'a str>,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
+        (Limit, Offset, Option<&'a str>, CategoryIds, ProductsMinPrice, ProductsMaxPrice),
     > {
-        let (limit, offset, (), category_ids, products_min_price, products_max_price) = self.fields;
+        let (limit, offset, (), category_ids, products_min_price, products_max_price) = self
+            .fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
             fields: (
@@ -1108,35 +1102,26 @@ impl<'a, Limit, Offset, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
         }
     }
 }
-impl<'a, Limit, Offset, ProductsName, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            (),
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
-{
-    fn category_ids(
+impl<
+    'a,
+    Limit,
+    Offset,
+    ProductsName,
+    ProductsMinPrice,
+    ProductsMaxPrice,
+> SearchProductsBuilder<
+    'a,
+    (Limit, Offset, ProductsName, (), ProductsMinPrice, ProductsMaxPrice),
+> {
+    pub fn category_ids(
         self,
         category_ids: &'a [i32],
     ) -> SearchProductsBuilder<
         'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            &'a [i32],
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
+        (Limit, Offset, ProductsName, &'a [i32], ProductsMinPrice, ProductsMaxPrice),
     > {
-        let (limit, offset, products_name, (), products_min_price, products_max_price) =
-            self.fields;
+        let (limit, offset, products_name, (), products_min_price, products_max_price) = self
+            .fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
             fields: (
@@ -1151,34 +1136,26 @@ impl<'a, Limit, Offset, ProductsName, ProductsMinPrice, ProductsMaxPrice>
         }
     }
 }
-impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            (),
-            ProductsMaxPrice,
-        ),
-    >
-{
-    fn products_min_price(
+impl<
+    'a,
+    Limit,
+    Offset,
+    ProductsName,
+    CategoryIds,
+    ProductsMaxPrice,
+> SearchProductsBuilder<
+    'a,
+    (Limit, Offset, ProductsName, CategoryIds, (), ProductsMaxPrice),
+> {
+    pub fn products_min_price(
         self,
         products_min_price: Option<i32>,
     ) -> SearchProductsBuilder<
         'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            Option<i32>,
-            ProductsMaxPrice,
-        ),
+        (Limit, Offset, ProductsName, CategoryIds, Option<i32>, ProductsMaxPrice),
     > {
-        let (limit, offset, products_name, category_ids, (), products_max_price) = self.fields;
+        let (limit, offset, products_name, category_ids, (), products_max_price) = self
+            .fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
             fields: (
@@ -1193,34 +1170,26 @@ impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMaxPrice>
         }
     }
 }
-impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMinPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            (),
-        ),
-    >
-{
-    fn products_max_price(
+impl<
+    'a,
+    Limit,
+    Offset,
+    ProductsName,
+    CategoryIds,
+    ProductsMinPrice,
+> SearchProductsBuilder<
+    'a,
+    (Limit, Offset, ProductsName, CategoryIds, ProductsMinPrice, ()),
+> {
+    pub fn products_max_price(
         self,
         products_max_price: Option<i32>,
     ) -> SearchProductsBuilder<
         'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            Option<i32>,
-        ),
+        (Limit, Offset, ProductsName, CategoryIds, ProductsMinPrice, Option<i32>),
     > {
-        let (limit, offset, products_name, category_ids, products_min_price, ()) = self.fields;
+        let (limit, offset, products_name, category_ids, products_min_price, ()) = self
+            .fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
             fields: (
@@ -1235,22 +1204,21 @@ impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMinPrice>
         }
     }
 }
-impl<'a>
-    SearchProductsBuilder<
-        'a,
-        (
-            i32,
-            i32,
-            Option<&'a str>,
-            &'a [i32],
-            Option<i32>,
-            Option<i32>,
-        ),
-    >
-{
-    const fn build(self) -> SearchProducts<'a> {
-        let (limit, offset, products_name, category_ids, products_min_price, products_max_price) =
-            self.fields;
+impl<
+    'a,
+> SearchProductsBuilder<
+    'a,
+    (i32, i32, Option<&'a str>, &'a [i32], Option<i32>, Option<i32>),
+> {
+    pub const fn build(self) -> SearchProducts<'a> {
+        let (
+            limit,
+            offset,
+            products_name,
+            category_ids,
+            products_min_price,
+            products_max_price,
+        ) = self.fields;
         SearchProducts {
             limit,
             offset,
@@ -1261,7 +1229,7 @@ impl<'a>
         }
     }
 }
-struct GetProductsWithSpecificAttributeRow {
+pub struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
     products_name: String,
@@ -1287,13 +1255,13 @@ impl GetProductsWithSpecificAttributeRow {
         })
     }
 }
-struct GetProductsWithSpecificAttribute<'a> {
+pub struct GetProductsWithSpecificAttribute<'a> {
     param: &'a serde_json::Value,
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb";
-    async fn query_many(
+    pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<GetProductsWithSpecificAttributeRow>, tokio_postgres::Error> {
@@ -1311,12 +1279,12 @@ impl<'a> GetProductsWithSpecificAttribute<'a> {
         }
     }
 }
-struct GetProductsWithSpecificAttributeBuilder<'a, Fields = ((),)> {
+pub struct GetProductsWithSpecificAttributeBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
-    fn param(
+    pub fn param(
         self,
         param: &'a serde_json::Value,
     ) -> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
@@ -1329,18 +1297,20 @@ impl<'a> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
-    const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
+    pub const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
         let (param,) = self.fields;
-        GetProductsWithSpecificAttribute { param }
+        GetProductsWithSpecificAttribute {
+            param,
+        }
     }
 }
-struct UpdateProductStockRow {}
+pub struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
-struct UpdateProductStock {
+pub struct UpdateProductStock {
     products_id: uuid::Uuid,
     products_add_quantity: i32,
 }
@@ -1348,32 +1318,29 @@ impl UpdateProductStock {
     pub const QUERY: &'static str = r"UPDATE products
 SET stock_quantity = stock_quantity + $2
 WHERE id = $1";
-    async fn execute(
+    pub async fn execute(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
         client
-            .execute(
-                Self::QUERY,
-                &[&self.products_id, &self.products_add_quantity],
-            )
+            .execute(Self::QUERY, &[&self.products_id, &self.products_add_quantity])
             .await
     }
 }
 impl UpdateProductStock {
-    const fn builder() -> UpdateProductStockBuilder<'static, ((), ())> {
+    pub const fn builder() -> UpdateProductStockBuilder<'static, ((), ())> {
         UpdateProductStockBuilder {
             fields: ((), ()),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct UpdateProductStockBuilder<'a, Fields = ((), ())> {
+pub struct UpdateProductStockBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a, ProductsAddQuantity> UpdateProductStockBuilder<'a, ((), ProductsAddQuantity)> {
-    fn products_id(
+    pub fn products_id(
         self,
         products_id: uuid::Uuid,
     ) -> UpdateProductStockBuilder<'a, (uuid::Uuid, ProductsAddQuantity)> {
@@ -1386,7 +1353,7 @@ impl<'a, ProductsAddQuantity> UpdateProductStockBuilder<'a, ((), ProductsAddQuan
     }
 }
 impl<'a, ProductsId> UpdateProductStockBuilder<'a, (ProductsId, ())> {
-    fn products_add_quantity(
+    pub fn products_add_quantity(
         self,
         products_add_quantity: i32,
     ) -> UpdateProductStockBuilder<'a, (ProductsId, i32)> {
@@ -1399,7 +1366,7 @@ impl<'a, ProductsId> UpdateProductStockBuilder<'a, (ProductsId, ())> {
     }
 }
 impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
-    const fn build(self) -> UpdateProductStock {
+    pub const fn build(self) -> UpdateProductStock {
         let (products_id, products_add_quantity) = self.fields;
         UpdateProductStock {
             products_id,
@@ -1407,7 +1374,7 @@ impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
         }
     }
 }
-struct CreateOrderRow {
+pub struct CreateOrderRow {
     orders_id: i64,
     orders_user_id: uuid::Uuid,
     orders_status: OrderStatus,
@@ -1425,7 +1392,7 @@ impl CreateOrderRow {
         })
     }
 }
-struct CreateOrder {
+pub struct CreateOrder {
     orders_user_id: uuid::Uuid,
     orders_status: OrderStatus,
     orders_total_amount: i32,
@@ -1434,34 +1401,26 @@ impl CreateOrder {
     pub const QUERY: &'static str = r"INSERT INTO orders (user_id, status, total_amount)
 VALUES ($1, $2, $3)
 RETURNING id, user_id, status, total_amount, ordered_at";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateOrderRow, tokio_postgres::Error> {
         let row = client
             .query_one(
                 Self::QUERY,
-                &[
-                    &self.orders_user_id,
-                    &self.orders_status,
-                    &self.orders_total_amount,
-                ],
+                &[&self.orders_user_id, &self.orders_status, &self.orders_total_amount],
             )
             .await?;
         CreateOrderRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateOrderRow>, tokio_postgres::Error> {
         let row = client
             .query_opt(
                 Self::QUERY,
-                &[
-                    &self.orders_user_id,
-                    &self.orders_status,
-                    &self.orders_total_amount,
-                ],
+                &[&self.orders_user_id, &self.orders_status, &self.orders_total_amount],
             )
             .await?;
         match row {
@@ -1471,21 +1430,23 @@ RETURNING id, user_id, status, total_amount, ordered_at";
     }
 }
 impl CreateOrder {
-    const fn builder() -> CreateOrderBuilder<'static, ((), (), ())> {
+    pub const fn builder() -> CreateOrderBuilder<'static, ((), (), ())> {
         CreateOrderBuilder {
             fields: ((), (), ()),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct CreateOrderBuilder<'a, Fields = ((), (), ())> {
+pub struct CreateOrderBuilder<'a, Fields = ((), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, OrdersStatus, OrdersTotalAmount>
-    CreateOrderBuilder<'a, ((), OrdersStatus, OrdersTotalAmount)>
-{
-    fn orders_user_id(
+impl<
+    'a,
+    OrdersStatus,
+    OrdersTotalAmount,
+> CreateOrderBuilder<'a, ((), OrdersStatus, OrdersTotalAmount)> {
+    pub fn orders_user_id(
         self,
         orders_user_id: uuid::Uuid,
     ) -> CreateOrderBuilder<'a, (uuid::Uuid, OrdersStatus, OrdersTotalAmount)> {
@@ -1497,10 +1458,12 @@ impl<'a, OrdersStatus, OrdersTotalAmount>
         }
     }
 }
-impl<'a, OrdersUserId, OrdersTotalAmount>
-    CreateOrderBuilder<'a, (OrdersUserId, (), OrdersTotalAmount)>
-{
-    fn orders_status(
+impl<
+    'a,
+    OrdersUserId,
+    OrdersTotalAmount,
+> CreateOrderBuilder<'a, (OrdersUserId, (), OrdersTotalAmount)> {
+    pub fn orders_status(
         self,
         orders_status: OrderStatus,
     ) -> CreateOrderBuilder<'a, (OrdersUserId, OrderStatus, OrdersTotalAmount)> {
@@ -1512,8 +1475,12 @@ impl<'a, OrdersUserId, OrdersTotalAmount>
         }
     }
 }
-impl<'a, OrdersUserId, OrdersStatus> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, ())> {
-    fn orders_total_amount(
+impl<
+    'a,
+    OrdersUserId,
+    OrdersStatus,
+> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, ())> {
+    pub fn orders_total_amount(
         self,
         orders_total_amount: i32,
     ) -> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, i32)> {
@@ -1526,7 +1493,7 @@ impl<'a, OrdersUserId, OrdersStatus> CreateOrderBuilder<'a, (OrdersUserId, Order
     }
 }
 impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
-    const fn build(self) -> CreateOrder {
+    pub const fn build(self) -> CreateOrder {
         let (orders_user_id, orders_status, orders_total_amount) = self.fields;
         CreateOrder {
             orders_user_id,
@@ -1535,7 +1502,7 @@ impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
         }
     }
 }
-struct CreateOrderItemRow {
+pub struct CreateOrderItemRow {
     order_items_id: i64,
     order_items_order_id: i64,
     order_items_product_id: uuid::Uuid,
@@ -1553,7 +1520,7 @@ impl CreateOrderItemRow {
         })
     }
 }
-struct CreateOrderItem {
+pub struct CreateOrderItem {
     order_items_order_id: i64,
     order_items_product_id: uuid::Uuid,
     order_items_quantity: i32,
@@ -1563,7 +1530,7 @@ impl CreateOrderItem {
     pub const QUERY: &'static str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
 VALUES ($1, $2, $3, $4)
 RETURNING id, order_id, product_id, quantity, price_at_purchase";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateOrderItemRow, tokio_postgres::Error> {
@@ -1580,7 +1547,7 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
             .await?;
         CreateOrderItemRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateOrderItemRow>, tokio_postgres::Error> {
@@ -1602,42 +1569,39 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
     }
 }
 impl CreateOrderItem {
-    const fn builder() -> CreateOrderItemBuilder<'static, ((), (), (), ())> {
+    pub const fn builder() -> CreateOrderItemBuilder<'static, ((), (), (), ())> {
         CreateOrderItemBuilder {
             fields: ((), (), (), ()),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct CreateOrderItemBuilder<'a, Fields = ((), (), (), ())> {
+pub struct CreateOrderItemBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, OrderItemsProductId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            (),
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
-    >
-{
-    fn order_items_order_id(
+impl<
+    'a,
+    OrderItemsProductId,
+    OrderItemsQuantity,
+    OrderItemsPriceAtPurchase,
+> CreateOrderItemBuilder<
+    'a,
+    ((), OrderItemsProductId, OrderItemsQuantity, OrderItemsPriceAtPurchase),
+> {
+    pub fn order_items_order_id(
         self,
         order_items_order_id: i64,
     ) -> CreateOrderItemBuilder<
         'a,
-        (
-            i64,
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
+        (i64, OrderItemsProductId, OrderItemsQuantity, OrderItemsPriceAtPurchase),
     > {
-        let ((), order_items_product_id, order_items_quantity, order_items_price_at_purchase) =
-            self.fields;
+        let (
+            (),
+            order_items_product_id,
+            order_items_quantity,
+            order_items_price_at_purchase,
+        ) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
             fields: (
@@ -1650,31 +1614,28 @@ impl<'a, OrderItemsProductId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
         }
     }
 }
-impl<'a, OrderItemsOrderId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            (),
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
-    >
-{
-    fn order_items_product_id(
+impl<
+    'a,
+    OrderItemsOrderId,
+    OrderItemsQuantity,
+    OrderItemsPriceAtPurchase,
+> CreateOrderItemBuilder<
+    'a,
+    (OrderItemsOrderId, (), OrderItemsQuantity, OrderItemsPriceAtPurchase),
+> {
+    pub fn order_items_product_id(
         self,
         order_items_product_id: uuid::Uuid,
     ) -> CreateOrderItemBuilder<
         'a,
-        (
-            OrderItemsOrderId,
-            uuid::Uuid,
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
+        (OrderItemsOrderId, uuid::Uuid, OrderItemsQuantity, OrderItemsPriceAtPurchase),
     > {
-        let (order_items_order_id, (), order_items_quantity, order_items_price_at_purchase) =
-            self.fields;
+        let (
+            order_items_order_id,
+            (),
+            order_items_quantity,
+            order_items_price_at_purchase,
+        ) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
             fields: (
@@ -1687,31 +1648,28 @@ impl<'a, OrderItemsOrderId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
         }
     }
 }
-impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsPriceAtPurchase>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            (),
-            OrderItemsPriceAtPurchase,
-        ),
-    >
-{
-    fn order_items_quantity(
+impl<
+    'a,
+    OrderItemsOrderId,
+    OrderItemsProductId,
+    OrderItemsPriceAtPurchase,
+> CreateOrderItemBuilder<
+    'a,
+    (OrderItemsOrderId, OrderItemsProductId, (), OrderItemsPriceAtPurchase),
+> {
+    pub fn order_items_quantity(
         self,
         order_items_quantity: i32,
     ) -> CreateOrderItemBuilder<
         'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            i32,
-            OrderItemsPriceAtPurchase,
-        ),
+        (OrderItemsOrderId, OrderItemsProductId, i32, OrderItemsPriceAtPurchase),
     > {
-        let (order_items_order_id, order_items_product_id, (), order_items_price_at_purchase) =
-            self.fields;
+        let (
+            order_items_order_id,
+            order_items_product_id,
+            (),
+            order_items_price_at_purchase,
+        ) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
             fields: (
@@ -1724,30 +1682,24 @@ impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsPriceAtPurchase>
         }
     }
 }
-impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsQuantity>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            (),
-        ),
-    >
-{
-    fn order_items_price_at_purchase(
+impl<
+    'a,
+    OrderItemsOrderId,
+    OrderItemsProductId,
+    OrderItemsQuantity,
+> CreateOrderItemBuilder<
+    'a,
+    (OrderItemsOrderId, OrderItemsProductId, OrderItemsQuantity, ()),
+> {
+    pub fn order_items_price_at_purchase(
         self,
         order_items_price_at_purchase: i32,
     ) -> CreateOrderItemBuilder<
         'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            i32,
-        ),
+        (OrderItemsOrderId, OrderItemsProductId, OrderItemsQuantity, i32),
     > {
-        let (order_items_order_id, order_items_product_id, order_items_quantity, ()) = self.fields;
+        let (order_items_order_id, order_items_product_id, order_items_quantity, ()) = self
+            .fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
             fields: (
@@ -1761,7 +1713,7 @@ impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsQuantity>
     }
 }
 impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
-    const fn build(self) -> CreateOrderItem {
+    pub const fn build(self) -> CreateOrderItem {
         let (
             order_items_order_id,
             order_items_product_id,
@@ -1776,7 +1728,7 @@ impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
         }
     }
 }
-struct GetOrderDetailsRow {
+pub struct GetOrderDetailsRow {
     orders_order_id: i64,
     orders_status: OrderStatus,
     orders_total_amount: i32,
@@ -1798,7 +1750,7 @@ impl GetOrderDetailsRow {
         })
     }
 }
-struct GetOrderDetails {
+pub struct GetOrderDetails {
     orders_id: i64,
 }
 impl GetOrderDetails {
@@ -1813,14 +1765,14 @@ impl GetOrderDetails {
 FROM orders o
 JOIN users u ON o.user_id = u.id
 WHERE o.id = $1";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetOrderDetailsRow, tokio_postgres::Error> {
         let row = client.query_one(Self::QUERY, &[&self.orders_id]).await?;
         GetOrderDetailsRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetOrderDetailsRow>, tokio_postgres::Error> {
@@ -1832,19 +1784,19 @@ WHERE o.id = $1";
     }
 }
 impl GetOrderDetails {
-    const fn builder() -> GetOrderDetailsBuilder<'static, ((),)> {
+    pub const fn builder() -> GetOrderDetailsBuilder<'static, ((),)> {
         GetOrderDetailsBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct GetOrderDetailsBuilder<'a, Fields = ((),)> {
+pub struct GetOrderDetailsBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetOrderDetailsBuilder<'a, ((),)> {
-    fn orders_id(self, orders_id: i64) -> GetOrderDetailsBuilder<'a, (i64,)> {
+    pub fn orders_id(self, orders_id: i64) -> GetOrderDetailsBuilder<'a, (i64,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetOrderDetailsBuilder {
@@ -1854,12 +1806,12 @@ impl<'a> GetOrderDetailsBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
-    const fn build(self) -> GetOrderDetails {
+    pub const fn build(self) -> GetOrderDetails {
         let (orders_id,) = self.fields;
         GetOrderDetails { orders_id }
     }
 }
-struct ListOrderItemsByOrderIdRow {
+pub struct ListOrderItemsByOrderIdRow {
     order_items_quantity: i32,
     order_items_price_at_purchase: i32,
     products_product_id: uuid::Uuid,
@@ -1875,7 +1827,7 @@ impl ListOrderItemsByOrderIdRow {
         })
     }
 }
-struct ListOrderItemsByOrderId {
+pub struct ListOrderItemsByOrderId {
     order_items_order_id: i64,
 }
 impl ListOrderItemsByOrderId {
@@ -1887,32 +1839,28 @@ impl ListOrderItemsByOrderId {
 FROM order_items oi
 JOIN products p ON oi.product_id = p.id
 WHERE oi.order_id = $1";
-    async fn query_many(
+    pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListOrderItemsByOrderIdRow>, tokio_postgres::Error> {
-        let rows = client
-            .query(Self::QUERY, &[&self.order_items_order_id])
-            .await?;
-        rows.into_iter()
-            .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
-            .collect()
+        let rows = client.query(Self::QUERY, &[&self.order_items_order_id]).await?;
+        rows.into_iter().map(|r| ListOrderItemsByOrderIdRow::from_row(&r)).collect()
     }
 }
 impl ListOrderItemsByOrderId {
-    const fn builder() -> ListOrderItemsByOrderIdBuilder<'static, ((),)> {
+    pub const fn builder() -> ListOrderItemsByOrderIdBuilder<'static, ((),)> {
         ListOrderItemsByOrderIdBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct ListOrderItemsByOrderIdBuilder<'a, Fields = ((),)> {
+pub struct ListOrderItemsByOrderIdBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, ((),)> {
-    fn order_items_order_id(
+    pub fn order_items_order_id(
         self,
         order_items_order_id: i64,
     ) -> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
@@ -1925,14 +1873,14 @@ impl<'a> ListOrderItemsByOrderIdBuilder<'a, ((),)> {
     }
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
-    const fn build(self) -> ListOrderItemsByOrderId {
+    pub const fn build(self) -> ListOrderItemsByOrderId {
         let (order_items_order_id,) = self.fields;
         ListOrderItemsByOrderId {
             order_items_order_id,
         }
     }
 }
-struct CreateReviewRow {
+pub struct CreateReviewRow {
     reviews_id: i64,
     reviews_user_id: uuid::Uuid,
     reviews_product_id: uuid::Uuid,
@@ -1952,7 +1900,7 @@ impl CreateReviewRow {
         })
     }
 }
-struct CreateReview<'a> {
+pub struct CreateReview<'a> {
     reviews_user_id: uuid::Uuid,
     reviews_product_id: uuid::Uuid,
     reviews_rating: i32,
@@ -1962,7 +1910,7 @@ impl<'a> CreateReview<'a> {
     pub const QUERY: &'static str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
 VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, product_id, rating, comment, created_at";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateReviewRow, tokio_postgres::Error> {
@@ -1979,7 +1927,7 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
             .await?;
         CreateReviewRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateReviewRow>, tokio_postgres::Error> {
@@ -2008,18 +1956,23 @@ impl<'a> CreateReview<'a> {
         }
     }
 }
-struct CreateReviewBuilder<'a, Fields = ((), (), (), ())> {
+pub struct CreateReviewBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, ReviewsProductId, ReviewsRating, ReviewsComment>
-    CreateReviewBuilder<'a, ((), ReviewsProductId, ReviewsRating, ReviewsComment)>
-{
-    fn reviews_user_id(
+impl<
+    'a,
+    ReviewsProductId,
+    ReviewsRating,
+    ReviewsComment,
+> CreateReviewBuilder<'a, ((), ReviewsProductId, ReviewsRating, ReviewsComment)> {
+    pub fn reviews_user_id(
         self,
         reviews_user_id: uuid::Uuid,
-    ) -> CreateReviewBuilder<'a, (uuid::Uuid, ReviewsProductId, ReviewsRating, ReviewsComment)>
-    {
+    ) -> CreateReviewBuilder<
+        'a,
+        (uuid::Uuid, ReviewsProductId, ReviewsRating, ReviewsComment),
+    > {
         let ((), reviews_product_id, reviews_rating, reviews_comment) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
@@ -2033,13 +1986,19 @@ impl<'a, ReviewsProductId, ReviewsRating, ReviewsComment>
         }
     }
 }
-impl<'a, ReviewsUserId, ReviewsRating, ReviewsComment>
-    CreateReviewBuilder<'a, (ReviewsUserId, (), ReviewsRating, ReviewsComment)>
-{
-    fn reviews_product_id(
+impl<
+    'a,
+    ReviewsUserId,
+    ReviewsRating,
+    ReviewsComment,
+> CreateReviewBuilder<'a, (ReviewsUserId, (), ReviewsRating, ReviewsComment)> {
+    pub fn reviews_product_id(
         self,
         reviews_product_id: uuid::Uuid,
-    ) -> CreateReviewBuilder<'a, (ReviewsUserId, uuid::Uuid, ReviewsRating, ReviewsComment)> {
+    ) -> CreateReviewBuilder<
+        'a,
+        (ReviewsUserId, uuid::Uuid, ReviewsRating, ReviewsComment),
+    > {
         let (reviews_user_id, (), reviews_rating, reviews_comment) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
@@ -2053,13 +2012,19 @@ impl<'a, ReviewsUserId, ReviewsRating, ReviewsComment>
         }
     }
 }
-impl<'a, ReviewsUserId, ReviewsProductId, ReviewsComment>
-    CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, (), ReviewsComment)>
-{
-    fn reviews_rating(
+impl<
+    'a,
+    ReviewsUserId,
+    ReviewsProductId,
+    ReviewsComment,
+> CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, (), ReviewsComment)> {
+    pub fn reviews_rating(
         self,
         reviews_rating: i32,
-    ) -> CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, i32, ReviewsComment)> {
+    ) -> CreateReviewBuilder<
+        'a,
+        (ReviewsUserId, ReviewsProductId, i32, ReviewsComment),
+    > {
         let (reviews_user_id, reviews_product_id, (), reviews_comment) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
@@ -2073,20 +2038,18 @@ impl<'a, ReviewsUserId, ReviewsProductId, ReviewsComment>
         }
     }
 }
-impl<'a, ReviewsUserId, ReviewsProductId, ReviewsRating>
-    CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, ReviewsRating, ())>
-{
-    fn reviews_comment(
+impl<
+    'a,
+    ReviewsUserId,
+    ReviewsProductId,
+    ReviewsRating,
+> CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, ReviewsRating, ())> {
+    pub fn reviews_comment(
         self,
         reviews_comment: Option<&'a str>,
     ) -> CreateReviewBuilder<
         'a,
-        (
-            ReviewsUserId,
-            ReviewsProductId,
-            ReviewsRating,
-            Option<&'a str>,
-        ),
+        (ReviewsUserId, ReviewsProductId, ReviewsRating, Option<&'a str>),
     > {
         let (reviews_user_id, reviews_product_id, reviews_rating, ()) = self.fields;
         let _phantom = self._phantom;
@@ -2102,8 +2065,9 @@ impl<'a, ReviewsUserId, ReviewsProductId, ReviewsRating>
     }
 }
 impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)> {
-    const fn build(self) -> CreateReview<'a> {
-        let (reviews_user_id, reviews_product_id, reviews_rating, reviews_comment) = self.fields;
+    pub const fn build(self) -> CreateReview<'a> {
+        let (reviews_user_id, reviews_product_id, reviews_rating, reviews_comment) = self
+            .fields;
         CreateReview {
             reviews_user_id,
             reviews_product_id,
@@ -2112,7 +2076,7 @@ impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)>
         }
     }
 }
-struct GetProductAverageRatingRow {
+pub struct GetProductAverageRatingRow {
     reviews_product_id: uuid::Uuid,
     average_rating: f64,
     review_count: i64,
@@ -2126,7 +2090,7 @@ impl GetProductAverageRatingRow {
         })
     }
 }
-struct GetProductAverageRating {
+pub struct GetProductAverageRating {
     reviews_product_id: uuid::Uuid,
 }
 impl GetProductAverageRating {
@@ -2137,22 +2101,18 @@ impl GetProductAverageRating {
 FROM reviews
 WHERE product_id = $1
 GROUP BY product_id";
-    async fn query_one(
+    pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetProductAverageRatingRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.reviews_product_id])
-            .await?;
+        let row = client.query_one(Self::QUERY, &[&self.reviews_product_id]).await?;
         GetProductAverageRatingRow::from_row(&row)
     }
-    async fn query_opt(
+    pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetProductAverageRatingRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.reviews_product_id])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &[&self.reviews_product_id]).await?;
         match row {
             Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
             None => Ok(None),
@@ -2160,19 +2120,19 @@ GROUP BY product_id";
     }
 }
 impl GetProductAverageRating {
-    const fn builder() -> GetProductAverageRatingBuilder<'static, ((),)> {
+    pub const fn builder() -> GetProductAverageRatingBuilder<'static, ((),)> {
         GetProductAverageRatingBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct GetProductAverageRatingBuilder<'a, Fields = ((),)> {
+pub struct GetProductAverageRatingBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetProductAverageRatingBuilder<'a, ((),)> {
-    fn reviews_product_id(
+    pub fn reviews_product_id(
         self,
         reviews_product_id: uuid::Uuid,
     ) -> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
@@ -2185,12 +2145,14 @@ impl<'a> GetProductAverageRatingBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
-    const fn build(self) -> GetProductAverageRating {
+    pub const fn build(self) -> GetProductAverageRating {
         let (reviews_product_id,) = self.fields;
-        GetProductAverageRating { reviews_product_id }
+        GetProductAverageRating {
+            reviews_product_id,
+        }
     }
 }
-struct GetCategorySalesRankingRow {
+pub struct GetCategorySalesRankingRow {
     categories_category_id: i32,
     categories_category_name: String,
     total_sales: i64,
@@ -2206,7 +2168,7 @@ impl GetCategorySalesRankingRow {
         })
     }
 }
-struct GetCategorySalesRanking;
+pub struct GetCategorySalesRanking;
 impl GetCategorySalesRanking {
     pub const QUERY: &'static str = r"SELECT
     c.id as category_id,
@@ -2220,28 +2182,26 @@ JOIN orders o ON oi.order_id = o.id
 WHERE o.status IN ('delivered', 'shipped')
 GROUP BY c.id, c.name
 ORDER BY total_sales DESC";
-    async fn query_many(
+    pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<GetCategorySalesRankingRow>, tokio_postgres::Error> {
         let rows = client.query(Self::QUERY, &[]).await?;
-        rows.into_iter()
-            .map(|r| GetCategorySalesRankingRow::from_row(&r))
-            .collect()
+        rows.into_iter().map(|r| GetCategorySalesRankingRow::from_row(&r)).collect()
     }
 }
-struct DeleteUserAndRelatedDataRow {}
+pub struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
-struct DeleteUserAndRelatedData {
+pub struct DeleteUserAndRelatedData {
     users_id: uuid::Uuid,
 }
 impl DeleteUserAndRelatedData {
     pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";
-    async fn execute(
+    pub async fn execute(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
@@ -2249,19 +2209,22 @@ impl DeleteUserAndRelatedData {
     }
 }
 impl DeleteUserAndRelatedData {
-    const fn builder() -> DeleteUserAndRelatedDataBuilder<'static, ((),)> {
+    pub const fn builder() -> DeleteUserAndRelatedDataBuilder<'static, ((),)> {
         DeleteUserAndRelatedDataBuilder {
             fields: ((),),
             _phantom: std::marker::PhantomData,
         }
     }
 }
-struct DeleteUserAndRelatedDataBuilder<'a, Fields = ((),)> {
+pub struct DeleteUserAndRelatedDataBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, ((),)> {
-    fn users_id(self, users_id: uuid::Uuid) -> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
+    pub fn users_id(
+        self,
+        users_id: uuid::Uuid,
+    ) -> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         DeleteUserAndRelatedDataBuilder {
@@ -2271,8 +2234,10 @@ impl<'a> DeleteUserAndRelatedDataBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
-    const fn build(self) -> DeleteUserAndRelatedData {
+    pub const fn build(self) -> DeleteUserAndRelatedData {
         let (users_id,) = self.fields;
-        DeleteUserAndRelatedData { users_id }
+        DeleteUserAndRelatedData {
+            users_id,
+        }
     }
 }
