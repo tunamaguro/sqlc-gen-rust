@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 uuid = { workspace = true }
+postgres-types = { version = "0.2.9", features = ["derive"] }
 serde_json = { workspace = true }

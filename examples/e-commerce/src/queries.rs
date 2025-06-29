@@ -1,3 +1,17 @@
+#[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
+#[postgres(name = "order_status")]
+enum OrderStatus {
+    #[postgres(name = "pending")]
+    Pending,
+    #[postgres(name = "processing")]
+    Processing,
+    #[postgres(name = "shipped")]
+    Shipped,
+    #[postgres(name = "delivered")]
+    Delivered,
+    #[postgres(name = "cancelled")]
+    Cancelled,
+}
 struct CreateUserRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -72,7 +86,7 @@ struct UpdateProductStockRow {}
 struct CreateOrderRow {
     orders_id: i64,
     orders_user_id: uuid::Uuid,
-    orders_status: std::convert::Infallible,
+    orders_status: OrderStatus,
     orders_total_amount: i32,
     orders_ordered_at: std::time::SystemTime,
 }
@@ -85,7 +99,7 @@ struct CreateOrderItemRow {
 }
 struct GetOrderDetailsRow {
     orders_order_id: i64,
-    orders_status: std::convert::Infallible,
+    orders_status: OrderStatus,
     orders_total_amount: i32,
     orders_ordered_at: std::time::SystemTime,
     users_user_id: uuid::Uuid,
