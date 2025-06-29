@@ -22,7 +22,7 @@ struct CreateUserRow {
     users_updated_at: std::time::SystemTime,
 }
 impl CreateUserRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             users_id: row.try_get(0)?,
             users_username: row.try_get(1)?,
@@ -40,13 +40,50 @@ struct CreateUser<'a> {
     users_hashed_password: std::borrow::Cow<'a, str>,
     users_full_name: Option<std::borrow::Cow<'a, str>>,
 }
-impl CreateUser {
-    pub const QUERY: &str = r"INSERT INTO users (
+impl<'a> CreateUser<'a> {
+    pub const QUERY: &'static str = r"INSERT INTO users (
     username, email, hashed_password, full_name
 ) VALUES (
     $1, $2, $3, $4
 )
 RETURNING id, username, email, hashed_password, full_name, created_at, updated_at";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<CreateUserRow, tokio_postgres::Error> {
+        let row = client
+            .query_one(
+                Self::QUERY,
+                &[
+                    &self.users_username,
+                    &self.users_email,
+                    &self.users_hashed_password,
+                    &self.users_full_name,
+                ],
+            )
+            .await?;
+        CreateUserRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<CreateUserRow>, tokio_postgres::Error> {
+        let row = client
+            .query_opt(
+                Self::QUERY,
+                &[
+                    &self.users_username,
+                    &self.users_email,
+                    &self.users_hashed_password,
+                    &self.users_full_name,
+                ],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Some(CreateUserRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct GetUserByEmailRow {
     users_id: uuid::Uuid,
@@ -58,7 +95,7 @@ struct GetUserByEmailRow {
     users_updated_at: std::time::SystemTime,
 }
 impl GetUserByEmailRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             users_id: row.try_get(0)?,
             users_username: row.try_get(1)?,
@@ -73,9 +110,26 @@ impl GetUserByEmailRow {
 struct GetUserByEmail<'a> {
     users_email: std::borrow::Cow<'a, str>,
 }
-impl GetUserByEmail {
-    pub const QUERY: &str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+impl<'a> GetUserByEmail<'a> {
+    pub const QUERY: &'static str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<GetUserByEmailRow, tokio_postgres::Error> {
+        let row = client.query_one(Self::QUERY, &[&self.users_email]).await?;
+        GetUserByEmailRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<GetUserByEmailRow>, tokio_postgres::Error> {
+        let row = client.query_opt(Self::QUERY, &[&self.users_email]).await?;
+        match row {
+            Some(row) => Ok(Some(GetUserByEmailRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct ListUsersRow {
     users_id: uuid::Uuid,
@@ -85,7 +139,7 @@ struct ListUsersRow {
     users_created_at: std::time::SystemTime,
 }
 impl ListUsersRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             users_id: row.try_get(0)?,
             users_username: row.try_get(1)?,
@@ -99,8 +153,8 @@ struct ListUsers<'a> {
     limit: std::borrow::Cow<'a, i32>,
     offset: std::borrow::Cow<'a, i32>,
 }
-impl ListUsers {
-    pub const QUERY: &str = r"SELECT id, username, email, full_name, created_at FROM users
+impl<'a> ListUsers<'a> {
+    pub const QUERY: &'static str = r"SELECT id, username, email, full_name, created_at FROM users
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2";
@@ -117,7 +171,7 @@ struct CreateProductRow {
     products_updated_at: std::time::SystemTime,
 }
 impl CreateProductRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             products_id: row.try_get(0)?,
             products_category_id: row.try_get(1)?,
@@ -139,13 +193,54 @@ struct CreateProduct<'a> {
     products_stock_quantity: std::borrow::Cow<'a, i32>,
     products_attributes: Option<std::borrow::Cow<'a, serde_json::Value>>,
 }
-impl CreateProduct {
-    pub const QUERY: &str = r"INSERT INTO products (
+impl<'a> CreateProduct<'a> {
+    pub const QUERY: &'static str = r"INSERT INTO products (
     category_id, name, description, price, stock_quantity, attributes
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
 RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<CreateProductRow, tokio_postgres::Error> {
+        let row = client
+            .query_one(
+                Self::QUERY,
+                &[
+                    &self.products_category_id,
+                    &self.products_name,
+                    &self.products_description,
+                    &self.products_price,
+                    &self.products_stock_quantity,
+                    &self.products_attributes,
+                ],
+            )
+            .await?;
+        CreateProductRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<CreateProductRow>, tokio_postgres::Error> {
+        let row = client
+            .query_opt(
+                Self::QUERY,
+                &[
+                    &self.products_category_id,
+                    &self.products_name,
+                    &self.products_description,
+                    &self.products_price,
+                    &self.products_stock_quantity,
+                    &self.products_attributes,
+                ],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Some(CreateProductRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
@@ -159,7 +254,7 @@ struct GetProductWithCategoryRow {
     categories_category_slug: String,
 }
 impl GetProductWithCategoryRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             products_id: row.try_get(0)?,
             products_name: row.try_get(1)?,
@@ -176,8 +271,8 @@ impl GetProductWithCategoryRow {
 struct GetProductWithCategory<'a> {
     products_id: std::borrow::Cow<'a, uuid::Uuid>,
 }
-impl GetProductWithCategory {
-    pub const QUERY: &str = r"SELECT
+impl<'a> GetProductWithCategory<'a> {
+    pub const QUERY: &'static str = r"SELECT
     p.id,
     p.name,
     p.description,
@@ -193,6 +288,23 @@ JOIN
     categories c ON p.category_id = c.id
 WHERE
     p.id = $1";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<GetProductWithCategoryRow, tokio_postgres::Error> {
+        let row = client.query_one(Self::QUERY, &[&self.products_id]).await?;
+        GetProductWithCategoryRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<GetProductWithCategoryRow>, tokio_postgres::Error> {
+        let row = client.query_opt(Self::QUERY, &[&self.products_id]).await?;
+        match row {
+            Some(row) => Ok(Some(GetProductWithCategoryRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct SearchProductsRow {
     products_id: uuid::Uuid,
@@ -207,7 +319,7 @@ struct SearchProductsRow {
     average_rating: f64,
 }
 impl SearchProductsRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             products_id: row.try_get(0)?,
             products_category_id: row.try_get(1)?,
@@ -230,8 +342,8 @@ struct SearchProducts<'a> {
     products_min_price: Option<std::borrow::Cow<'a, i32>>,
     products_max_price: Option<std::borrow::Cow<'a, i32>>,
 }
-impl SearchProducts {
-    pub const QUERY: &str = r"SELECT
+impl<'a> SearchProducts<'a> {
+    pub const QUERY: &'static str = r"SELECT
     p.id, p.category_id, p.name, p.description, p.price, p.stock_quantity, p.attributes, p.created_at, p.updated_at,
     (SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id) as average_rating
 FROM products p
@@ -262,7 +374,7 @@ struct GetProductsWithSpecificAttributeRow {
     products_updated_at: std::time::SystemTime,
 }
 impl GetProductsWithSpecificAttributeRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             products_id: row.try_get(0)?,
             products_category_id: row.try_get(1)?,
@@ -279,13 +391,13 @@ impl GetProductsWithSpecificAttributeRow {
 struct GetProductsWithSpecificAttribute<'a> {
     param: std::borrow::Cow<'a, serde_json::Value>,
 }
-impl GetProductsWithSpecificAttribute {
-    pub const QUERY: &str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
+impl<'a> GetProductsWithSpecificAttribute<'a> {
+    pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb";
 }
 struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
@@ -293,8 +405,8 @@ struct UpdateProductStock<'a> {
     products_id: std::borrow::Cow<'a, uuid::Uuid>,
     products_add_quantity: std::borrow::Cow<'a, i32>,
 }
-impl UpdateProductStock {
-    pub const QUERY: &str = r"UPDATE products
+impl<'a> UpdateProductStock<'a> {
+    pub const QUERY: &'static str = r"UPDATE products
 SET stock_quantity = stock_quantity + $2
 WHERE id = $1";
 }
@@ -306,7 +418,7 @@ struct CreateOrderRow {
     orders_ordered_at: std::time::SystemTime,
 }
 impl CreateOrderRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             orders_id: row.try_get(0)?,
             orders_user_id: row.try_get(1)?,
@@ -321,10 +433,37 @@ struct CreateOrder<'a> {
     orders_status: std::borrow::Cow<'a, OrderStatus>,
     orders_total_amount: std::borrow::Cow<'a, i32>,
 }
-impl CreateOrder {
-    pub const QUERY: &str = r"INSERT INTO orders (user_id, status, total_amount)
+impl<'a> CreateOrder<'a> {
+    pub const QUERY: &'static str = r"INSERT INTO orders (user_id, status, total_amount)
 VALUES ($1, $2, $3)
 RETURNING id, user_id, status, total_amount, ordered_at";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<CreateOrderRow, tokio_postgres::Error> {
+        let row = client
+            .query_one(
+                Self::QUERY,
+                &[&self.orders_user_id, &self.orders_status, &self.orders_total_amount],
+            )
+            .await?;
+        CreateOrderRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<CreateOrderRow>, tokio_postgres::Error> {
+        let row = client
+            .query_opt(
+                Self::QUERY,
+                &[&self.orders_user_id, &self.orders_status, &self.orders_total_amount],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Some(CreateOrderRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct CreateOrderItemRow {
     order_items_id: i64,
@@ -334,7 +473,7 @@ struct CreateOrderItemRow {
     order_items_price_at_purchase: i32,
 }
 impl CreateOrderItemRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             order_items_id: row.try_get(0)?,
             order_items_order_id: row.try_get(1)?,
@@ -350,10 +489,47 @@ struct CreateOrderItem<'a> {
     order_items_quantity: std::borrow::Cow<'a, i32>,
     order_items_price_at_purchase: std::borrow::Cow<'a, i32>,
 }
-impl CreateOrderItem {
-    pub const QUERY: &str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
+impl<'a> CreateOrderItem<'a> {
+    pub const QUERY: &'static str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
 VALUES ($1, $2, $3, $4)
 RETURNING id, order_id, product_id, quantity, price_at_purchase";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<CreateOrderItemRow, tokio_postgres::Error> {
+        let row = client
+            .query_one(
+                Self::QUERY,
+                &[
+                    &self.order_items_order_id,
+                    &self.order_items_product_id,
+                    &self.order_items_quantity,
+                    &self.order_items_price_at_purchase,
+                ],
+            )
+            .await?;
+        CreateOrderItemRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<CreateOrderItemRow>, tokio_postgres::Error> {
+        let row = client
+            .query_opt(
+                Self::QUERY,
+                &[
+                    &self.order_items_order_id,
+                    &self.order_items_product_id,
+                    &self.order_items_quantity,
+                    &self.order_items_price_at_purchase,
+                ],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Some(CreateOrderItemRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct GetOrderDetailsRow {
     orders_order_id: i64,
@@ -365,7 +541,7 @@ struct GetOrderDetailsRow {
     users_email: String,
 }
 impl GetOrderDetailsRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             orders_order_id: row.try_get(0)?,
             orders_status: row.try_get(1)?,
@@ -380,8 +556,8 @@ impl GetOrderDetailsRow {
 struct GetOrderDetails<'a> {
     orders_id: std::borrow::Cow<'a, i64>,
 }
-impl GetOrderDetails {
-    pub const QUERY: &str = r"SELECT
+impl<'a> GetOrderDetails<'a> {
+    pub const QUERY: &'static str = r"SELECT
     o.id as order_id,
     o.status,
     o.total_amount,
@@ -392,6 +568,23 @@ impl GetOrderDetails {
 FROM orders o
 JOIN users u ON o.user_id = u.id
 WHERE o.id = $1";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<GetOrderDetailsRow, tokio_postgres::Error> {
+        let row = client.query_one(Self::QUERY, &[&self.orders_id]).await?;
+        GetOrderDetailsRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<GetOrderDetailsRow>, tokio_postgres::Error> {
+        let row = client.query_opt(Self::QUERY, &[&self.orders_id]).await?;
+        match row {
+            Some(row) => Ok(Some(GetOrderDetailsRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct ListOrderItemsByOrderIdRow {
     order_items_quantity: i32,
@@ -400,7 +593,7 @@ struct ListOrderItemsByOrderIdRow {
     products_product_name: String,
 }
 impl ListOrderItemsByOrderIdRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             order_items_quantity: row.try_get(0)?,
             order_items_price_at_purchase: row.try_get(1)?,
@@ -412,8 +605,8 @@ impl ListOrderItemsByOrderIdRow {
 struct ListOrderItemsByOrderID<'a> {
     order_items_order_id: std::borrow::Cow<'a, i64>,
 }
-impl ListOrderItemsByOrderID {
-    pub const QUERY: &str = r"SELECT
+impl<'a> ListOrderItemsByOrderID<'a> {
+    pub const QUERY: &'static str = r"SELECT
     oi.quantity,
     oi.price_at_purchase,
     p.id as product_id,
@@ -431,7 +624,7 @@ struct CreateReviewRow {
     reviews_created_at: std::time::SystemTime,
 }
 impl CreateReviewRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             reviews_id: row.try_get(0)?,
             reviews_user_id: row.try_get(1)?,
@@ -448,10 +641,47 @@ struct CreateReview<'a> {
     reviews_rating: std::borrow::Cow<'a, i32>,
     reviews_comment: Option<std::borrow::Cow<'a, str>>,
 }
-impl CreateReview {
-    pub const QUERY: &str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
+impl<'a> CreateReview<'a> {
+    pub const QUERY: &'static str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
 VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, product_id, rating, comment, created_at";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<CreateReviewRow, tokio_postgres::Error> {
+        let row = client
+            .query_one(
+                Self::QUERY,
+                &[
+                    &self.reviews_user_id,
+                    &self.reviews_product_id,
+                    &self.reviews_rating,
+                    &self.reviews_comment,
+                ],
+            )
+            .await?;
+        CreateReviewRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<CreateReviewRow>, tokio_postgres::Error> {
+        let row = client
+            .query_opt(
+                Self::QUERY,
+                &[
+                    &self.reviews_user_id,
+                    &self.reviews_product_id,
+                    &self.reviews_rating,
+                    &self.reviews_comment,
+                ],
+            )
+            .await?;
+        match row {
+            Some(row) => Ok(Some(CreateReviewRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct GetProductAverageRatingRow {
     reviews_product_id: uuid::Uuid,
@@ -459,7 +689,7 @@ struct GetProductAverageRatingRow {
     review_count: i64,
 }
 impl GetProductAverageRatingRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             reviews_product_id: row.try_get(0)?,
             average_rating: row.try_get(1)?,
@@ -470,14 +700,31 @@ impl GetProductAverageRatingRow {
 struct GetProductAverageRating<'a> {
     reviews_product_id: std::borrow::Cow<'a, uuid::Uuid>,
 }
-impl GetProductAverageRating {
-    pub const QUERY: &str = r"SELECT
+impl<'a> GetProductAverageRating<'a> {
+    pub const QUERY: &'static str = r"SELECT
     product_id,
     AVG(rating)::float as average_rating,
     COUNT(id) as review_count
 FROM reviews
 WHERE product_id = $1
 GROUP BY product_id";
+    async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<GetProductAverageRatingRow, tokio_postgres::Error> {
+        let row = client.query_one(Self::QUERY, &[&self.reviews_product_id]).await?;
+        GetProductAverageRatingRow::from_row(&row)
+    }
+    async fn query_opt(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<GetProductAverageRatingRow>, tokio_postgres::Error> {
+        let row = client.query_opt(Self::QUERY, &[&self.reviews_product_id]).await?;
+        match row {
+            Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
 }
 struct GetCategorySalesRankingRow {
     categories_category_id: i32,
@@ -486,7 +733,7 @@ struct GetCategorySalesRankingRow {
     total_orders: i64,
 }
 impl GetCategorySalesRankingRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             categories_category_id: row.try_get(0)?,
             categories_category_name: row.try_get(1)?,
@@ -497,7 +744,7 @@ impl GetCategorySalesRankingRow {
 }
 struct GetCategorySalesRanking;
 impl GetCategorySalesRanking {
-    pub const QUERY: &str = r"SELECT
+    pub const QUERY: &'static str = r"SELECT
     c.id as category_id,
     c.name as category_name,
     SUM(oi.quantity * oi.price_at_purchase) as total_sales,
@@ -512,13 +759,13 @@ ORDER BY total_sales DESC";
 }
 struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
-    async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
 struct DeleteUserAndRelatedData<'a> {
     users_id: std::borrow::Cow<'a, uuid::Uuid>,
 }
-impl DeleteUserAndRelatedData {
-    pub const QUERY: &str = r"DELETE FROM users WHERE id = $1";
+impl<'a> DeleteUserAndRelatedData<'a> {
+    pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";
 }

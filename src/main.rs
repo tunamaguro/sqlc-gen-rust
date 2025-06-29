@@ -555,7 +555,7 @@ impl DbCrate for TokioPostgres {
             .collect::<Vec<_>>();
         let from_tt = quote::quote! {
             impl #ident {
-                async fn from_row(#arg_ident: &tokio_postgres::Row)->Result<Self,tokio_postgres::Error>{
+                fn from_row(#arg_ident: &tokio_postgres::Row)->Result<Self,tokio_postgres::Error>{
                     Ok(Self{
                         #(#from_fields,)*
                     })
@@ -591,7 +591,7 @@ impl DbCrate for TokioPostgres {
             }
         }
     }
-    fn call_query(_row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+    fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
         let struct_ident = quote::format_ident!("{}", &query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
@@ -619,11 +619,56 @@ impl DbCrate for TokioPostgres {
             }
         };
 
+        let client_ident = quote::format_ident!("client");
+        let client_typ = syn::parse_str::<syn::Type>("impl tokio_postgres::GenericClient").unwrap();
+        let params = query
+            .param_names
+            .iter()
+            .fold(quote::quote! {}, |acc, x| quote::quote! {#acc &self.#x,});
+        let params = quote::quote! {[#params]};
+
+        let query_fns = match query.annotation {
+            Annotation::One => {
+                let row_ident = row.struct_ident();
+
+                quote::quote! {
+                    async fn query_one(&self,#client_ident: &#client_typ)->Result<#row_ident,tokio_postgres::Error>{
+                        let row = client.query_one(Self::QUERY, &#params).await?;
+                        #row_ident::from_row(&row)
+                    }
+
+                    async fn query_opt(&self,#client_ident: &#client_typ)->Result<Option<#row_ident>,tokio_postgres::Error>{
+                        let row = client.query_opt(Self::QUERY, &#params).await?;
+                        match row {
+                            Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
+                            None => Ok(None)
+                        }
+                    }
+                }
+            }
+            Annotation::Many => {
+                quote::quote! {}
+            }
+            Annotation::Exec => {
+                quote::quote! {}
+            }
+            _ => {
+                // not supported
+                quote::quote! {}
+            }
+        };
+
         let fetch_tt = {
             let query_str = &query.query_str;
+            let imp_ident = if has_params {
+                quote::quote! {<#lifetime> #struct_ident<#lifetime>}
+            } else {
+                quote::quote! {#struct_ident}
+            };
             quote::quote! {
-                impl #struct_ident {
-                    pub const QUERY:&str = #query_str;
+                impl #imp_ident {
+                    pub const QUERY:&'static str = #query_str;
+                    #query_fns
                 }
             }
         };

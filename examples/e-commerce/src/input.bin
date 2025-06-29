@@ -3,7 +3,7 @@
 2
 postgresqlexamples/e-commerce/schema.sql"examples/e-commerce/queries.sqlb¢
 examples/e-commerce/srcsqlc-gen-rust2x
-4file://target/wasm32-wasip1/debug/sqlc-gen-rust.wasm@0f0f69f13f2dac874d5fedef02000577628791db41a4150a8b66ac9949f5a277øpublic"âpublicë
+4file://target/wasm32-wasip1/debug/sqlc-gen-rust.wasm@3d6857ef505c79078abcaf305ee45193c98f2819b4d2db14b12e23739655d3bcøpublic"âpublicë
 users"
 id0ÿÿÿÿÿÿÿÿÿRusersbuuid7
 username0ÿÿÿÿÿÿÿÿÿRusersb
