@@ -5,6 +5,9 @@ edition = "2024"
 authors = ["tunamaguro"]
 license = "MIT OR Apache-2.0"
 
+[workspace]
+members = ["examples/*"]
+
 [dependencies]
 prost = { version = "0.14" }
 

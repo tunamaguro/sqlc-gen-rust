@@ -3,3 +3,4 @@
 # https://rust-lang.github.io/rustup/concepts/profiles.html
 channel = "1.88.0"
 profile = "default"
+targets= ["wasm32-wasip1"]

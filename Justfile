@@ -34,3 +34,16 @@ lint-ci:
 # Run tests
 test:
     cargo test --workspace
+
+# rebuild plugin and generate sqlc
+generate:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    cargo build --target wasm32-wasip1
+
+    WASM_SHA256=$(sha256sum target/wasm32-wasip1/debug/sqlc-gen-rust.wasm | awk '{print $1}');
+    sed "s/\$WASM_SHA256/${WASM_SHA256}/g" sqlc.json > _sqlc_dev.json
+    sqlc generate -f _sqlc_dev.json
+
+    rm _sqlc_dev.json
