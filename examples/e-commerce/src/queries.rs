@@ -158,6 +158,17 @@ impl ListUsers {
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2";
+    async fn query_many(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Vec<ListUsersRow>, tokio_postgres::Error> {
+        let rows = client
+            .query(Self::QUERY, &[&self.limit, &self.offset])
+            .await?;
+        rows.into_iter()
+            .map(|r| ListUsersRow::from_row(&r))
+            .collect()
+    }
 }
 struct CreateProductRow {
     products_id: uuid::Uuid,
@@ -361,6 +372,27 @@ ORDER BY
     p.created_at DESC
 LIMIT $1
 OFFSET $2";
+    async fn query_many(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Vec<SearchProductsRow>, tokio_postgres::Error> {
+        let rows = client
+            .query(
+                Self::QUERY,
+                &[
+                    &self.limit,
+                    &self.offset,
+                    &self.products_name,
+                    &self.category_ids,
+                    &self.products_min_price,
+                    &self.products_max_price,
+                ],
+            )
+            .await?;
+        rows.into_iter()
+            .map(|r| SearchProductsRow::from_row(&r))
+            .collect()
+    }
 }
 struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
@@ -394,6 +426,15 @@ struct GetProductsWithSpecificAttribute<'a> {
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb";
+    async fn query_many(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Vec<GetProductsWithSpecificAttributeRow>, tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &[&self.param]).await?;
+        rows.into_iter()
+            .map(|r| GetProductsWithSpecificAttributeRow::from_row(&r))
+            .collect()
+    }
 }
 struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
@@ -409,6 +450,17 @@ impl UpdateProductStock {
     pub const QUERY: &'static str = r"UPDATE products
 SET stock_quantity = stock_quantity + $2
 WHERE id = $1";
+    async fn execute(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<u64, tokio_postgres::Error> {
+        client
+            .execute(
+                Self::QUERY,
+                &[&self.products_id, &self.products_add_quantity],
+            )
+            .await
+    }
 }
 struct CreateOrderRow {
     orders_id: i64,
@@ -444,7 +496,11 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         let row = client
             .query_one(
                 Self::QUERY,
-                &[&self.orders_user_id, &self.orders_status, &self.orders_total_amount],
+                &[
+                    &self.orders_user_id,
+                    &self.orders_status,
+                    &self.orders_total_amount,
+                ],
             )
             .await?;
         CreateOrderRow::from_row(&row)
@@ -456,7 +512,11 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         let row = client
             .query_opt(
                 Self::QUERY,
-                &[&self.orders_user_id, &self.orders_status, &self.orders_total_amount],
+                &[
+                    &self.orders_user_id,
+                    &self.orders_status,
+                    &self.orders_total_amount,
+                ],
             )
             .await?;
         match row {
@@ -614,6 +674,17 @@ impl ListOrderItemsByOrderID {
 FROM order_items oi
 JOIN products p ON oi.product_id = p.id
 WHERE oi.order_id = $1";
+    async fn query_many(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Vec<ListOrderItemsByOrderIdRow>, tokio_postgres::Error> {
+        let rows = client
+            .query(Self::QUERY, &[&self.order_items_order_id])
+            .await?;
+        rows.into_iter()
+            .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
+            .collect()
+    }
 }
 struct CreateReviewRow {
     reviews_id: i64,
@@ -712,14 +783,18 @@ GROUP BY product_id";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetProductAverageRatingRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.reviews_product_id]).await?;
+        let row = client
+            .query_one(Self::QUERY, &[&self.reviews_product_id])
+            .await?;
         GetProductAverageRatingRow::from_row(&row)
     }
     async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetProductAverageRatingRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.reviews_product_id]).await?;
+        let row = client
+            .query_opt(Self::QUERY, &[&self.reviews_product_id])
+            .await?;
         match row {
             Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
             None => Ok(None),
@@ -756,6 +831,15 @@ JOIN orders o ON oi.order_id = o.id
 WHERE o.status IN ('delivered', 'shipped')
 GROUP BY c.id, c.name
 ORDER BY total_sales DESC";
+    async fn query_many(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Vec<GetCategorySalesRankingRow>, tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &[]).await?;
+        rows.into_iter()
+            .map(|r| GetCategorySalesRankingRow::from_row(&r))
+            .collect()
+    }
 }
 struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
@@ -768,4 +852,10 @@ struct DeleteUserAndRelatedData {
 }
 impl DeleteUserAndRelatedData {
     pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";
+    async fn execute(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<u64, tokio_postgres::Error> {
+        client.execute(Self::QUERY, &[&self.users_id]).await
+    }
 }

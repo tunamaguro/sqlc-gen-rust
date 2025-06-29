@@ -662,10 +662,21 @@ impl DbCrate for TokioPostgres {
                 }
             }
             Annotation::Many => {
-                quote::quote! {}
+                let row_ident = row.struct_ident();
+
+                quote::quote! {
+                    async fn query_many(&self,#client_ident: &#client_typ)->Result<Vec<#row_ident>,tokio_postgres::Error>{
+                        let rows = client.query(Self::QUERY, &#params).await?;
+                        rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
+                    }
+                }
             }
             Annotation::Exec => {
-                quote::quote! {}
+                quote::quote! {
+                    async fn execute(&self,#client_ident: &#client_typ)->Result<u64,tokio_postgres::Error>{
+                        client.execute(Self::QUERY, &#params).await
+                    }
+                }
             }
             _ => {
                 // not supported
