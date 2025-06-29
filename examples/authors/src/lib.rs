@@ -39,7 +39,5 @@ mod tests {
             .query_one(client)
             .await
             .unwrap();
-
-
     }
 }
