@@ -1,0 +1,93 @@
+name: Rust CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - "**.rs"
+      - '**Cargo.toml'
+      - '**Cargo.lock'
+      - "rust-toolchain.toml"
+      - "rustfmt.toml"
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  RUST_LOG: info
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: --deny warnings
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: moonrepo/setup-rust@v1
+        with:
+          components: rustfmt
+          cache-base: main
+      - name: Run format
+        run: |
+          cargo fmt --all --check
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: moonrepo/setup-rust@v1
+        with:
+          components: clippy
+          cache-base: main
+      - name: Setup Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "29.3"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run lint
+        run: |
+          cargo clippy --all-targets --all-features
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.0-bookworm
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: app
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: moonrepo/setup-rust@v1
+        with:
+          cache-base: main
+      - name: Setup Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "29.3"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run test
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
+          POSTGRES_PORT: 5432
+        run: |
+          cargo test --workspace
