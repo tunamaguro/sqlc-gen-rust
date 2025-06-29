@@ -1,4 +1,4 @@
-#[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
+#[derive(Debug, Clone, Copy, postgres_types::ToSql, postgres_types::FromSql)]
 #[postgres(name = "order_status")]
 enum OrderStatus {
     #[postgres(name = "pending")]
@@ -34,6 +34,12 @@ impl CreateUserRow {
         })
     }
 }
+struct CreateUser<'a> {
+    users_username: std::borrow::Cow<'a, str>,
+    users_email: std::borrow::Cow<'a, str>,
+    users_hashed_password: std::borrow::Cow<'a, str>,
+    users_full_name: Option<std::borrow::Cow<'a, str>>,
+}
 struct GetUserByEmailRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -56,6 +62,9 @@ impl GetUserByEmailRow {
         })
     }
 }
+struct GetUserByEmail<'a> {
+    users_email: std::borrow::Cow<'a, str>,
+}
 struct ListUsersRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -73,6 +82,10 @@ impl ListUsersRow {
             users_created_at: row.try_get(4)?,
         })
     }
+}
+struct ListUsers<'a> {
+    limit: std::borrow::Cow<'a, i32>,
+    offset: std::borrow::Cow<'a, i32>,
 }
 struct CreateProductRow {
     products_id: uuid::Uuid,
@@ -100,6 +113,14 @@ impl CreateProductRow {
         })
     }
 }
+struct CreateProduct<'a> {
+    products_category_id: std::borrow::Cow<'a, i32>,
+    products_name: std::borrow::Cow<'a, str>,
+    products_description: Option<std::borrow::Cow<'a, str>>,
+    products_price: std::borrow::Cow<'a, i32>,
+    products_stock_quantity: std::borrow::Cow<'a, i32>,
+    products_attributes: Option<std::borrow::Cow<'a, serde_json::Value>>,
+}
 struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
     products_name: String,
@@ -125,6 +146,9 @@ impl GetProductWithCategoryRow {
             categories_category_slug: row.try_get(8)?,
         })
     }
+}
+struct GetProductWithCategory<'a> {
+    products_id: std::borrow::Cow<'a, uuid::Uuid>,
 }
 struct SearchProductsRow {
     products_id: uuid::Uuid,
@@ -154,6 +178,14 @@ impl SearchProductsRow {
         })
     }
 }
+struct SearchProducts<'a> {
+    limit: std::borrow::Cow<'a, i32>,
+    offset: std::borrow::Cow<'a, i32>,
+    products_name: Option<std::borrow::Cow<'a, str>>,
+    category_ids: std::borrow::Cow<'a, [i32]>,
+    products_min_price: Option<std::borrow::Cow<'a, i32>>,
+    products_max_price: Option<std::borrow::Cow<'a, i32>>,
+}
 struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
@@ -180,11 +212,18 @@ impl GetProductsWithSpecificAttributeRow {
         })
     }
 }
+struct GetProductsWithSpecificAttribute<'a> {
+    param: std::borrow::Cow<'a, serde_json::Value>,
+}
 struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
     async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
+}
+struct UpdateProductStock<'a> {
+    products_id: std::borrow::Cow<'a, uuid::Uuid>,
+    products_add_quantity: std::borrow::Cow<'a, i32>,
 }
 struct CreateOrderRow {
     orders_id: i64,
@@ -204,6 +243,11 @@ impl CreateOrderRow {
         })
     }
 }
+struct CreateOrder<'a> {
+    orders_user_id: std::borrow::Cow<'a, uuid::Uuid>,
+    orders_status: std::borrow::Cow<'a, OrderStatus>,
+    orders_total_amount: std::borrow::Cow<'a, i32>,
+}
 struct CreateOrderItemRow {
     order_items_id: i64,
     order_items_order_id: i64,
@@ -221,6 +265,12 @@ impl CreateOrderItemRow {
             order_items_price_at_purchase: row.try_get(4)?,
         })
     }
+}
+struct CreateOrderItem<'a> {
+    order_items_order_id: std::borrow::Cow<'a, i64>,
+    order_items_product_id: std::borrow::Cow<'a, uuid::Uuid>,
+    order_items_quantity: std::borrow::Cow<'a, i32>,
+    order_items_price_at_purchase: std::borrow::Cow<'a, i32>,
 }
 struct GetOrderDetailsRow {
     orders_order_id: i64,
@@ -244,6 +294,9 @@ impl GetOrderDetailsRow {
         })
     }
 }
+struct GetOrderDetails<'a> {
+    orders_id: std::borrow::Cow<'a, i64>,
+}
 struct ListOrderItemsByOrderIdRow {
     order_items_quantity: i32,
     order_items_price_at_purchase: i32,
@@ -259,6 +312,9 @@ impl ListOrderItemsByOrderIdRow {
             products_product_name: row.try_get(3)?,
         })
     }
+}
+struct ListOrderItemsByOrderID<'a> {
+    order_items_order_id: std::borrow::Cow<'a, i64>,
 }
 struct CreateReviewRow {
     reviews_id: i64,
@@ -280,6 +336,12 @@ impl CreateReviewRow {
         })
     }
 }
+struct CreateReview<'a> {
+    reviews_user_id: std::borrow::Cow<'a, uuid::Uuid>,
+    reviews_product_id: std::borrow::Cow<'a, uuid::Uuid>,
+    reviews_rating: std::borrow::Cow<'a, i32>,
+    reviews_comment: Option<std::borrow::Cow<'a, str>>,
+}
 struct GetProductAverageRatingRow {
     reviews_product_id: uuid::Uuid,
     average_rating: f64,
@@ -293,6 +355,9 @@ impl GetProductAverageRatingRow {
             review_count: row.try_get(2)?,
         })
     }
+}
+struct GetProductAverageRating<'a> {
+    reviews_product_id: std::borrow::Cow<'a, uuid::Uuid>,
 }
 struct GetCategorySalesRankingRow {
     categories_category_id: i32,
@@ -310,9 +375,13 @@ impl GetCategorySalesRankingRow {
         })
     }
 }
+struct GetCategorySalesRanking;
 struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
     async fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
+}
+struct DeleteUserAndRelatedData<'a> {
+    users_id: std::borrow::Cow<'a, uuid::Uuid>,
 }

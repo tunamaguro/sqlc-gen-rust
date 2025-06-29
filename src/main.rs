@@ -122,28 +122,50 @@ impl RsColType {
     }
 
     /// Convert to tokens for function parameter struct
-    fn to_param_tokens(&self) -> proc_macro2::TokenStream {
-        // パラメータの場合、基本型にslice型があれば参照として使用
-        let base_type = if self.dim == 0 && self.rs_type.slice.is_some() {
-            // 配列でない場合のみslice型を使用可能
-            let slice_type = self.rs_type.slice();
-            quote::quote! { &#slice_type }
-        } else {
-            // 配列の場合は所有型を使用
-            self.rs_type.owned()
+    fn to_param_tokens(&self, life_time: &syn::Lifetime) -> proc_macro2::TokenStream {
+        let wrapped_type = match self.dim {
+            0 => {
+                let slice_type = self.rs_type.slice();
+                quote::quote! {&#life_time #slice_type}
+            }
+            _ => {
+                let mut base_type = self.rs_type.owned();
+                for _ in 1..self.dim {
+                    base_type = quote::quote! {Vec<#base_type>}
+                }
+
+                quote::quote! {&#life_time [#base_type]}
+            }
         };
 
-        // 配列の次元数に応じてVecでラップ
-        let mut wrapped_type = base_type;
-        for _ in 0..self.dim {
-            wrapped_type = quote::quote! { Vec<#wrapped_type> };
-        }
-
-        // optionalの場合はOptionでラップ
         if self.optional {
-            quote::quote! { Option<#wrapped_type> }
+            quote::quote! {Option<#wrapped_type>}
         } else {
             wrapped_type
+        }
+    }
+
+    /// Wrap with `std::borrow::Cow`
+    fn to_cow_tokens(&self, life_time: &syn::Lifetime) -> proc_macro2::TokenStream {
+        let wrapped_type = match self.dim {
+            0 => {
+                let slice_type = self.rs_type.slice();
+                quote::quote! {#slice_type}
+            }
+            _ => {
+                let mut base_type = self.rs_type.owned();
+                for _ in 1..self.dim {
+                    base_type = quote::quote! {Vec<#base_type>}
+                }
+
+                quote::quote! {[#base_type]}
+            }
+        };
+
+        if self.optional {
+            quote::quote! {Option<std::borrow::Cow<#life_time, #wrapped_type>>}
+        } else {
+            quote::quote! {std::borrow::Cow<#life_time, #wrapped_type>}
         }
     }
 }
@@ -410,31 +432,38 @@ struct Query {
     /// WHERE id = $1 LIMIT 1;
     /// ^^^^^^^^^^^^^^^^^^^^^^
     /// ```
-    query_str: String,
+    query_str: proc_macro2::Literal,
 }
 
 impl Query {
-    fn from_query(db_type: &DbTypeMap, query: &mut plugin::Query) -> Self {
-        query.params.sort_by_key(|p| p.number);
-
-        let mut param_names = vec![];
-        let mut param_types = vec![];
-
+    fn from_query(db_type: &DbTypeMap, query: &plugin::Query) -> Self {
+        let mut param_data = vec![];
         for param in &query.params {
             let col = param.column.as_ref().unwrap();
             let col_name = if let Some(table) = &col.table {
                 format!("{}_{}", table.name, col.name)
-            } else {
+            } else if !col.name.is_empty() {
                 col.name.to_string()
+            } else {
+                "param".to_string()
             };
 
-            param_names.push(quote::format_ident!("{}", col_name));
-            param_types.push(RsColType::new_with_type(db_type, col));
+            let param_name = quote::format_ident!("{}", col_name);
+            let param_type = RsColType::new_with_type(db_type, col);
+            let param_idx = param.number;
+
+            param_data.push((param_name, param_type, param_idx));
         }
+
+        param_data.sort_by_key(|(_, _, idx)| *idx);
+        let (param_names, param_types): (Vec<_>, Vec<_>) = param_data
+            .into_iter()
+            .map(|(name, typ, _)| (name, typ))
+            .unzip();
 
         let annotation = query.cmd.parse::<Annotation>().unwrap();
         let query_name = query.name.to_string();
-        let query_str = query.text.to_string();
+        let query_str = proc_macro2::Literal::string(&query.text);
 
         Self {
             param_names,
@@ -451,6 +480,8 @@ trait DbCrate {
     fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream;
     /// Generate enum
     fn defined_enum(enum_type: &DbEnum) -> proc_macro2::TokenStream;
+    /// Generate query fn
+    fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
 }
 
 struct TokioPostgres;
@@ -519,12 +550,40 @@ impl DbCrate for TokioPostgres {
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
         quote::quote! {
-            #[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
+            #[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]
             #[postgres(name = #original_name)]
             enum #enum_name {
                 #(#fields,)*
             }
         }
+    }
+    fn call_query(_row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+
+        let struct_ident = quote::format_ident!("{}", &query.query_name);
+        let fields = query
+            .param_names
+            .iter()
+            .zip(query.param_types.iter())
+            .map(|(r, typ)| {
+                let typ = typ.to_cow_tokens(&lifetime);
+                quote::quote! {#r:#typ}
+            })
+            .collect::<Vec<_>>();
+
+        let struct_tt = if query.param_names.is_empty() {
+            quote::quote! {
+                struct #struct_ident;
+            }
+        } else {
+            quote::quote! {
+                struct #struct_ident<#lifetime>{
+                    #(#fields,)*
+                }
+            }
+        };
+
+        struct_tt
     }
 }
 
@@ -576,19 +635,37 @@ fn main() {
         .iter()
         .map(|q| ReturningRows::from_query(&db_type, q))
         .collect::<Vec<_>>();
+    let queries = request
+        .queries
+        .iter()
+        .map(|q| Query::from_query(&db_type, q))
+        .collect::<Vec<_>>();
 
     let enums_ts = defined_enums
         .iter()
         .map(TokioPostgres::defined_enum)
         .collect::<Vec<_>>();
     let enums_tt = quote::quote! {#(#enums_ts)*};
-    let rows_ts = returning_rows
-        .iter()
-        .map(TokioPostgres::returning_row)
-        .collect::<Vec<_>>();
-    let rows_tt = quote::quote! {#(#rows_ts)*};
 
-    let tt = quote::quote! {#enums_tt #rows_tt};
+    let queries_ts = returning_rows
+        .iter()
+        .zip(queries.iter())
+        .map(|(r, q)| {
+            let row_tt = TokioPostgres::returning_row(r);
+            let query_tt = TokioPostgres::call_query(r, q);
+
+            quote::quote! {
+                #row_tt
+                #query_tt
+            }
+        })
+        .collect::<Vec<_>>();
+    let queries_tt = quote::quote! {#(#queries_ts)*};
+
+    let tt = quote::quote! {
+        #enums_tt
+        #queries_tt
+    };
     let ast = syn::parse2(tt).unwrap();
     let query_file = plugin::File {
         name: "queries.rs".to_string(),
