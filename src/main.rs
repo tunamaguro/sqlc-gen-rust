@@ -33,12 +33,12 @@ fn normalize_str(value: &str) -> String {
 
 fn value_ident(ident: &str) -> syn::Ident {
     let ident = normalize_str(ident).to_case(Case::Pascal);
-    syn::Ident::new(&ident, proc_macro2::Span::call_site())
+    quote::format_ident!("{}", ident)
 }
 
 fn field_ident(ident: &str) -> syn::Ident {
     let ident = normalize_str(ident).to_case(Case::Snake);
-    syn::Ident::new(&ident, proc_macro2::Span::call_site())
+    quote::format_ident!("{}", ident)
 }
 
 #[derive(Clone)]
@@ -167,6 +167,81 @@ impl DbTypeMap {
             }
         }
     }
+
+    fn insert(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+        self.inner.insert(db_type.to_string(), rs_type)
+    }
+}
+
+#[derive(Clone)]
+struct DbEnum {
+    /// name of enum
+    ///
+    /// ```sql
+    /// CREATE TYPE book_type AS ENUM (
+    ///             ^^^^^^^^^
+    ///           'FICTION',
+    ///           'NONFICTION'
+    /// );
+    /// ```
+    name: String,
+
+    /// values of enum
+    ///
+    /// CREATE TYPE book_type AS ENUM (
+    ///           'FICTION',
+    ///            ^^^^^^^
+    ///           'NONFICTION'
+    ///            ^^^^^^^^^^
+    /// );
+    /// ```
+    values: Vec<String>,
+}
+
+impl DbEnum {
+    fn ident(&self) -> syn::Ident {
+        value_ident(&self.name)
+    }
+
+    fn to_pg_token(&self) -> proc_macro2::TokenStream {
+        let fields = self
+            .values
+            .iter()
+            .map(|field| {
+                let ident = value_ident(field);
+                quote::quote! {
+                    #[postgres(name = #field)]
+                    #ident
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let original_name = &self.name;
+        let enum_name = self.ident();
+        quote::quote! {
+            #[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
+            #[postgres(name = #original_name)]
+            enum #enum_name {
+                #(#fields,)*
+            }
+        }
+    }
+}
+
+fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
+    let mut res = vec![];
+
+    for schema in &catalog.schemas {
+        for s_enum in &schema.enums {
+            let db_enum = DbEnum {
+                name: s_enum.name.clone(),
+                values: s_enum.vals.clone(),
+            };
+            res.push(db_enum);
+        }
+    }
+
+    res
 }
 
 fn make_column_type(db_type: &plugin::Identifier) -> String {
@@ -241,14 +316,38 @@ fn main() {
     response.files.push(debug_file);
     response.files.push(bin_file);
 
-    let db_type = DbTypeMap::new_for_postgres();
+    let mut db_type = DbTypeMap::new_for_postgres();
+
+    let defined_enums = request
+        .catalog
+        .as_ref()
+        .map(collect_enums)
+        .unwrap_or_default();
+
+    for e in &defined_enums {
+        db_type.insert(
+            &e.name,
+            RsType {
+                owned: syn::parse_str(&e.ident().to_string()).unwrap(),
+                slice: None,
+            },
+        );
+    }
 
     let returning_rows = request
         .queries
         .iter()
         .map(|q| create_returning_row(&db_type, q))
         .collect::<Vec<_>>();
-    let tt = quote::quote! {#(#returning_rows)*};
+
+    let enums_ts = defined_enums
+        .iter()
+        .map(|e| e.to_pg_token())
+        .collect::<Vec<_>>();
+    let enums_tt = quote::quote! {#(#enums_ts)*};
+    let rows_tt = quote::quote! {#(#returning_rows)*};
+
+    let tt = quote::quote! {#enums_tt #rows_tt};
     let ast = syn::parse2(tt).unwrap();
     let query_file = plugin::File {
         name: "queries.rs".to_string(),
