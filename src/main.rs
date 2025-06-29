@@ -544,13 +544,24 @@ impl TokioPostgres {
         let struct_ident = value_ident(&query.query_name);
         let builder_ident = value_ident(&format!("{}Builder", query.query_name));
 
+        let field_list = query
+            .param_names
+            .iter()
+            .map(|n| n.to_token_stream())
+            .collect::<Vec<_>>();
+        let typ_list = query
+            .param_types
+            .iter()
+            .map(|typ| typ.to_param_tokens(&lifetime))
+            .collect::<Vec<_>>();
+
         let impl_struct_tt = if need_lifetime {
             quote::quote! {
                 impl <#lifetime> #struct_ident<#lifetime>{
-                    fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
+                    const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
                         #builder_ident{
-                            fields: Default::default(),
-                            _phantom: Default::default()
+                            fields: (#fields_tuple),
+                            _phantom: std::marker::PhantomData
                         }
                     }
                 }
@@ -558,10 +569,10 @@ impl TokioPostgres {
         } else {
             quote::quote! {
                 impl #struct_ident{
-                    fn builder()->#builder_ident<'static, (#fields_tuple)>{
+                    const fn builder()->#builder_ident<'static, (#fields_tuple)>{
                         #builder_ident{
-                            fields: Default::default(),
-                            _phantom: Default::default()
+                            fields: (#fields_tuple),
+                            _phantom: std::marker::PhantomData
                         }
                     }
                 }
@@ -575,9 +586,28 @@ impl TokioPostgres {
             }
         };
 
+        let builder_build_tt = {
+            let build_struct = if need_lifetime {
+                quote::quote! {#struct_ident<#lifetime>}
+            } else {
+                quote::quote! {#struct_ident}
+            };
+            quote::quote! {
+                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                    const fn build(self)->#build_struct{
+                        let (#(#field_list,)*) = self.fields;
+                        #struct_ident{
+                            #(#field_list,)*
+                        }
+                    }
+                }
+            }
+        };
+
         quote::quote! {
             #impl_struct_tt
             #builder_tt
+            #builder_build_tt
         }
     }
 }

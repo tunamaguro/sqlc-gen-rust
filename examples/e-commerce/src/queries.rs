@@ -86,16 +86,27 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
     }
 }
 impl<'a> CreateUser<'a> {
-    fn builder() -> CreateUserBuilder<'a, ((), (), (), ())> {
+    const fn builder() -> CreateUserBuilder<'a, ((), (), (), ())> {
         CreateUserBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), (), (), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct CreateUserBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
+    const fn build(self) -> CreateUser<'a> {
+        let (users_username, users_email, users_hashed_password, users_full_name) = self.fields;
+        CreateUser {
+            users_username,
+            users_email,
+            users_hashed_password,
+            users_full_name,
+        }
+    }
 }
 struct GetUserByEmailRow {
     users_id: uuid::Uuid,
@@ -144,16 +155,22 @@ WHERE email = $1 LIMIT 1";
     }
 }
 impl<'a> GetUserByEmail<'a> {
-    fn builder() -> GetUserByEmailBuilder<'a, ((),)> {
+    const fn builder() -> GetUserByEmailBuilder<'a, ((),)> {
         GetUserByEmailBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct GetUserByEmailBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
+    const fn build(self) -> GetUserByEmail<'a> {
+        let (users_email,) = self.fields;
+        GetUserByEmail { users_email }
+    }
 }
 struct ListUsersRow {
     users_id: uuid::Uuid,
@@ -195,16 +212,22 @@ OFFSET $2";
     }
 }
 impl ListUsers {
-    fn builder() -> ListUsersBuilder<'static, ((), ())> {
+    const fn builder() -> ListUsersBuilder<'static, ((), ())> {
         ListUsersBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct ListUsersBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> ListUsersBuilder<'a, (i32, i32)> {
+    const fn build(self) -> ListUsers {
+        let (limit, offset) = self.fields;
+        ListUsers { limit, offset }
+    }
 }
 struct CreateProductRow {
     products_id: uuid::Uuid,
@@ -290,16 +313,48 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
     }
 }
 impl<'a> CreateProduct<'a> {
-    fn builder() -> CreateProductBuilder<'a, ((), (), (), (), (), ())> {
+    const fn builder() -> CreateProductBuilder<'a, ((), (), (), (), (), ())> {
         CreateProductBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), (), (), (), (), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct CreateProductBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a>
+    CreateProductBuilder<
+        'a,
+        (
+            i32,
+            &'a str,
+            Option<&'a str>,
+            i32,
+            i32,
+            Option<&'a serde_json::Value>,
+        ),
+    >
+{
+    const fn build(self) -> CreateProduct<'a> {
+        let (
+            products_category_id,
+            products_name,
+            products_description,
+            products_price,
+            products_stock_quantity,
+            products_attributes,
+        ) = self.fields;
+        CreateProduct {
+            products_category_id,
+            products_name,
+            products_description,
+            products_price,
+            products_stock_quantity,
+            products_attributes,
+        }
+    }
 }
 struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
@@ -366,16 +421,22 @@ WHERE
     }
 }
 impl GetProductWithCategory {
-    fn builder() -> GetProductWithCategoryBuilder<'static, ((),)> {
+    const fn builder() -> GetProductWithCategoryBuilder<'static, ((),)> {
         GetProductWithCategoryBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct GetProductWithCategoryBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
+    const fn build(self) -> GetProductWithCategory {
+        let (products_id,) = self.fields;
+        GetProductWithCategory { products_id }
+    }
 }
 struct SearchProductsRow {
     products_id: uuid::Uuid,
@@ -455,16 +516,42 @@ OFFSET $2";
     }
 }
 impl<'a> SearchProducts<'a> {
-    fn builder() -> SearchProductsBuilder<'a, ((), (), (), (), (), ())> {
+    const fn builder() -> SearchProductsBuilder<'a, ((), (), (), (), (), ())> {
         SearchProductsBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), (), (), (), (), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct SearchProductsBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a>
+    SearchProductsBuilder<
+        'a,
+        (
+            i32,
+            i32,
+            Option<&'a str>,
+            &'a [i32],
+            Option<i32>,
+            Option<i32>,
+        ),
+    >
+{
+    const fn build(self) -> SearchProducts<'a> {
+        let (limit, offset, products_name, category_ids, products_min_price, products_max_price) =
+            self.fields;
+        SearchProducts {
+            limit,
+            offset,
+            products_name,
+            category_ids,
+            products_min_price,
+            products_max_price,
+        }
+    }
 }
 struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
@@ -509,16 +596,22 @@ WHERE attributes @> $1::jsonb";
     }
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
-    fn builder() -> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
+    const fn builder() -> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
         GetProductsWithSpecificAttributeBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct GetProductsWithSpecificAttributeBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
+    const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
+        let (param,) = self.fields;
+        GetProductsWithSpecificAttribute { param }
+    }
 }
 struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
@@ -547,16 +640,25 @@ WHERE id = $1";
     }
 }
 impl UpdateProductStock {
-    fn builder() -> UpdateProductStockBuilder<'static, ((), ())> {
+    const fn builder() -> UpdateProductStockBuilder<'static, ((), ())> {
         UpdateProductStockBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct UpdateProductStockBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
+    const fn build(self) -> UpdateProductStock {
+        let (products_id, products_add_quantity) = self.fields;
+        UpdateProductStock {
+            products_id,
+            products_add_quantity,
+        }
+    }
 }
 struct CreateOrderRow {
     orders_id: i64,
@@ -622,16 +724,26 @@ RETURNING id, user_id, status, total_amount, ordered_at";
     }
 }
 impl CreateOrder {
-    fn builder() -> CreateOrderBuilder<'static, ((), (), ())> {
+    const fn builder() -> CreateOrderBuilder<'static, ((), (), ())> {
         CreateOrderBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), (), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct CreateOrderBuilder<'a, Fields = ((), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
+    const fn build(self) -> CreateOrder {
+        let (orders_user_id, orders_status, orders_total_amount) = self.fields;
+        CreateOrder {
+            orders_user_id,
+            orders_status,
+            orders_total_amount,
+        }
+    }
 }
 struct CreateOrderItemRow {
     order_items_id: i64,
@@ -700,16 +812,32 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
     }
 }
 impl CreateOrderItem {
-    fn builder() -> CreateOrderItemBuilder<'static, ((), (), (), ())> {
+    const fn builder() -> CreateOrderItemBuilder<'static, ((), (), (), ())> {
         CreateOrderItemBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), (), (), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct CreateOrderItemBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
+    const fn build(self) -> CreateOrderItem {
+        let (
+            order_items_order_id,
+            order_items_product_id,
+            order_items_quantity,
+            order_items_price_at_purchase,
+        ) = self.fields;
+        CreateOrderItem {
+            order_items_order_id,
+            order_items_product_id,
+            order_items_quantity,
+            order_items_price_at_purchase,
+        }
+    }
 }
 struct GetOrderDetailsRow {
     orders_order_id: i64,
@@ -767,16 +895,22 @@ WHERE o.id = $1";
     }
 }
 impl GetOrderDetails {
-    fn builder() -> GetOrderDetailsBuilder<'static, ((),)> {
+    const fn builder() -> GetOrderDetailsBuilder<'static, ((),)> {
         GetOrderDetailsBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct GetOrderDetailsBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
+    const fn build(self) -> GetOrderDetails {
+        let (orders_id,) = self.fields;
+        GetOrderDetails { orders_id }
+    }
 }
 struct ListOrderItemsByOrderIdRow {
     order_items_quantity: i32,
@@ -819,16 +953,24 @@ WHERE oi.order_id = $1";
     }
 }
 impl ListOrderItemsByOrderId {
-    fn builder() -> ListOrderItemsByOrderIdBuilder<'static, ((),)> {
+    const fn builder() -> ListOrderItemsByOrderIdBuilder<'static, ((),)> {
         ListOrderItemsByOrderIdBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct ListOrderItemsByOrderIdBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
+    const fn build(self) -> ListOrderItemsByOrderId {
+        let (order_items_order_id,) = self.fields;
+        ListOrderItemsByOrderId {
+            order_items_order_id,
+        }
+    }
 }
 struct CreateReviewRow {
     reviews_id: i64,
@@ -899,16 +1041,27 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
     }
 }
 impl<'a> CreateReview<'a> {
-    fn builder() -> CreateReviewBuilder<'a, ((), (), (), ())> {
+    const fn builder() -> CreateReviewBuilder<'a, ((), (), (), ())> {
         CreateReviewBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((), (), (), ()),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct CreateReviewBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)> {
+    const fn build(self) -> CreateReview<'a> {
+        let (reviews_user_id, reviews_product_id, reviews_rating, reviews_comment) = self.fields;
+        CreateReview {
+            reviews_user_id,
+            reviews_product_id,
+            reviews_rating,
+            reviews_comment,
+        }
+    }
 }
 struct GetProductAverageRatingRow {
     reviews_product_id: uuid::Uuid,
@@ -958,16 +1111,22 @@ GROUP BY product_id";
     }
 }
 impl GetProductAverageRating {
-    fn builder() -> GetProductAverageRatingBuilder<'static, ((),)> {
+    const fn builder() -> GetProductAverageRatingBuilder<'static, ((),)> {
         GetProductAverageRatingBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct GetProductAverageRatingBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
+    const fn build(self) -> GetProductAverageRating {
+        let (reviews_product_id,) = self.fields;
+        GetProductAverageRating { reviews_product_id }
+    }
 }
 struct GetCategorySalesRankingRow {
     categories_category_id: i32,
@@ -1028,14 +1187,20 @@ impl DeleteUserAndRelatedData {
     }
 }
 impl DeleteUserAndRelatedData {
-    fn builder() -> DeleteUserAndRelatedDataBuilder<'static, ((),)> {
+    const fn builder() -> DeleteUserAndRelatedDataBuilder<'static, ((),)> {
         DeleteUserAndRelatedDataBuilder {
-            fields: Default::default(),
-            _phantom: Default::default(),
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 struct DeleteUserAndRelatedDataBuilder<'a, Fields = ((),)> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
+    const fn build(self) -> DeleteUserAndRelatedData {
+        let (users_id,) = self.fields;
+        DeleteUserAndRelatedData { users_id }
+    }
 }
