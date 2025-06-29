@@ -85,6 +85,18 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
         }
     }
 }
+impl<'a> CreateUser<'a> {
+    fn builder() -> CreateUserBuilder<'a, ((), (), (), ())> {
+        CreateUserBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct CreateUserBuilder<'a, Fields = ((), (), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct GetUserByEmailRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -131,6 +143,18 @@ WHERE email = $1 LIMIT 1";
         }
     }
 }
+impl<'a> GetUserByEmail<'a> {
+    fn builder() -> GetUserByEmailBuilder<'a, ((),)> {
+        GetUserByEmailBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct GetUserByEmailBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct ListUsersRow {
     users_id: uuid::Uuid,
     users_username: String,
@@ -169,6 +193,18 @@ OFFSET $2";
             .map(|r| ListUsersRow::from_row(&r))
             .collect()
     }
+}
+impl ListUsers {
+    fn builder() -> ListUsersBuilder<'static, ((), ())> {
+        ListUsersBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct ListUsersBuilder<'a, Fields = ((), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 struct CreateProductRow {
     products_id: uuid::Uuid,
@@ -253,6 +289,18 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
         }
     }
 }
+impl<'a> CreateProduct<'a> {
+    fn builder() -> CreateProductBuilder<'a, ((), (), (), (), (), ())> {
+        CreateProductBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct CreateProductBuilder<'a, Fields = ((), (), (), (), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
     products_name: String,
@@ -316,6 +364,18 @@ WHERE
             None => Ok(None),
         }
     }
+}
+impl GetProductWithCategory {
+    fn builder() -> GetProductWithCategoryBuilder<'static, ((),)> {
+        GetProductWithCategoryBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct GetProductWithCategoryBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 struct SearchProductsRow {
     products_id: uuid::Uuid,
@@ -394,6 +454,18 @@ OFFSET $2";
             .collect()
     }
 }
+impl<'a> SearchProducts<'a> {
+    fn builder() -> SearchProductsBuilder<'a, ((), (), (), (), (), ())> {
+        SearchProductsBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct SearchProductsBuilder<'a, Fields = ((), (), (), (), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
@@ -436,6 +508,18 @@ WHERE attributes @> $1::jsonb";
             .collect()
     }
 }
+impl<'a> GetProductsWithSpecificAttribute<'a> {
+    fn builder() -> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
+        GetProductsWithSpecificAttributeBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct GetProductsWithSpecificAttributeBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
@@ -461,6 +545,18 @@ WHERE id = $1";
             )
             .await
     }
+}
+impl UpdateProductStock {
+    fn builder() -> UpdateProductStockBuilder<'static, ((), ())> {
+        UpdateProductStockBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct UpdateProductStockBuilder<'a, Fields = ((), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 struct CreateOrderRow {
     orders_id: i64,
@@ -524,6 +620,18 @@ RETURNING id, user_id, status, total_amount, ordered_at";
             None => Ok(None),
         }
     }
+}
+impl CreateOrder {
+    fn builder() -> CreateOrderBuilder<'static, ((), (), ())> {
+        CreateOrderBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct CreateOrderBuilder<'a, Fields = ((), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 struct CreateOrderItemRow {
     order_items_id: i64,
@@ -591,6 +699,18 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
         }
     }
 }
+impl CreateOrderItem {
+    fn builder() -> CreateOrderItemBuilder<'static, ((), (), (), ())> {
+        CreateOrderItemBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct CreateOrderItemBuilder<'a, Fields = ((), (), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct GetOrderDetailsRow {
     orders_order_id: i64,
     orders_status: OrderStatus,
@@ -646,6 +766,18 @@ WHERE o.id = $1";
         }
     }
 }
+impl GetOrderDetails {
+    fn builder() -> GetOrderDetailsBuilder<'static, ((),)> {
+        GetOrderDetailsBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct GetOrderDetailsBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct ListOrderItemsByOrderIdRow {
     order_items_quantity: i32,
     order_items_price_at_purchase: i32,
@@ -662,10 +794,10 @@ impl ListOrderItemsByOrderIdRow {
         })
     }
 }
-struct ListOrderItemsByOrderID {
+struct ListOrderItemsByOrderId {
     order_items_order_id: i64,
 }
-impl ListOrderItemsByOrderID {
+impl ListOrderItemsByOrderId {
     pub const QUERY: &'static str = r"SELECT
     oi.quantity,
     oi.price_at_purchase,
@@ -685,6 +817,18 @@ WHERE oi.order_id = $1";
             .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
             .collect()
     }
+}
+impl ListOrderItemsByOrderId {
+    fn builder() -> ListOrderItemsByOrderIdBuilder<'static, ((),)> {
+        ListOrderItemsByOrderIdBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct ListOrderItemsByOrderIdBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 struct CreateReviewRow {
     reviews_id: i64,
@@ -754,6 +898,18 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         }
     }
 }
+impl<'a> CreateReview<'a> {
+    fn builder() -> CreateReviewBuilder<'a, ((), (), (), ())> {
+        CreateReviewBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct CreateReviewBuilder<'a, Fields = ((), (), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
 struct GetProductAverageRatingRow {
     reviews_product_id: uuid::Uuid,
     average_rating: f64,
@@ -800,6 +956,18 @@ GROUP BY product_id";
             None => Ok(None),
         }
     }
+}
+impl GetProductAverageRating {
+    fn builder() -> GetProductAverageRatingBuilder<'static, ((),)> {
+        GetProductAverageRatingBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct GetProductAverageRatingBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 struct GetCategorySalesRankingRow {
     categories_category_id: i32,
@@ -858,4 +1026,16 @@ impl DeleteUserAndRelatedData {
     ) -> Result<u64, tokio_postgres::Error> {
         client.execute(Self::QUERY, &[&self.users_id]).await
     }
+}
+impl DeleteUserAndRelatedData {
+    fn builder() -> DeleteUserAndRelatedDataBuilder<'static, ((),)> {
+        DeleteUserAndRelatedDataBuilder {
+            fields: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
+}
+struct DeleteUserAndRelatedDataBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }

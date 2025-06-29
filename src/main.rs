@@ -529,6 +529,57 @@ impl TokioPostgres {
             .iter()
             .fold(false, |acc, x| acc | x.need_lifetime())
     }
+
+    fn create_builder(query: &Query) -> proc_macro2::TokenStream {
+        let num_params = query.param_names.len();
+
+        if num_params == 0 {
+            return quote::quote! {};
+        }
+
+        let fields_tuple =
+            (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
+        let need_lifetime = Self::need_lifetime(query);
+        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+        let struct_ident = value_ident(&query.query_name);
+        let builder_ident = value_ident(&format!("{}Builder", query.query_name));
+
+        let impl_struct_tt = if need_lifetime {
+            quote::quote! {
+                impl <#lifetime> #struct_ident<#lifetime>{
+                    fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
+                        #builder_ident{
+                            fields: Default::default(),
+                            _phantom: Default::default()
+                        }
+                    }
+                }
+            }
+        } else {
+            quote::quote! {
+                impl #struct_ident{
+                    fn builder()->#builder_ident<'static, (#fields_tuple)>{
+                        #builder_ident{
+                            fields: Default::default(),
+                            _phantom: Default::default()
+                        }
+                    }
+                }
+            }
+        };
+
+        let builder_tt = quote::quote! {
+            struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
+                fields: Fields,
+                _phantom: std::marker::PhantomData<&#lifetime ()>
+            }
+        };
+
+        quote::quote! {
+            #impl_struct_tt
+            #builder_tt
+        }
+    }
 }
 
 impl DbCrate for TokioPostgres {
@@ -603,7 +654,7 @@ impl DbCrate for TokioPostgres {
         }
     }
     fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let struct_ident = quote::format_ident!("{}", &query.query_name);
+        let struct_ident = value_ident(&query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
         let fields = query
@@ -705,9 +756,11 @@ impl DbCrate for TokioPostgres {
             }
         };
 
+        let builder = Self::create_builder(query);
         quote::quote! {
             #struct_tt
             #fetch_tt
+            #builder
         }
     }
 }
