@@ -252,45 +252,66 @@ fn make_column_type(db_type: &plugin::Identifier) -> String {
     }
 }
 
-fn create_returning_row(db_type: &DbTypeMap, query: &plugin::Query) -> proc_macro2::TokenStream {
-    let mut columns_name = vec![];
-    let mut columns_type = vec![];
-    for column in &query.columns {
-        let col_name = if let Some(table) = &column.table {
-            format!("{}_{}", table.name, column.name)
-        } else {
-            column.name.to_string()
-        };
+struct ReturningRows {
+    column_names: Vec<syn::Ident>,
+    column_types: Vec<RsType>,
+    query_name: String,
+}
 
-        let db_col_type = column
-            .r#type
-            .as_ref()
-            .map(make_column_type)
-            .expect("column type not found");
+impl ReturningRows {
+    fn from_query(db_type: &DbTypeMap, query: &plugin::Query) -> Self {
+        let mut column_names = vec![];
+        let mut column_types = vec![];
+        for column in &query.columns {
+            let col_name = if let Some(table) = &column.table {
+                format!("{}_{}", table.name, column.name)
+            } else {
+                column.name.to_string()
+            };
 
-        let rs_type = db_type.get(&db_col_type);
+            let db_col_type = column
+                .r#type
+                .as_ref()
+                .map(make_column_type)
+                .expect("column type not found");
 
-        columns_name.push(field_ident(&col_name));
-        columns_type.push(rs_type);
+            let rs_type = db_type.get(&db_col_type);
+
+            column_names.push(field_ident(&col_name));
+            column_types.push(rs_type);
+        }
+
+        Self {
+            column_names,
+            column_types,
+            query_name: query.name.to_string(),
+        }
     }
 
-    let fields = columns_name
-        .iter()
-        .zip(columns_type)
-        .map(|(col, rs_type)| {
-            let col_t_own = rs_type.owned();
-            quote::quote! {#col:#col_t_own}
-        })
-        .collect::<Vec<_>>();
+    fn struct_ident(&self) -> syn::Ident {
+        value_ident(&format!("{}Row", self.query_name))
+    }
 
-    let struct_name = value_ident(&format!("{}Row", query.name));
+    fn to_pg_token(&self) -> proc_macro2::TokenStream {
+        let fields = self
+            .column_names
+            .iter()
+            .zip(self.column_types.iter())
+            .map(|(col, rs_type)| {
+                let col_t_own = rs_type.owned();
+                quote::quote! {#col:#col_t_own}
+            })
+            .collect::<Vec<_>>();
 
-    // struct XXXRow {
-    //  table_col: i32,...
-    // }
-    quote::quote! {
-        struct #struct_name {
-            #(#fields,)*
+        let ident = self.struct_ident();
+
+        // struct XXXRow {
+        //  table_col: i32,...
+        // }
+        quote::quote! {
+            struct #ident {
+                #(#fields,)*
+            }
         }
     }
 }
@@ -341,7 +362,7 @@ fn main() {
     let returning_rows = request
         .queries
         .iter()
-        .map(|q| create_returning_row(&db_type, q))
+        .map(|q| ReturningRows::from_query(&db_type, q))
         .collect::<Vec<_>>();
 
     let enums_ts = defined_enums
@@ -349,7 +370,11 @@ fn main() {
         .map(|e| e.to_pg_token())
         .collect::<Vec<_>>();
     let enums_tt = quote::quote! {#(#enums_ts)*};
-    let rows_tt = quote::quote! {#(#returning_rows)*};
+    let rows_ts = returning_rows
+        .iter()
+        .map(|r| r.to_pg_token())
+        .collect::<Vec<_>>();
+    let rows_tt = quote::quote! {#(#rows_ts)*};
 
     let tt = quote::quote! {#enums_tt #rows_tt};
     let ast = syn::parse2(tt).unwrap();
