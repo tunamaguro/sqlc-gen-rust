@@ -522,6 +522,15 @@ trait DbCrate {
 
 struct TokioPostgres;
 
+impl TokioPostgres {
+    fn need_lifetime(query: &Query) -> bool {
+        query
+            .param_types
+            .iter()
+            .fold(false, |acc, x| acc | x.need_lifetime())
+    }
+}
+
 impl DbCrate for TokioPostgres {
     fn returning_row(row: &ReturningRows) -> proc_macro2::TokenStream {
         let fields = row
@@ -607,10 +616,7 @@ impl DbCrate for TokioPostgres {
             })
             .collect::<Vec<_>>();
 
-        let need_lifetime = query
-            .param_types
-            .iter()
-            .fold(false, |acc, x| acc | x.need_lifetime());
+        let need_lifetime = TokioPostgres::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
