@@ -17,7 +17,7 @@ struct CreateUserRow {
     users_username: String,
     users_email: String,
     users_hashed_password: String,
-    users_full_name: String,
+    users_full_name: Option<String>,
     users_created_at: std::time::SystemTime,
     users_updated_at: std::time::SystemTime,
 }
@@ -39,7 +39,7 @@ struct GetUserByEmailRow {
     users_username: String,
     users_email: String,
     users_hashed_password: String,
-    users_full_name: String,
+    users_full_name: Option<String>,
     users_created_at: std::time::SystemTime,
     users_updated_at: std::time::SystemTime,
 }
@@ -60,7 +60,7 @@ struct ListUsersRow {
     users_id: uuid::Uuid,
     users_username: String,
     users_email: String,
-    users_full_name: String,
+    users_full_name: Option<String>,
     users_created_at: std::time::SystemTime,
 }
 impl ListUsersRow {
@@ -78,10 +78,10 @@ struct CreateProductRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
     products_name: String,
-    products_description: String,
+    products_description: Option<String>,
     products_price: i32,
     products_stock_quantity: i32,
-    products_attributes: serde_json::Value,
+    products_attributes: Option<serde_json::Value>,
     products_created_at: std::time::SystemTime,
     products_updated_at: std::time::SystemTime,
 }
@@ -103,10 +103,10 @@ impl CreateProductRow {
 struct GetProductWithCategoryRow {
     products_id: uuid::Uuid,
     products_name: String,
-    products_description: String,
+    products_description: Option<String>,
     products_price: i32,
     products_stock_quantity: i32,
-    products_attributes: serde_json::Value,
+    products_attributes: Option<serde_json::Value>,
     products_created_at: std::time::SystemTime,
     categories_category_name: String,
     categories_category_slug: String,
@@ -130,10 +130,10 @@ struct SearchProductsRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
     products_name: String,
-    products_description: String,
+    products_description: Option<String>,
     products_price: i32,
     products_stock_quantity: i32,
-    products_attributes: serde_json::Value,
+    products_attributes: Option<serde_json::Value>,
     products_created_at: std::time::SystemTime,
     products_updated_at: std::time::SystemTime,
     average_rating: f64,
@@ -158,10 +158,10 @@ struct GetProductsWithSpecificAttributeRow {
     products_id: uuid::Uuid,
     products_category_id: i32,
     products_name: String,
-    products_description: String,
+    products_description: Option<String>,
     products_price: i32,
     products_stock_quantity: i32,
-    products_attributes: serde_json::Value,
+    products_attributes: Option<serde_json::Value>,
     products_created_at: std::time::SystemTime,
     products_updated_at: std::time::SystemTime,
 }
@@ -265,7 +265,7 @@ struct CreateReviewRow {
     reviews_user_id: uuid::Uuid,
     reviews_product_id: uuid::Uuid,
     reviews_rating: i32,
-    reviews_comment: String,
+    reviews_comment: Option<String>,
     reviews_created_at: std::time::SystemTime,
 }
 impl CreateReviewRow {

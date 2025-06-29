@@ -68,6 +68,86 @@ impl RsType {
     }
 }
 
+struct RsColType {
+    rs_type: RsType,
+    /// maybe dim
+    dim: usize,
+    /// col is optional
+    optional: bool,
+}
+
+impl RsColType {
+    fn new_with_type(db_type: &DbTypeMap, column: &plugin::Column) -> Self {
+        fn make_column_type(db_type: &plugin::Identifier) -> String {
+            if !db_type.schema.is_empty() {
+                format!("{}.{}", db_type.schema, db_type.name)
+            } else {
+                db_type.name.to_string()
+            }
+        }
+
+        let db_col_type = column
+            .r#type
+            .as_ref()
+            .map(make_column_type)
+            .expect("column type not found");
+
+        let rs_type = db_type.get(&db_col_type);
+        let dim = usize::try_from(column.array_dims).unwrap_or_default();
+        let optional = !column.not_null;
+
+        Self {
+            rs_type,
+            dim,
+            optional,
+        }
+    }
+
+    /// Convert to tokens for row struct
+    fn to_row_tokens(&self) -> proc_macro2::TokenStream {
+        let base_type = self.rs_type.owned();
+
+        // 配列の次元数に応じてVecでラップ
+        let mut wrapped_type = base_type;
+        for _ in 0..self.dim {
+            wrapped_type = quote::quote! { Vec<#wrapped_type> };
+        }
+
+        // optionalの場合はOptionでラップ
+        if self.optional {
+            quote::quote! { Option<#wrapped_type> }
+        } else {
+            wrapped_type
+        }
+    }
+
+    /// Convert to tokens for function parameter struct
+    fn to_param_tokens(&self) -> proc_macro2::TokenStream {
+        // パラメータの場合、基本型にslice型があれば参照として使用
+        let base_type = if self.dim == 0 && self.rs_type.slice.is_some() {
+            // 配列でない場合のみslice型を使用可能
+            let slice_type = self.rs_type.slice();
+            quote::quote! { &#slice_type }
+        } else {
+            // 配列の場合は所有型を使用
+            self.rs_type.owned()
+        };
+
+        // 配列の次元数に応じてVecでラップ
+        let mut wrapped_type = base_type;
+        for _ in 0..self.dim {
+            wrapped_type = quote::quote! { Vec<#wrapped_type> };
+        }
+
+        // optionalの場合はOptionでラップ
+        if self.optional {
+            quote::quote! { Option<#wrapped_type> }
+        } else {
+            wrapped_type
+        }
+    }
+}
+
 #[derive(Default)]
 struct DbTypeMap {
     inner: std::collections::BTreeMap<String, RsType>,
@@ -220,17 +300,9 @@ fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
     res
 }
 
-fn make_column_type(db_type: &plugin::Identifier) -> String {
-    if !db_type.schema.is_empty() {
-        format!("{}.{}", db_type.schema, db_type.name)
-    } else {
-        db_type.name.to_string()
-    }
-}
-
 struct ReturningRows {
     column_names: Vec<syn::Ident>,
-    column_types: Vec<RsType>,
+    column_types: Vec<RsColType>,
     query_name: String,
 }
 
@@ -245,13 +317,7 @@ impl ReturningRows {
                 column.name.to_string()
             };
 
-            let db_col_type = column
-                .r#type
-                .as_ref()
-                .map(make_column_type)
-                .expect("column type not found");
-
-            let rs_type = db_type.get(&db_col_type);
+            let rs_type = RsColType::new_with_type(db_type, column);
 
             column_names.push(field_ident(&col_name));
             column_types.push(rs_type);
@@ -266,6 +332,117 @@ impl ReturningRows {
 
     fn struct_ident(&self) -> syn::Ident {
         value_ident(&format!("{}Row", self.query_name))
+    }
+}
+
+/// sqlc annotation
+/// See https://docs.sqlc.dev/en/stable/reference/query-annotations.html
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum Annotation {
+    Exec,
+    ExecResult,
+    ExecRows,
+    ExecLastId,
+    Many,
+    One,
+    BatchExec,
+    BatchMany,
+    BatchOne,
+    CopyFrom,
+    Unknown(String),
+}
+
+impl std::fmt::Display for Annotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let txt = match self {
+            Annotation::Exec => ":exec",
+            Annotation::ExecResult => ":execresult",
+            Annotation::ExecRows => ":execrows",
+            Annotation::ExecLastId => ":execlastid",
+            Annotation::Many => ":many",
+            Annotation::One => ":one",
+            Annotation::BatchExec => ":batch",
+            Annotation::BatchMany => ":batchmany",
+            Annotation::BatchOne => ":batchone",
+            Annotation::CopyFrom => ":copyfrom",
+            Annotation::Unknown(s) => s,
+        };
+        f.write_str(txt)
+    }
+}
+
+impl std::str::FromStr for Annotation {
+    type Err = std::convert::Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let annotation = match s {
+            ":exec" => Annotation::Exec,
+            ":execresult" => Annotation::ExecResult,
+            ":execrows" => Annotation::ExecRows,
+            ":execlastid" => Annotation::ExecLastId,
+            ":many" => Annotation::Many,
+            ":one" => Annotation::One,
+            ":batch" => Annotation::BatchExec,
+            ":batchmany" => Annotation::BatchMany,
+            ":batchone" => Annotation::BatchOne,
+            ":copyfrom" => Annotation::CopyFrom,
+            _ => Annotation::Unknown(s.to_string()),
+        };
+        Ok(annotation)
+    }
+}
+
+struct Query {
+    param_names: Vec<syn::Ident>,
+    param_types: Vec<RsColType>,
+
+    annotation: Annotation,
+    /// ```sql
+    /// -- name: GetAuthor :one
+    ///          ^^^^^^^^^
+    /// SELECT * FROM authors
+    /// WHERE id = $1 LIMIT 1;
+    /// ```
+    query_name: String,
+    /// ```sql
+    /// -- name: GetAuthor :one
+    /// SELECT * FROM authors
+    /// ^^^^^^^^^^^^^^^^^^^^^
+    /// WHERE id = $1 LIMIT 1;
+    /// ^^^^^^^^^^^^^^^^^^^^^^
+    /// ```
+    query_str: String,
+}
+
+impl Query {
+    fn from_query(db_type: &DbTypeMap, query: &mut plugin::Query) -> Self {
+        query.params.sort_by_key(|p| p.number);
+
+        let mut param_names = vec![];
+        let mut param_types = vec![];
+
+        for param in &query.params {
+            let col = param.column.as_ref().unwrap();
+            let col_name = if let Some(table) = &col.table {
+                format!("{}_{}", table.name, col.name)
+            } else {
+                col.name.to_string()
+            };
+
+            param_names.push(quote::format_ident!("{}", col_name));
+            param_types.push(RsColType::new_with_type(db_type, col));
+        }
+
+        let annotation = query.cmd.parse::<Annotation>().unwrap();
+        let query_name = query.name.to_string();
+        let query_str = query.text.to_string();
+
+        Self {
+            param_names,
+            param_types,
+            annotation,
+            query_name,
+            query_str,
+        }
     }
 }
 
@@ -285,8 +462,8 @@ impl DbCrate for TokioPostgres {
             .iter()
             .zip(row.column_types.iter())
             .map(|(col, rs_type)| {
-                let col_t_own = rs_type.owned();
-                quote::quote! {#col:#col_t_own}
+                let col_t = rs_type.to_row_tokens();
+                quote::quote! {#col:#col_t}
             })
             .collect::<Vec<_>>();
 
