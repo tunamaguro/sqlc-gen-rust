@@ -841,19 +841,7 @@ fn main() {
 
     let request = deserialize_codegen_request(&buffer).expect("Failed to decode GenerateRequest");
 
-    let debug_file = plugin::File {
-        name: "debug.txt".to_string(),
-        contents: format!("{:#?}", request).into_bytes(),
-    };
-
-    let bin_file = plugin::File {
-        name: "input.bin".to_string(),
-        contents: request.encode_to_vec(),
-    };
-
     let mut response = plugin::GenerateResponse::default();
-    response.files.push(debug_file);
-    response.files.push(bin_file);
 
     let mut db_type = DbTypeMap::new_for_postgres();
 
