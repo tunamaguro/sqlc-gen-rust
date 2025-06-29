@@ -328,7 +328,11 @@ fn main() {
         db_type.insert(
             &e.name,
             RsType {
-                owned: syn::parse_str(&e.ident().to_string()).unwrap(),
+                owned: syn::TypePath {
+                    qself: None,
+                    path: e.ident().clone().into(),
+                }
+                .into(),
                 slice: None,
             },
         );
