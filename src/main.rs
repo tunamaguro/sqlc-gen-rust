@@ -45,11 +45,16 @@ fn field_ident(ident: &str) -> syn::Ident {
 struct RsType {
     owned: syn::Type,
     slice: Option<syn::Type>,
+    copy_cheap: bool,
 }
 
 impl RsType {
-    fn new(owned: syn::Type, slice: Option<syn::Type>) -> Self {
-        RsType { owned, slice }
+    fn new(owned: syn::Type, slice: Option<syn::Type>, copy_cheap: bool) -> Self {
+        RsType {
+            owned,
+            slice,
+            copy_cheap,
+        }
     }
 
     /// 自己所有の型を返す
@@ -121,32 +126,15 @@ impl RsColType {
         }
     }
 
-    /// Convert to tokens for function parameter struct
-    fn to_param_tokens(&self, life_time: &syn::Lifetime) -> proc_macro2::TokenStream {
-        let wrapped_type = match self.dim {
-            0 => {
-                let slice_type = self.rs_type.slice();
-                quote::quote! {&#life_time #slice_type}
-            }
-            _ => {
-                let mut base_type = self.rs_type.owned();
-                for _ in 1..self.dim {
-                    base_type = quote::quote! {Vec<#base_type>}
-                }
+    fn need_lifetime(&self) -> bool {
+        let is_slice = self.dim != 0;
+        let copy_expensive = !self.rs_type.copy_cheap;
 
-                quote::quote! {&#life_time [#base_type]}
-            }
-        };
-
-        if self.optional {
-            quote::quote! {Option<#wrapped_type>}
-        } else {
-            wrapped_type
-        }
+        is_slice || copy_expensive
     }
 
-    /// Wrap with `std::borrow::Cow`
-    fn to_cow_tokens(&self, life_time: &syn::Lifetime) -> proc_macro2::TokenStream {
+    /// Convert to tokens for function parameter struct
+    fn to_param_tokens(&self, life_time: &syn::Lifetime) -> proc_macro2::TokenStream {
         let wrapped_type = match self.dim {
             0 => {
                 let slice_type = self.rs_type.slice();
@@ -162,17 +150,27 @@ impl RsColType {
             }
         };
 
-        if self.optional {
-            quote::quote! {Option<std::borrow::Cow<#life_time, #wrapped_type>>}
-        } else {
-            quote::quote! {std::borrow::Cow<#life_time, #wrapped_type>}
+        match (self.need_lifetime(), self.optional) {
+            (true, true) => {
+                quote::quote! {Option<&#life_time #wrapped_type>}
+            }
+            (true, false) => {
+                quote::quote! {&#life_time #wrapped_type}
+            }
+            (false, true) => {
+                quote::quote! {Option<#wrapped_type>}
+            }
+            (false, false) => {
+                quote::quote! {#wrapped_type}
+            }
         }
     }
 }
 
 #[derive(Default)]
 struct DbTypeMap {
-    inner: std::collections::BTreeMap<String, RsType>,
+    /// db_type to rust type
+    typ_map: std::collections::BTreeMap<String, RsType>,
 }
 
 impl DbTypeMap {
@@ -184,32 +182,24 @@ impl DbTypeMap {
     /// - https://docs.rs/postgres-types/0.2.9/postgres_types/trait.ToSql.html#types
     /// - https://www.postgresql.jp/document/17/html/datatype.html
     fn new_for_postgres() -> Self {
-        let default_types = [
+        let copy_cheap = [
+            ("i32", vec!["serial", "serial4", "pg_catalog.serial4"]),
+            ("i64", vec!["bigserial", "serial8", "pg_catalog.serial8"]),
+            ("i16", vec!["smallserial", "serial2", "pg_catalog.serial2"]),
+            ("i32", vec!["integer", "int", "int4", "pg_catalog.int4"]),
+            ("i64", vec!["bigint", "int8", "pg_catalog.int8"]),
+            ("i16", vec!["smallint", "int2", "pg_catalog.int2"]),
             (
-                ("i32", None),
-                vec!["serial", "serial4", "pg_catalog.serial4"],
-            ),
-            (
-                ("i64", None),
-                vec!["bigserial", "serial8", "pg_catalog.serial8"],
-            ),
-            (
-                ("i16", None),
-                vec!["smallserial", "serial2", "pg_catalog.serial2"],
-            ),
-            (
-                ("i32", None),
-                vec!["integer", "int", "int4", "pg_catalog.int4"],
-            ),
-            (("i64", None), vec!["bigint", "int8", "pg_catalog.int8"]),
-            (("i16", None), vec!["smallint", "int2", "pg_catalog.int2"]),
-            (
-                ("f64", None),
+                "f64",
                 vec!["float", "double precision", "float8", "pg_catalog.float8"],
             ),
-            (("f32", None), vec!["real", "float4", "pg_catalog.float4"]),
-            (("bool", None), vec!["boolean", "bool", "pg_catalog.bool"]),
-            (("u32", None), vec!["oid", "pg_catalog.oid"]),
+            ("f32", vec!["real", "float4", "pg_catalog.float4"]),
+            ("bool", vec!["boolean", "bool", "pg_catalog.bool"]),
+            ("u32", vec!["oid", "pg_catalog.oid"]),
+            ("uuid::Uuid", vec!["uuid"]),
+        ];
+
+        let default_types = [
             (
                 ("String", Some("str")),
                 vec![
@@ -240,19 +230,30 @@ impl DbTypeMap {
                 ("serde_json::Value", None),
                 vec!["json", "pg_catalog.json", "jsonb", "pg_catalog.jsonb"],
             ),
-            (("uuid::Uuid", None), vec!["uuid"]),
         ];
 
         let mut map = DbTypeMap::default();
+
+        for (owned_type, pg_types) in copy_cheap {
+            let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
+
+            for pg_type in pg_types {
+                map.typ_map.insert(
+                    pg_type.to_string(),
+                    RsType::new(owned_type.clone(), None, true),
+                );
+            }
+        }
+
         for ((owned_type, slice_type), pg_types) in default_types {
             let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
             let slice_type = slice_type
                 .map(|s| syn::parse_str::<syn::Type>(s).expect("Failed to parse slice type"));
 
             for pg_type in pg_types {
-                map.inner.insert(
+                map.typ_map.insert(
                     pg_type.to_string(),
-                    RsType::new(owned_type.clone(), slice_type.clone()),
+                    RsType::new(owned_type.clone(), slice_type.clone(), false),
                 );
             }
         }
@@ -260,18 +261,19 @@ impl DbTypeMap {
     }
 
     fn get(&self, db_type: &str) -> RsType {
-        if let Some(rs_type) = self.inner.get(db_type) {
+        if let Some(rs_type) = self.typ_map.get(db_type) {
             rs_type.clone()
         } else {
             RsType {
                 owned: syn::parse_str("std::convert::Infallible").unwrap(),
                 slice: None,
+                copy_cheap: false,
             }
         }
     }
 
-    fn insert(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
-        self.inner.insert(db_type.to_string(), rs_type)
+    fn insert_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+        self.typ_map.insert(db_type.to_string(), rs_type)
     }
 }
 
@@ -600,22 +602,35 @@ impl DbCrate for TokioPostgres {
             .iter()
             .zip(query.param_types.iter())
             .map(|(r, typ)| {
-                let typ = typ.to_cow_tokens(&lifetime);
+                let typ = typ.to_param_tokens(&lifetime);
                 quote::quote! {#r:#typ}
             })
             .collect::<Vec<_>>();
 
-        let has_params = !query.param_names.is_empty();
-        let struct_tt = if has_params {
-            quote::quote! {
-                struct #struct_ident<#lifetime>{
-                    #(#fields,)*
+        let need_lifetime = query
+            .param_types
+            .iter()
+            .fold(false, |acc, x| acc | x.need_lifetime());
+        let has_fields = !query.param_names.is_empty();
+        let struct_tt = match (need_lifetime, has_fields) {
+            (true, _) => {
+                quote::quote! {
+                    struct #struct_ident<#lifetime>{
+                        #(#fields,)*
+                    }
                 }
             }
-        } else {
-            // no param
-            quote::quote! {
-                struct #struct_ident;
+            (false, true) => {
+                quote::quote! {
+                    struct #struct_ident{
+                        #(#fields,)*
+                    }
+                }
+            }
+            (false, false) => {
+                quote::quote! {
+                    struct #struct_ident;
+                }
             }
         };
 
@@ -660,7 +675,7 @@ impl DbCrate for TokioPostgres {
 
         let fetch_tt = {
             let query_str = &query.query_str;
-            let imp_ident = if has_params {
+            let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime> #struct_ident<#lifetime>}
             } else {
                 quote::quote! {#struct_ident}
@@ -710,7 +725,7 @@ fn main() {
         .unwrap_or_default();
 
     for e in &defined_enums {
-        db_type.insert(
+        db_type.insert_type(
             &e.name,
             RsType {
                 owned: syn::TypePath {
@@ -719,6 +734,7 @@ fn main() {
                 }
                 .into(),
                 slice: None,
+                copy_cheap: true,
             },
         );
     }
