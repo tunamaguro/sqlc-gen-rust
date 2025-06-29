@@ -17,7 +17,8 @@
             "codegen": [
                 {
                     "plugin": "sqlc-gen-rust",
-                    "out": "examples/e-commerce/src"
+                    "out": "examples/e-commerce/src",
+                    "options": {}
                 }
             ]
         }

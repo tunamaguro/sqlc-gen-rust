@@ -4,8 +4,10 @@ fn main() {
     match try_main() {
         Ok(()) => {}
         Err(e) => {
+            eprintln!("generation failed.");
             let stack = e.stack_error().join("\n");
-            eprintln!("{}", stack)
+            eprintln!("{}", stack);
+            std::process::exit(1)
         }
     }
 }

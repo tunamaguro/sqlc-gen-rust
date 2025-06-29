@@ -19,6 +19,9 @@ syn = { version = "2" }
 convert_case = { version = "0.8.0" }
 regex-lite = "0.1.6"
 
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { workspace = true }
+
 [build-dependencies]
 prost-build = "0.14"
 

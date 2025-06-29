@@ -822,6 +822,8 @@ dependencies = [
  "prost-build",
  "quote",
  "regex-lite",
+ "serde",
+ "serde_json",
  "syn",
 ]
 

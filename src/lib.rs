@@ -68,6 +68,10 @@ pub enum Error {
         source: prost::DecodeError,
         location: &'static std::panic::Location<'static>,
     },
+    Json {
+        source: serde_json::Error,
+        location: &'static std::panic::Location<'static>,
+    },
     Any {
         source: Box<dyn std::error::Error + 'static>,
         location: &'static std::panic::Location<'static>,
@@ -79,23 +83,8 @@ impl Error {
         match self {
             Error::Io { location, .. } => location,
             Error::ProstDecode { location, .. } => location,
+            Error::Json { location, .. } => location,
             Error::Any { location, .. } => location,
-        }
-    }
-
-    #[track_caller]
-    fn io_error(source: std::io::Error) -> Self {
-        Error::Io {
-            source,
-            location: std::panic::Location::caller(),
-        }
-    }
-
-    #[track_caller]
-    fn prost_decode(source: prost::DecodeError) -> Self {
-        Error::ProstDecode {
-            source,
-            location: std::panic::Location::caller(),
         }
     }
 
@@ -111,14 +100,30 @@ impl Error {
 impl From<std::io::Error> for Error {
     #[track_caller]
     fn from(value: std::io::Error) -> Self {
-        Error::io_error(value)
+        Self::Io {
+            source: value,
+            location: std::panic::Location::caller(),
+        }
     }
 }
 
 impl From<prost::DecodeError> for Error {
     #[track_caller]
     fn from(value: prost::DecodeError) -> Self {
-        Error::prost_decode(value)
+        Self::ProstDecode {
+            source: value,
+            location: std::panic::Location::caller(),
+        }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    #[track_caller]
+    fn from(value: serde_json::Error) -> Self {
+        Self::Json {
+            source: value,
+            location: std::panic::Location::caller(),
+        }
     }
 }
 
@@ -127,6 +132,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Io { source, .. } => source.fmt(f),
             Error::ProstDecode { source, .. } => source.fmt(f),
+            Error::Json { source, .. } => source.fmt(f),
             Error::Any { source, .. } => source.fmt(f),
         }
     }
@@ -205,12 +211,43 @@ pub(crate) trait DbCrate {
     fn call_query(row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+struct OverrideType {
+    db_type: String,
+    rs_type: String,
+    copy_cheap: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+struct Config {
+    output: String,
+    overrides: Vec<OverrideType>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            output: "queries.rs".into(),
+            overrides: vec![],
+        }
+    }
+}
+
+impl Config {
+    fn from_option(buf: &[u8]) -> Result<Self, serde_json::Error> {
+        serde_json::from_slice(buf)
+    }
+}
+
 pub fn try_main() -> Result<(), Error> {
     let mut stdin = std::io::stdin().lock();
     let mut buffer = Vec::new();
     stdin.read_to_end(&mut buffer)?;
 
     let request = deserialize_codegen_request(&buffer)?;
+    let config = Config::from_option(&request.plugin_options)?;
+    str::from_utf8(&request.plugin_options).map_err(|e| Error::any(e.into()))?;
 
     let mut response = plugin::GenerateResponse::default();
 
@@ -275,7 +312,7 @@ pub fn try_main() -> Result<(), Error> {
     };
     let ast = syn::parse2(tt).map_err(|e| Error::any(e.into()))?;
     let query_file = plugin::File {
-        name: "queries.rs".to_string(),
+        name: config.output,
         contents: prettyplease::unparse(&ast).into(),
     };
     response.files.push(query_file);
