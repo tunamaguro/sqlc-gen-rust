@@ -15,6 +15,10 @@ setup-tools:
 format:
     cargo fmt --all
 
+# format in CI
+format-ci:
+    RUSTFLAGS="--deny warnings" cargo fmt --all --check
+
 # Show lint error
 lint:
     cargo clippy --workspace --all-targets --all-features --fix
@@ -22,6 +26,10 @@ lint:
 # Fix clippy error
 lint-fix:
     cargo clippy --fix --workspace --all-targets --all-features --allow-dirty --allow-staged
+
+# lint in CI
+lint-ci:
+    RUSTFLAGS="--deny warnings" cargo clippy --all-targets --all-features
 
 # Run tests
 test:
