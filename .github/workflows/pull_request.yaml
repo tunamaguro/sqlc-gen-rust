@@ -92,6 +92,6 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run test
         env:
-          DATABASE_URL: postgres://root:password@postgres:5432/app
+          DATABASE_URL: postgres://root:password@localhost:5432/app
         run: |
           just test
