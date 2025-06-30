@@ -92,6 +92,24 @@ ORDER BY name";
             .collect()
     }
 }
+impl ListAuthors {
+    pub const fn builder() -> ListAuthorsBuilder<'static, ()> {
+        ListAuthorsBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct ListAuthorsBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> ListAuthorsBuilder<'a, ()> {
+    pub const fn build(self) -> ListAuthors {
+        let () = self.fields;
+        ListAuthors {}
+    }
+}
 pub struct CreateAuthorRow {
     pub id: i64,
     pub name: String,

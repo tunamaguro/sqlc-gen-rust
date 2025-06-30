@@ -1688,6 +1688,24 @@ ORDER BY total_sales DESC";
             .collect()
     }
 }
+impl GetCategorySalesRanking {
+    pub const fn builder() -> GetCategorySalesRankingBuilder<'static, ()> {
+        GetCategorySalesRankingBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct GetCategorySalesRankingBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetCategorySalesRankingBuilder<'a, ()> {
+    pub const fn build(self) -> GetCategorySalesRanking {
+        let () = self.fields;
+        GetCategorySalesRanking {}
+    }
+}
 pub struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
     fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {

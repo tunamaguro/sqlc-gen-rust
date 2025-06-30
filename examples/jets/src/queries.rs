@@ -31,6 +31,24 @@ impl CountPilots {
         }
     }
 }
+impl CountPilots {
+    pub const fn builder() -> CountPilotsBuilder<'static, ()> {
+        CountPilotsBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct CountPilotsBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> CountPilotsBuilder<'a, ()> {
+    pub const fn build(self) -> CountPilots {
+        let () = self.fields;
+        CountPilots {}
+    }
+}
 pub struct ListPilotsRow {
     pub id: i32,
     pub name: String,
@@ -56,6 +74,24 @@ impl ListPilots {
         rows.into_iter()
             .map(|r| ListPilotsRow::from_row(&r))
             .collect()
+    }
+}
+impl ListPilots {
+    pub const fn builder() -> ListPilotsBuilder<'static, ()> {
+        ListPilotsBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct ListPilotsBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> ListPilotsBuilder<'a, ()> {
+    pub const fn build(self) -> ListPilots {
+        let () = self.fields;
+        ListPilots {}
     }
 }
 pub struct DeletePilotRow {}

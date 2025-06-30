@@ -33,6 +33,24 @@ ORDER BY name";
             .collect()
     }
 }
+impl ListCities {
+    pub const fn builder() -> ListCitiesBuilder<'static, ()> {
+        ListCitiesBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct ListCitiesBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> ListCitiesBuilder<'a, ()> {
+    pub const fn build(self) -> ListCities {
+        let () = self.fields;
+        ListCities {}
+    }
+}
 pub struct GetCityRow {
     pub slug: String,
     pub name: String,
@@ -817,5 +835,23 @@ ORDER BY 1";
         rows.into_iter()
             .map(|r| VenueCountByCityRow::from_row(&r))
             .collect()
+    }
+}
+impl VenueCountByCity {
+    pub const fn builder() -> VenueCountByCityBuilder<'static, ()> {
+        VenueCountByCityBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct VenueCountByCityBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> VenueCountByCityBuilder<'a, ()> {
+    pub const fn build(self) -> VenueCountByCity {
+        let () = self.fields;
+        VenueCountByCity {}
     }
 }
