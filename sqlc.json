@@ -55,6 +55,21 @@
                     }
                 }
             ]
+        },
+        {
+            "schema": "examples/booktest/schema.sql",
+            "queries": "examples/booktest/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/booktest/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "postgres"
+                    }
+                }
+            ]
         }
     ]
 }
