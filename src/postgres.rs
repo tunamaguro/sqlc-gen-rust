@@ -82,10 +82,6 @@ impl Postgres {
     fn create_builder(query: &Query) -> proc_macro2::TokenStream {
         let num_params = query.param_names.len();
 
-        if num_params == 0 {
-            return quote::quote! {};
-        }
-
         let fields_tuple =
             (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
         let need_lifetime = Self::need_lifetime(query);
