@@ -12,6 +12,10 @@ pub enum QueryError {
         param_number: i32,
         location: &'static std::panic::Location<'static>,
     },
+    CannotMapType {
+        message: String,
+        location: &'static std::panic::Location<'static>,
+    },
     Stacked {
         source: Box<Self>,
         location: &'static std::panic::Location<'static>,
@@ -35,10 +39,22 @@ impl QueryError {
         }
     }
 
+    #[track_caller]
+    fn cannot_map_type(col_name: String, typ_name: String) -> Self {
+        Self::CannotMapType {
+            message: format!(
+                "Cannot map type `{}` of table `{}` to a Rust type. Consider add entry to overrides.",
+                col_name, typ_name
+            ),
+            location: std::panic::Location::caller(),
+        }
+    }
+
     fn location(&self) -> &'static std::panic::Location<'static> {
         match self {
             QueryError::MissingColumnType { location, .. } => location,
             QueryError::MissingParamColumn { location, .. } => location,
+            QueryError::CannotMapType { location, .. } => location,
             QueryError::Stacked { location, .. } => location,
         }
     }
@@ -57,7 +73,7 @@ impl std::fmt::Display for QueryError {
                     param_number
                 )
             }
-
+            QueryError::CannotMapType { message, .. } => message.fmt(f),
             QueryError::Stacked { source, .. } => source.fmt(f),
         }
     }
@@ -180,7 +196,13 @@ impl RsColType {
             .map(make_column_type)
             .ok_or_else(|| QueryError::missing_column_type(make_column_name(column)))?;
 
-        let rs_type = db_type.get(&db_col_type);
+        let rs_type = db_type
+            .get(&db_col_type)
+            .ok_or_else(|| {
+                let col_name = make_column_name(column);
+                QueryError::cannot_map_type(db_col_type, col_name)
+            })
+            .stacked()?;
         let dim = usize::try_from(column.array_dims).unwrap_or_default();
         let optional = !column.not_null;
 
@@ -343,16 +365,8 @@ impl DbTypeMap {
         map
     }
 
-    fn get(&self, db_type: &str) -> RsType {
-        if let Some(rs_type) = self.typ_map.get(db_type) {
-            rs_type.clone()
-        } else {
-            RsType {
-                owned: syn::parse_str("std::convert::Infallible").unwrap(),
-                slice: None,
-                copy_cheap: false,
-            }
-        }
+    fn get(&self, db_type: &str) -> Option<RsType> {
+        self.typ_map.get(db_type).cloned()
     }
 
     pub(crate) fn insert_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {

@@ -21,10 +21,10 @@ impl<'de> serde::Deserialize<'de> for Postgres {
         let s = String::deserialize(deserializer)?;
         match s.trim() {
             "postgres" => Ok(Self::Sync),
-            "tokio_postgres" => Ok(Self::Tokio),
-            "deadpool_postgres" => Ok(Self::DeadPool),
+            "tokio-postgres" => Ok(Self::Tokio),
+            "deadpool-postgres" => Ok(Self::DeadPool),
             _ => Err(serde::de::Error::custom(format!(
-                "unknown db crate: `{}`",
+                "`{}` is unsupported crate.",
                 s
             ))),
         }
@@ -81,10 +81,6 @@ impl Postgres {
     /// Generate type-state builder
     fn create_builder(query: &Query) -> proc_macro2::TokenStream {
         let num_params = query.param_names.len();
-
-        if num_params == 0 {
-            return quote::quote! {};
-        }
 
         let fields_tuple =
             (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
