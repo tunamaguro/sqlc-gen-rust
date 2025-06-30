@@ -2,12 +2,6 @@
 
 sqlc-plugin for rust db crates.
 
-## Supported crates
-
-- [postgres](https://crates.io/crates/postgres)
-- [tokio-postgres](https://crates.io/crates/tokio-postgres)
-- [deadpool-postgres](https://crates.io/crates/deadpool-postgres)
-
 ## Usage
 
 ```json
@@ -38,19 +32,26 @@ sqlc-plugin for rust db crates.
 }
 ```
 
+## Supported crates
+
+- [postgres](https://crates.io/crates/postgres)
+- [tokio-postgres](https://crates.io/crates/tokio-postgres)
+- [deadpool-postgres](https://crates.io/crates/deadpool-postgres)
+
+
+
 ## Options
 
 > [!NOTE]
 > This plugin supports json only.
 
-### `driver`
+### `db_crate`
 
-The driver of generated code. Default is `tokio-postgres`. Available values are below.
+The crate of generated code. Default is `tokio-postgres`. Available values are below.
 
 - `postgres`
 - `tokio-postgres`
 - `deadpool-postgres`
-
 
 ### `overrides`
 
