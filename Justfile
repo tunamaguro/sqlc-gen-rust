@@ -52,7 +52,7 @@ build-release:
     #!/usr/bin/env bash
     set -euxo pipefail
 
-    cargo build --target wasm32-wasip1 --release
+    cargo build --target wasm32-wasip1 --release --locked
     WASM_SHA256=$(sha256sum target/wasm32-wasip1/release/sqlc-gen-rust.wasm | awk '{print $1}');
     echo ${WASM_SHA256}
     
