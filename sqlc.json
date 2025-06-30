@@ -70,6 +70,21 @@
                     }
                 }
             ]
+        },
+        {
+            "schema": "examples/ondeck/schema",
+            "queries": "examples/ondeck/query",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/ondeck/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "tokio_postgres"
+                    }
+                }
+            ]
         }
     ]
 }

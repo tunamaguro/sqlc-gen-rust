@@ -12,7 +12,7 @@ mod tests {
         client.batch_execute(include_str!("../schema.sql")).unwrap();
     }
 
-    /// rewrite from https://github.com/sqlc-dev/sqlc/blob/v1.29.0/examples/booktest/postgresql/db_test.go
+    /// port from https://github.com/sqlc-dev/sqlc/blob/v1.29.0/examples/booktest/postgresql/db_test.go
     #[test_context(PgSyncTestContext)]
     #[test]
     fn test_books(ctx: &mut PgSyncTestContext) {
