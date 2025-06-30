@@ -11,7 +11,7 @@ sqlc-plugin for rust db crates.
         {
             "name": "sqlc-gen-rust",
             "wasm": {
-                "url": "https://github.com/tunamaguro/sqlc-rust-postgres/releases/download/v0.1.1/sqlc-gen-rust.wasm",
+                "url": "https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.1/sqlc-gen-rust.wasm",
                 "sha256": "6306cf54f019d732cc0fdbc1b1bb2958a5a020bbd2f5f6aeafd48045a60a631e"
             }
         }
