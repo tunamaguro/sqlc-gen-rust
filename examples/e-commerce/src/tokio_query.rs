@@ -13,32 +13,32 @@ pub enum OrderStatus {
     Cancelled,
 }
 pub struct CreateUserRow {
-    pub users_id: uuid::Uuid,
-    pub users_username: String,
-    pub users_email: String,
-    pub users_hashed_password: String,
-    pub users_full_name: Option<String>,
-    pub users_created_at: std::time::SystemTime,
-    pub users_updated_at: std::time::SystemTime,
+    pub id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+    pub hashed_password: String,
+    pub full_name: Option<String>,
+    pub created_at: std::time::SystemTime,
+    pub updated_at: std::time::SystemTime,
 }
 impl CreateUserRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            users_id: row.try_get(0)?,
-            users_username: row.try_get(1)?,
-            users_email: row.try_get(2)?,
-            users_hashed_password: row.try_get(3)?,
-            users_full_name: row.try_get(4)?,
-            users_created_at: row.try_get(5)?,
-            users_updated_at: row.try_get(6)?,
+            id: row.try_get(0)?,
+            username: row.try_get(1)?,
+            email: row.try_get(2)?,
+            hashed_password: row.try_get(3)?,
+            full_name: row.try_get(4)?,
+            created_at: row.try_get(5)?,
+            updated_at: row.try_get(6)?,
         })
     }
 }
 pub struct CreateUser<'a> {
-    users_username: &'a str,
-    users_email: &'a str,
-    users_hashed_password: &'a str,
-    users_full_name: Option<&'a str>,
+    username: &'a str,
+    email: &'a str,
+    hashed_password: &'a str,
+    full_name: Option<&'a str>,
 }
 impl<'a> CreateUser<'a> {
     pub const QUERY: &'static str = r"INSERT INTO users (
@@ -55,10 +55,10 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
             .query_one(
                 Self::QUERY,
                 &[
-                    &self.users_username,
-                    &self.users_email,
-                    &self.users_hashed_password,
-                    &self.users_full_name,
+                    &self.username,
+                    &self.email,
+                    &self.hashed_password,
+                    &self.full_name,
                 ],
             )
             .await?;
@@ -72,10 +72,10 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
             .query_opt(
                 Self::QUERY,
                 &[
-                    &self.users_username,
-                    &self.users_email,
-                    &self.users_hashed_password,
-                    &self.users_full_name,
+                    &self.username,
+                    &self.email,
+                    &self.hashed_password,
+                    &self.full_name,
                 ],
             )
             .await?;
@@ -97,129 +97,99 @@ pub struct CreateUserBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, UsersEmail, UsersHashedPassword, UsersFullName>
-    CreateUserBuilder<'a, ((), UsersEmail, UsersHashedPassword, UsersFullName)>
+impl<'a, Email, HashedPassword, FullName>
+    CreateUserBuilder<'a, ((), Email, HashedPassword, FullName)>
 {
-    pub fn users_username(
+    pub fn username(
         self,
-        users_username: &'a str,
-    ) -> CreateUserBuilder<'a, (&'a str, UsersEmail, UsersHashedPassword, UsersFullName)> {
-        let ((), users_email, users_hashed_password, users_full_name) = self.fields;
+        username: &'a str,
+    ) -> CreateUserBuilder<'a, (&'a str, Email, HashedPassword, FullName)> {
+        let ((), email, hashed_password, full_name) = self.fields;
         let _phantom = self._phantom;
         CreateUserBuilder {
-            fields: (
-                users_username,
-                users_email,
-                users_hashed_password,
-                users_full_name,
-            ),
+            fields: (username, email, hashed_password, full_name),
             _phantom,
         }
     }
 }
-impl<'a, UsersUsername, UsersHashedPassword, UsersFullName>
-    CreateUserBuilder<'a, (UsersUsername, (), UsersHashedPassword, UsersFullName)>
+impl<'a, Username, HashedPassword, FullName>
+    CreateUserBuilder<'a, (Username, (), HashedPassword, FullName)>
 {
-    pub fn users_email(
+    pub fn email(
         self,
-        users_email: &'a str,
-    ) -> CreateUserBuilder<'a, (UsersUsername, &'a str, UsersHashedPassword, UsersFullName)> {
-        let (users_username, (), users_hashed_password, users_full_name) = self.fields;
+        email: &'a str,
+    ) -> CreateUserBuilder<'a, (Username, &'a str, HashedPassword, FullName)> {
+        let (username, (), hashed_password, full_name) = self.fields;
         let _phantom = self._phantom;
         CreateUserBuilder {
-            fields: (
-                users_username,
-                users_email,
-                users_hashed_password,
-                users_full_name,
-            ),
+            fields: (username, email, hashed_password, full_name),
             _phantom,
         }
     }
 }
-impl<'a, UsersUsername, UsersEmail, UsersFullName>
-    CreateUserBuilder<'a, (UsersUsername, UsersEmail, (), UsersFullName)>
-{
-    pub fn users_hashed_password(
+impl<'a, Username, Email, FullName> CreateUserBuilder<'a, (Username, Email, (), FullName)> {
+    pub fn hashed_password(
         self,
-        users_hashed_password: &'a str,
-    ) -> CreateUserBuilder<'a, (UsersUsername, UsersEmail, &'a str, UsersFullName)> {
-        let (users_username, users_email, (), users_full_name) = self.fields;
+        hashed_password: &'a str,
+    ) -> CreateUserBuilder<'a, (Username, Email, &'a str, FullName)> {
+        let (username, email, (), full_name) = self.fields;
         let _phantom = self._phantom;
         CreateUserBuilder {
-            fields: (
-                users_username,
-                users_email,
-                users_hashed_password,
-                users_full_name,
-            ),
+            fields: (username, email, hashed_password, full_name),
             _phantom,
         }
     }
 }
-impl<'a, UsersUsername, UsersEmail, UsersHashedPassword>
-    CreateUserBuilder<'a, (UsersUsername, UsersEmail, UsersHashedPassword, ())>
+impl<'a, Username, Email, HashedPassword>
+    CreateUserBuilder<'a, (Username, Email, HashedPassword, ())>
 {
-    pub fn users_full_name(
+    pub fn full_name(
         self,
-        users_full_name: Option<&'a str>,
-    ) -> CreateUserBuilder<
-        'a,
-        (
-            UsersUsername,
-            UsersEmail,
-            UsersHashedPassword,
-            Option<&'a str>,
-        ),
-    > {
-        let (users_username, users_email, users_hashed_password, ()) = self.fields;
+        full_name: Option<&'a str>,
+    ) -> CreateUserBuilder<'a, (Username, Email, HashedPassword, Option<&'a str>)> {
+        let (username, email, hashed_password, ()) = self.fields;
         let _phantom = self._phantom;
         CreateUserBuilder {
-            fields: (
-                users_username,
-                users_email,
-                users_hashed_password,
-                users_full_name,
-            ),
+            fields: (username, email, hashed_password, full_name),
             _phantom,
         }
     }
 }
 impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
     pub const fn build(self) -> CreateUser<'a> {
-        let (users_username, users_email, users_hashed_password, users_full_name) = self.fields;
+        let (username, email, hashed_password, full_name) = self.fields;
         CreateUser {
-            users_username,
-            users_email,
-            users_hashed_password,
-            users_full_name,
+            username,
+            email,
+            hashed_password,
+            full_name,
         }
     }
 }
 pub struct GetUserByEmailRow {
-    pub users_id: uuid::Uuid,
-    pub users_username: String,
-    pub users_email: String,
-    pub users_hashed_password: String,
-    pub users_full_name: Option<String>,
-    pub users_created_at: std::time::SystemTime,
-    pub users_updated_at: std::time::SystemTime,
+    pub id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+    pub hashed_password: String,
+    pub full_name: Option<String>,
+    pub created_at: std::time::SystemTime,
+    pub updated_at: std::time::SystemTime,
 }
 impl GetUserByEmailRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            users_id: row.try_get(0)?,
-            users_username: row.try_get(1)?,
-            users_email: row.try_get(2)?,
-            users_hashed_password: row.try_get(3)?,
-            users_full_name: row.try_get(4)?,
-            users_created_at: row.try_get(5)?,
-            users_updated_at: row.try_get(6)?,
+            id: row.try_get(0)?,
+            username: row.try_get(1)?,
+            email: row.try_get(2)?,
+            hashed_password: row.try_get(3)?,
+            full_name: row.try_get(4)?,
+            created_at: row.try_get(5)?,
+            updated_at: row.try_get(6)?,
         })
     }
 }
 pub struct GetUserByEmail<'a> {
-    users_email: &'a str,
+    email: &'a str,
 }
 impl<'a> GetUserByEmail<'a> {
     pub const QUERY: &'static str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
@@ -228,14 +198,14 @@ WHERE email = $1 LIMIT 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetUserByEmailRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.users_email]).await?;
+        let row = client.query_one(Self::QUERY, &[&self.email]).await?;
         GetUserByEmailRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetUserByEmailRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.users_email]).await?;
+        let row = client.query_opt(Self::QUERY, &[&self.email]).await?;
         match row {
             Some(row) => Ok(Some(GetUserByEmailRow::from_row(&row)?)),
             None => Ok(None),
@@ -255,36 +225,36 @@ pub struct GetUserByEmailBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetUserByEmailBuilder<'a, ((),)> {
-    pub fn users_email(self, users_email: &'a str) -> GetUserByEmailBuilder<'a, (&'a str,)> {
+    pub fn email(self, email: &'a str) -> GetUserByEmailBuilder<'a, (&'a str,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetUserByEmailBuilder {
-            fields: (users_email,),
+            fields: (email,),
             _phantom,
         }
     }
 }
 impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
     pub const fn build(self) -> GetUserByEmail<'a> {
-        let (users_email,) = self.fields;
-        GetUserByEmail { users_email }
+        let (email,) = self.fields;
+        GetUserByEmail { email }
     }
 }
 pub struct ListUsersRow {
-    pub users_id: uuid::Uuid,
-    pub users_username: String,
-    pub users_email: String,
-    pub users_full_name: Option<String>,
-    pub users_created_at: std::time::SystemTime,
+    pub id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub created_at: std::time::SystemTime,
 }
 impl ListUsersRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            users_id: row.try_get(0)?,
-            users_username: row.try_get(1)?,
-            users_email: row.try_get(2)?,
-            users_full_name: row.try_get(3)?,
-            users_created_at: row.try_get(4)?,
+            id: row.try_get(0)?,
+            username: row.try_get(1)?,
+            email: row.try_get(2)?,
+            full_name: row.try_get(3)?,
+            created_at: row.try_get(4)?,
         })
     }
 }
@@ -348,38 +318,38 @@ impl<'a> ListUsersBuilder<'a, (i32, i32)> {
     }
 }
 pub struct CreateProductRow {
-    pub products_id: uuid::Uuid,
-    pub products_category_id: i32,
-    pub products_name: String,
-    pub products_description: Option<String>,
-    pub products_price: i32,
-    pub products_stock_quantity: i32,
-    pub products_attributes: Option<serde_json::Value>,
-    pub products_created_at: std::time::SystemTime,
-    pub products_updated_at: std::time::SystemTime,
+    pub id: uuid::Uuid,
+    pub category_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: std::time::SystemTime,
+    pub updated_at: std::time::SystemTime,
 }
 impl CreateProductRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            products_id: row.try_get(0)?,
-            products_category_id: row.try_get(1)?,
-            products_name: row.try_get(2)?,
-            products_description: row.try_get(3)?,
-            products_price: row.try_get(4)?,
-            products_stock_quantity: row.try_get(5)?,
-            products_attributes: row.try_get(6)?,
-            products_created_at: row.try_get(7)?,
-            products_updated_at: row.try_get(8)?,
+            id: row.try_get(0)?,
+            category_id: row.try_get(1)?,
+            name: row.try_get(2)?,
+            description: row.try_get(3)?,
+            price: row.try_get(4)?,
+            stock_quantity: row.try_get(5)?,
+            attributes: row.try_get(6)?,
+            created_at: row.try_get(7)?,
+            updated_at: row.try_get(8)?,
         })
     }
 }
 pub struct CreateProduct<'a> {
-    products_category_id: i32,
-    products_name: &'a str,
-    products_description: Option<&'a str>,
-    products_price: i32,
-    products_stock_quantity: i32,
-    products_attributes: Option<&'a serde_json::Value>,
+    category_id: i32,
+    name: &'a str,
+    description: Option<&'a str>,
+    price: i32,
+    stock_quantity: i32,
+    attributes: Option<&'a serde_json::Value>,
 }
 impl<'a> CreateProduct<'a> {
     pub const QUERY: &'static str = r"INSERT INTO products (
@@ -396,12 +366,12 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
             .query_one(
                 Self::QUERY,
                 &[
-                    &self.products_category_id,
-                    &self.products_name,
-                    &self.products_description,
-                    &self.products_price,
-                    &self.products_stock_quantity,
-                    &self.products_attributes,
+                    &self.category_id,
+                    &self.name,
+                    &self.description,
+                    &self.price,
+                    &self.stock_quantity,
+                    &self.attributes,
                 ],
             )
             .await?;
@@ -415,12 +385,12 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
             .query_opt(
                 Self::QUERY,
                 &[
-                    &self.products_category_id,
-                    &self.products_name,
-                    &self.products_description,
-                    &self.products_price,
-                    &self.products_stock_quantity,
-                    &self.products_attributes,
+                    &self.category_id,
+                    &self.name,
+                    &self.description,
+                    &self.price,
+                    &self.stock_quantity,
+                    &self.attributes,
                 ],
             )
             .await?;
@@ -442,323 +412,183 @@ pub struct CreateProductBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<
-    'a,
-    ProductsName,
-    ProductsDescription,
-    ProductsPrice,
-    ProductsStockQuantity,
-    ProductsAttributes,
->
-    CreateProductBuilder<
-        'a,
-        (
-            (),
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
+impl<'a, Name, Description, Price, StockQuantity, Attributes>
+    CreateProductBuilder<'a, ((), Name, Description, Price, StockQuantity, Attributes)>
 {
-    pub fn products_category_id(
+    pub fn category_id(
         self,
-        products_category_id: i32,
-    ) -> CreateProductBuilder<
-        'a,
-        (
-            i32,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    > {
-        let (
-            (),
-            products_name,
-            products_description,
-            products_price,
-            products_stock_quantity,
-            products_attributes,
-        ) = self.fields;
+        category_id: i32,
+    ) -> CreateProductBuilder<'a, (i32, Name, Description, Price, StockQuantity, Attributes)> {
+        let ((), name, description, price, stock_quantity, attributes) = self.fields;
         let _phantom = self._phantom;
         CreateProductBuilder {
             fields: (
-                products_category_id,
-                products_name,
-                products_description,
-                products_price,
-                products_stock_quantity,
-                products_attributes,
+                category_id,
+                name,
+                description,
+                price,
+                stock_quantity,
+                attributes,
             ),
             _phantom,
         }
     }
 }
-impl<
-    'a,
-    ProductsCategoryId,
-    ProductsDescription,
-    ProductsPrice,
-    ProductsStockQuantity,
-    ProductsAttributes,
->
+impl<'a, CategoryId, Description, Price, StockQuantity, Attributes>
     CreateProductBuilder<
         'a,
         (
-            ProductsCategoryId,
+            CategoryId,
             (),
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
+            Description,
+            Price,
+            StockQuantity,
+            Attributes,
         ),
     >
 {
-    pub fn products_name(
+    pub fn name(
         self,
-        products_name: &'a str,
+        name: &'a str,
     ) -> CreateProductBuilder<
         'a,
         (
-            ProductsCategoryId,
+            CategoryId,
             &'a str,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
+            Description,
+            Price,
+            StockQuantity,
+            Attributes,
         ),
     > {
-        let (
-            products_category_id,
-            (),
-            products_description,
-            products_price,
-            products_stock_quantity,
-            products_attributes,
-        ) = self.fields;
+        let (category_id, (), description, price, stock_quantity, attributes) = self.fields;
         let _phantom = self._phantom;
         CreateProductBuilder {
             fields: (
-                products_category_id,
-                products_name,
-                products_description,
-                products_price,
-                products_stock_quantity,
-                products_attributes,
+                category_id,
+                name,
+                description,
+                price,
+                stock_quantity,
+                attributes,
             ),
             _phantom,
         }
     }
 }
-impl<'a, ProductsCategoryId, ProductsName, ProductsPrice, ProductsStockQuantity, ProductsAttributes>
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            (),
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
+impl<'a, CategoryId, Name, Price, StockQuantity, Attributes>
+    CreateProductBuilder<'a, (CategoryId, Name, (), Price, StockQuantity, Attributes)>
 {
-    pub fn products_description(
+    pub fn description(
         self,
-        products_description: Option<&'a str>,
+        description: Option<&'a str>,
     ) -> CreateProductBuilder<
         'a,
         (
-            ProductsCategoryId,
-            ProductsName,
+            CategoryId,
+            Name,
             Option<&'a str>,
-            ProductsPrice,
-            ProductsStockQuantity,
-            ProductsAttributes,
+            Price,
+            StockQuantity,
+            Attributes,
         ),
     > {
-        let (
-            products_category_id,
-            products_name,
-            (),
-            products_price,
-            products_stock_quantity,
-            products_attributes,
-        ) = self.fields;
+        let (category_id, name, (), price, stock_quantity, attributes) = self.fields;
         let _phantom = self._phantom;
         CreateProductBuilder {
             fields: (
-                products_category_id,
-                products_name,
-                products_description,
-                products_price,
-                products_stock_quantity,
-                products_attributes,
+                category_id,
+                name,
+                description,
+                price,
+                stock_quantity,
+                attributes,
             ),
             _phantom,
         }
     }
 }
-impl<
-    'a,
-    ProductsCategoryId,
-    ProductsName,
-    ProductsDescription,
-    ProductsStockQuantity,
-    ProductsAttributes,
->
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            (),
-            ProductsStockQuantity,
-            ProductsAttributes,
-        ),
-    >
+impl<'a, CategoryId, Name, Description, StockQuantity, Attributes>
+    CreateProductBuilder<'a, (CategoryId, Name, Description, (), StockQuantity, Attributes)>
 {
-    pub fn products_price(
+    pub fn price(
         self,
-        products_price: i32,
+        price: i32,
     ) -> CreateProductBuilder<
         'a,
         (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
+            CategoryId,
+            Name,
+            Description,
             i32,
-            ProductsStockQuantity,
-            ProductsAttributes,
+            StockQuantity,
+            Attributes,
         ),
     > {
-        let (
-            products_category_id,
-            products_name,
-            products_description,
-            (),
-            products_stock_quantity,
-            products_attributes,
-        ) = self.fields;
+        let (category_id, name, description, (), stock_quantity, attributes) = self.fields;
         let _phantom = self._phantom;
         CreateProductBuilder {
             fields: (
-                products_category_id,
-                products_name,
-                products_description,
-                products_price,
-                products_stock_quantity,
-                products_attributes,
+                category_id,
+                name,
+                description,
+                price,
+                stock_quantity,
+                attributes,
             ),
             _phantom,
         }
     }
 }
-impl<'a, ProductsCategoryId, ProductsName, ProductsDescription, ProductsPrice, ProductsAttributes>
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            (),
-            ProductsAttributes,
-        ),
-    >
+impl<'a, CategoryId, Name, Description, Price, Attributes>
+    CreateProductBuilder<'a, (CategoryId, Name, Description, Price, (), Attributes)>
 {
-    pub fn products_stock_quantity(
+    pub fn stock_quantity(
         self,
-        products_stock_quantity: i32,
-    ) -> CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            i32,
-            ProductsAttributes,
-        ),
-    > {
-        let (
-            products_category_id,
-            products_name,
-            products_description,
-            products_price,
-            (),
-            products_attributes,
-        ) = self.fields;
+        stock_quantity: i32,
+    ) -> CreateProductBuilder<'a, (CategoryId, Name, Description, Price, i32, Attributes)> {
+        let (category_id, name, description, price, (), attributes) = self.fields;
         let _phantom = self._phantom;
         CreateProductBuilder {
             fields: (
-                products_category_id,
-                products_name,
-                products_description,
-                products_price,
-                products_stock_quantity,
-                products_attributes,
+                category_id,
+                name,
+                description,
+                price,
+                stock_quantity,
+                attributes,
             ),
             _phantom,
         }
     }
 }
-impl<
-    'a,
-    ProductsCategoryId,
-    ProductsName,
-    ProductsDescription,
-    ProductsPrice,
-    ProductsStockQuantity,
->
-    CreateProductBuilder<
-        'a,
-        (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
-            (),
-        ),
-    >
+impl<'a, CategoryId, Name, Description, Price, StockQuantity>
+    CreateProductBuilder<'a, (CategoryId, Name, Description, Price, StockQuantity, ())>
 {
-    pub fn products_attributes(
+    pub fn attributes(
         self,
-        products_attributes: Option<&'a serde_json::Value>,
+        attributes: Option<&'a serde_json::Value>,
     ) -> CreateProductBuilder<
         'a,
         (
-            ProductsCategoryId,
-            ProductsName,
-            ProductsDescription,
-            ProductsPrice,
-            ProductsStockQuantity,
+            CategoryId,
+            Name,
+            Description,
+            Price,
+            StockQuantity,
             Option<&'a serde_json::Value>,
         ),
     > {
-        let (
-            products_category_id,
-            products_name,
-            products_description,
-            products_price,
-            products_stock_quantity,
-            (),
-        ) = self.fields;
+        let (category_id, name, description, price, stock_quantity, ()) = self.fields;
         let _phantom = self._phantom;
         CreateProductBuilder {
             fields: (
-                products_category_id,
-                products_name,
-                products_description,
-                products_price,
-                products_stock_quantity,
-                products_attributes,
+                category_id,
+                name,
+                description,
+                price,
+                stock_quantity,
+                attributes,
             ),
             _phantom,
         }
@@ -778,52 +608,45 @@ impl<'a>
     >
 {
     pub const fn build(self) -> CreateProduct<'a> {
-        let (
-            products_category_id,
-            products_name,
-            products_description,
-            products_price,
-            products_stock_quantity,
-            products_attributes,
-        ) = self.fields;
+        let (category_id, name, description, price, stock_quantity, attributes) = self.fields;
         CreateProduct {
-            products_category_id,
-            products_name,
-            products_description,
-            products_price,
-            products_stock_quantity,
-            products_attributes,
+            category_id,
+            name,
+            description,
+            price,
+            stock_quantity,
+            attributes,
         }
     }
 }
 pub struct GetProductWithCategoryRow {
-    pub products_id: uuid::Uuid,
-    pub products_name: String,
-    pub products_description: Option<String>,
-    pub products_price: i32,
-    pub products_stock_quantity: i32,
-    pub products_attributes: Option<serde_json::Value>,
-    pub products_created_at: std::time::SystemTime,
-    pub categories_category_name: String,
-    pub categories_category_slug: String,
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: std::time::SystemTime,
+    pub category_name: String,
+    pub category_slug: String,
 }
 impl GetProductWithCategoryRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            products_id: row.try_get(0)?,
-            products_name: row.try_get(1)?,
-            products_description: row.try_get(2)?,
-            products_price: row.try_get(3)?,
-            products_stock_quantity: row.try_get(4)?,
-            products_attributes: row.try_get(5)?,
-            products_created_at: row.try_get(6)?,
-            categories_category_name: row.try_get(7)?,
-            categories_category_slug: row.try_get(8)?,
+            id: row.try_get(0)?,
+            name: row.try_get(1)?,
+            description: row.try_get(2)?,
+            price: row.try_get(3)?,
+            stock_quantity: row.try_get(4)?,
+            attributes: row.try_get(5)?,
+            created_at: row.try_get(6)?,
+            category_name: row.try_get(7)?,
+            category_slug: row.try_get(8)?,
         })
     }
 }
 pub struct GetProductWithCategory {
-    products_id: uuid::Uuid,
+    id: uuid::Uuid,
 }
 impl GetProductWithCategory {
     pub const QUERY: &'static str = r"SELECT
@@ -846,14 +669,14 @@ WHERE
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetProductWithCategoryRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.products_id]).await?;
+        let row = client.query_one(Self::QUERY, &[&self.id]).await?;
         GetProductWithCategoryRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetProductWithCategoryRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.products_id]).await?;
+        let row = client.query_opt(Self::QUERY, &[&self.id]).await?;
         match row {
             Some(row) => Ok(Some(GetProductWithCategoryRow::from_row(&row)?)),
             None => Ok(None),
@@ -873,48 +696,45 @@ pub struct GetProductWithCategoryBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetProductWithCategoryBuilder<'a, ((),)> {
-    pub fn products_id(
-        self,
-        products_id: uuid::Uuid,
-    ) -> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
+    pub fn id(self, id: uuid::Uuid) -> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetProductWithCategoryBuilder {
-            fields: (products_id,),
+            fields: (id,),
             _phantom,
         }
     }
 }
 impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
     pub const fn build(self) -> GetProductWithCategory {
-        let (products_id,) = self.fields;
-        GetProductWithCategory { products_id }
+        let (id,) = self.fields;
+        GetProductWithCategory { id }
     }
 }
 pub struct SearchProductsRow {
-    pub products_id: uuid::Uuid,
-    pub products_category_id: i32,
-    pub products_name: String,
-    pub products_description: Option<String>,
-    pub products_price: i32,
-    pub products_stock_quantity: i32,
-    pub products_attributes: Option<serde_json::Value>,
-    pub products_created_at: std::time::SystemTime,
-    pub products_updated_at: std::time::SystemTime,
+    pub id: uuid::Uuid,
+    pub category_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: std::time::SystemTime,
+    pub updated_at: std::time::SystemTime,
     pub average_rating: f64,
 }
 impl SearchProductsRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            products_id: row.try_get(0)?,
-            products_category_id: row.try_get(1)?,
-            products_name: row.try_get(2)?,
-            products_description: row.try_get(3)?,
-            products_price: row.try_get(4)?,
-            products_stock_quantity: row.try_get(5)?,
-            products_attributes: row.try_get(6)?,
-            products_created_at: row.try_get(7)?,
-            products_updated_at: row.try_get(8)?,
+            id: row.try_get(0)?,
+            category_id: row.try_get(1)?,
+            name: row.try_get(2)?,
+            description: row.try_get(3)?,
+            price: row.try_get(4)?,
+            stock_quantity: row.try_get(5)?,
+            attributes: row.try_get(6)?,
+            created_at: row.try_get(7)?,
+            updated_at: row.try_get(8)?,
             average_rating: row.try_get(9)?,
         })
     }
@@ -922,10 +742,10 @@ impl SearchProductsRow {
 pub struct SearchProducts<'a> {
     limit: i32,
     offset: i32,
-    products_name: Option<&'a str>,
+    name: Option<&'a str>,
     category_ids: &'a [i32],
-    products_min_price: Option<i32>,
-    products_max_price: Option<i32>,
+    min_price: Option<i32>,
+    max_price: Option<i32>,
 }
 impl<'a> SearchProducts<'a> {
     pub const QUERY: &'static str = r"SELECT
@@ -956,10 +776,10 @@ OFFSET $2";
                 &[
                     &self.limit,
                     &self.offset,
-                    &self.products_name,
+                    &self.name,
                     &self.category_ids,
-                    &self.products_min_price,
-                    &self.products_max_price,
+                    &self.min_price,
+                    &self.max_price,
                 ],
             )
             .await?;
@@ -980,108 +800,42 @@ pub struct SearchProductsBuilder<'a, Fields = ((), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, Offset, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            (),
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
+impl<'a, Offset, Name, CategoryIds, MinPrice, MaxPrice>
+    SearchProductsBuilder<'a, ((), Offset, Name, CategoryIds, MinPrice, MaxPrice)>
 {
     pub fn limit(
         self,
         limit: i32,
-    ) -> SearchProductsBuilder<
-        'a,
-        (
-            i32,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    > {
-        let ((), offset, products_name, category_ids, products_min_price, products_max_price) =
-            self.fields;
+    ) -> SearchProductsBuilder<'a, (i32, Offset, Name, CategoryIds, MinPrice, MaxPrice)> {
+        let ((), offset, name, category_ids, min_price, max_price) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
-            fields: (
-                limit,
-                offset,
-                products_name,
-                category_ids,
-                products_min_price,
-                products_max_price,
-            ),
+            fields: (limit, offset, name, category_ids, min_price, max_price),
             _phantom,
         }
     }
 }
-impl<'a, Limit, ProductsName, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            (),
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
+impl<'a, Limit, Name, CategoryIds, MinPrice, MaxPrice>
+    SearchProductsBuilder<'a, (Limit, (), Name, CategoryIds, MinPrice, MaxPrice)>
 {
     pub fn offset(
         self,
         offset: i32,
-    ) -> SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            i32,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    > {
-        let (limit, (), products_name, category_ids, products_min_price, products_max_price) =
-            self.fields;
+    ) -> SearchProductsBuilder<'a, (Limit, i32, Name, CategoryIds, MinPrice, MaxPrice)> {
+        let (limit, (), name, category_ids, min_price, max_price) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
-            fields: (
-                limit,
-                offset,
-                products_name,
-                category_ids,
-                products_min_price,
-                products_max_price,
-            ),
+            fields: (limit, offset, name, category_ids, min_price, max_price),
             _phantom,
         }
     }
 }
-impl<'a, Limit, Offset, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            (),
-            CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
+impl<'a, Limit, Offset, CategoryIds, MinPrice, MaxPrice>
+    SearchProductsBuilder<'a, (Limit, Offset, (), CategoryIds, MinPrice, MaxPrice)>
 {
-    pub fn products_name(
+    pub fn name(
         self,
-        products_name: Option<&'a str>,
+        name: Option<&'a str>,
     ) -> SearchProductsBuilder<
         'a,
         (
@@ -1089,148 +843,59 @@ impl<'a, Limit, Offset, CategoryIds, ProductsMinPrice, ProductsMaxPrice>
             Offset,
             Option<&'a str>,
             CategoryIds,
-            ProductsMinPrice,
-            ProductsMaxPrice,
+            MinPrice,
+            MaxPrice,
         ),
     > {
-        let (limit, offset, (), category_ids, products_min_price, products_max_price) = self.fields;
+        let (limit, offset, (), category_ids, min_price, max_price) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
-            fields: (
-                limit,
-                offset,
-                products_name,
-                category_ids,
-                products_min_price,
-                products_max_price,
-            ),
+            fields: (limit, offset, name, category_ids, min_price, max_price),
             _phantom,
         }
     }
 }
-impl<'a, Limit, Offset, ProductsName, ProductsMinPrice, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            (),
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    >
+impl<'a, Limit, Offset, Name, MinPrice, MaxPrice>
+    SearchProductsBuilder<'a, (Limit, Offset, Name, (), MinPrice, MaxPrice)>
 {
     pub fn category_ids(
         self,
         category_ids: &'a [i32],
-    ) -> SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            &'a [i32],
-            ProductsMinPrice,
-            ProductsMaxPrice,
-        ),
-    > {
-        let (limit, offset, products_name, (), products_min_price, products_max_price) =
-            self.fields;
+    ) -> SearchProductsBuilder<'a, (Limit, Offset, Name, &'a [i32], MinPrice, MaxPrice)> {
+        let (limit, offset, name, (), min_price, max_price) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
-            fields: (
-                limit,
-                offset,
-                products_name,
-                category_ids,
-                products_min_price,
-                products_max_price,
-            ),
+            fields: (limit, offset, name, category_ids, min_price, max_price),
             _phantom,
         }
     }
 }
-impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMaxPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            (),
-            ProductsMaxPrice,
-        ),
-    >
+impl<'a, Limit, Offset, Name, CategoryIds, MaxPrice>
+    SearchProductsBuilder<'a, (Limit, Offset, Name, CategoryIds, (), MaxPrice)>
 {
-    pub fn products_min_price(
+    pub fn min_price(
         self,
-        products_min_price: Option<i32>,
-    ) -> SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            Option<i32>,
-            ProductsMaxPrice,
-        ),
-    > {
-        let (limit, offset, products_name, category_ids, (), products_max_price) = self.fields;
+        min_price: Option<i32>,
+    ) -> SearchProductsBuilder<'a, (Limit, Offset, Name, CategoryIds, Option<i32>, MaxPrice)> {
+        let (limit, offset, name, category_ids, (), max_price) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
-            fields: (
-                limit,
-                offset,
-                products_name,
-                category_ids,
-                products_min_price,
-                products_max_price,
-            ),
+            fields: (limit, offset, name, category_ids, min_price, max_price),
             _phantom,
         }
     }
 }
-impl<'a, Limit, Offset, ProductsName, CategoryIds, ProductsMinPrice>
-    SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            (),
-        ),
-    >
+impl<'a, Limit, Offset, Name, CategoryIds, MinPrice>
+    SearchProductsBuilder<'a, (Limit, Offset, Name, CategoryIds, MinPrice, ())>
 {
-    pub fn products_max_price(
+    pub fn max_price(
         self,
-        products_max_price: Option<i32>,
-    ) -> SearchProductsBuilder<
-        'a,
-        (
-            Limit,
-            Offset,
-            ProductsName,
-            CategoryIds,
-            ProductsMinPrice,
-            Option<i32>,
-        ),
-    > {
-        let (limit, offset, products_name, category_ids, products_min_price, ()) = self.fields;
+        max_price: Option<i32>,
+    ) -> SearchProductsBuilder<'a, (Limit, Offset, Name, CategoryIds, MinPrice, Option<i32>)> {
+        let (limit, offset, name, category_ids, min_price, ()) = self.fields;
         let _phantom = self._phantom;
         SearchProductsBuilder {
-            fields: (
-                limit,
-                offset,
-                products_name,
-                category_ids,
-                products_min_price,
-                products_max_price,
-            ),
+            fields: (limit, offset, name, category_ids, min_price, max_price),
             _phantom,
         }
     }
@@ -1249,46 +914,45 @@ impl<'a>
     >
 {
     pub const fn build(self) -> SearchProducts<'a> {
-        let (limit, offset, products_name, category_ids, products_min_price, products_max_price) =
-            self.fields;
+        let (limit, offset, name, category_ids, min_price, max_price) = self.fields;
         SearchProducts {
             limit,
             offset,
-            products_name,
+            name,
             category_ids,
-            products_min_price,
-            products_max_price,
+            min_price,
+            max_price,
         }
     }
 }
 pub struct GetProductsWithSpecificAttributeRow {
-    pub products_id: uuid::Uuid,
-    pub products_category_id: i32,
-    pub products_name: String,
-    pub products_description: Option<String>,
-    pub products_price: i32,
-    pub products_stock_quantity: i32,
-    pub products_attributes: Option<serde_json::Value>,
-    pub products_created_at: std::time::SystemTime,
-    pub products_updated_at: std::time::SystemTime,
+    pub id: uuid::Uuid,
+    pub category_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: std::time::SystemTime,
+    pub updated_at: std::time::SystemTime,
 }
 impl GetProductsWithSpecificAttributeRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            products_id: row.try_get(0)?,
-            products_category_id: row.try_get(1)?,
-            products_name: row.try_get(2)?,
-            products_description: row.try_get(3)?,
-            products_price: row.try_get(4)?,
-            products_stock_quantity: row.try_get(5)?,
-            products_attributes: row.try_get(6)?,
-            products_created_at: row.try_get(7)?,
-            products_updated_at: row.try_get(8)?,
+            id: row.try_get(0)?,
+            category_id: row.try_get(1)?,
+            name: row.try_get(2)?,
+            description: row.try_get(3)?,
+            price: row.try_get(4)?,
+            stock_quantity: row.try_get(5)?,
+            attributes: row.try_get(6)?,
+            created_at: row.try_get(7)?,
+            updated_at: row.try_get(8)?,
         })
     }
 }
 pub struct GetProductsWithSpecificAttribute<'a> {
-    param: &'a serde_json::Value,
+    column_1: &'a serde_json::Value,
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
@@ -1297,7 +961,7 @@ WHERE attributes @> $1::jsonb";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<GetProductsWithSpecificAttributeRow>, tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &[&self.param]).await?;
+        let rows = client.query(Self::QUERY, &[&self.column_1]).await?;
         rows.into_iter()
             .map(|r| GetProductsWithSpecificAttributeRow::from_row(&r))
             .collect()
@@ -1316,22 +980,22 @@ pub struct GetProductsWithSpecificAttributeBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
-    pub fn param(
+    pub fn column_1(
         self,
-        param: &'a serde_json::Value,
+        column_1: &'a serde_json::Value,
     ) -> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetProductsWithSpecificAttributeBuilder {
-            fields: (param,),
+            fields: (column_1,),
             _phantom,
         }
     }
 }
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
     pub const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
-        let (param,) = self.fields;
-        GetProductsWithSpecificAttribute { param }
+        let (column_1,) = self.fields;
+        GetProductsWithSpecificAttribute { column_1 }
     }
 }
 pub struct UpdateProductStockRow {}
@@ -1341,8 +1005,8 @@ impl UpdateProductStockRow {
     }
 }
 pub struct UpdateProductStock {
-    products_id: uuid::Uuid,
-    products_add_quantity: i32,
+    id: uuid::Uuid,
+    add_quantity: i32,
 }
 impl UpdateProductStock {
     pub const QUERY: &'static str = r"UPDATE products
@@ -1353,10 +1017,7 @@ WHERE id = $1";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
         client
-            .execute(
-                Self::QUERY,
-                &[&self.products_id, &self.products_add_quantity],
-            )
+            .execute(Self::QUERY, &[&self.id, &self.add_quantity])
             .await
     }
 }
@@ -1372,63 +1033,54 @@ pub struct UpdateProductStockBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, ProductsAddQuantity> UpdateProductStockBuilder<'a, ((), ProductsAddQuantity)> {
-    pub fn products_id(
-        self,
-        products_id: uuid::Uuid,
-    ) -> UpdateProductStockBuilder<'a, (uuid::Uuid, ProductsAddQuantity)> {
-        let ((), products_add_quantity) = self.fields;
+impl<'a, AddQuantity> UpdateProductStockBuilder<'a, ((), AddQuantity)> {
+    pub fn id(self, id: uuid::Uuid) -> UpdateProductStockBuilder<'a, (uuid::Uuid, AddQuantity)> {
+        let ((), add_quantity) = self.fields;
         let _phantom = self._phantom;
         UpdateProductStockBuilder {
-            fields: (products_id, products_add_quantity),
+            fields: (id, add_quantity),
             _phantom,
         }
     }
 }
-impl<'a, ProductsId> UpdateProductStockBuilder<'a, (ProductsId, ())> {
-    pub fn products_add_quantity(
-        self,
-        products_add_quantity: i32,
-    ) -> UpdateProductStockBuilder<'a, (ProductsId, i32)> {
-        let (products_id, ()) = self.fields;
+impl<'a, Id> UpdateProductStockBuilder<'a, (Id, ())> {
+    pub fn add_quantity(self, add_quantity: i32) -> UpdateProductStockBuilder<'a, (Id, i32)> {
+        let (id, ()) = self.fields;
         let _phantom = self._phantom;
         UpdateProductStockBuilder {
-            fields: (products_id, products_add_quantity),
+            fields: (id, add_quantity),
             _phantom,
         }
     }
 }
 impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
     pub const fn build(self) -> UpdateProductStock {
-        let (products_id, products_add_quantity) = self.fields;
-        UpdateProductStock {
-            products_id,
-            products_add_quantity,
-        }
+        let (id, add_quantity) = self.fields;
+        UpdateProductStock { id, add_quantity }
     }
 }
 pub struct CreateOrderRow {
-    pub orders_id: i64,
-    pub orders_user_id: uuid::Uuid,
-    pub orders_status: OrderStatus,
-    pub orders_total_amount: i32,
-    pub orders_ordered_at: std::time::SystemTime,
+    pub id: i64,
+    pub user_id: uuid::Uuid,
+    pub status: OrderStatus,
+    pub total_amount: i32,
+    pub ordered_at: std::time::SystemTime,
 }
 impl CreateOrderRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            orders_id: row.try_get(0)?,
-            orders_user_id: row.try_get(1)?,
-            orders_status: row.try_get(2)?,
-            orders_total_amount: row.try_get(3)?,
-            orders_ordered_at: row.try_get(4)?,
+            id: row.try_get(0)?,
+            user_id: row.try_get(1)?,
+            status: row.try_get(2)?,
+            total_amount: row.try_get(3)?,
+            ordered_at: row.try_get(4)?,
         })
     }
 }
 pub struct CreateOrder {
-    orders_user_id: uuid::Uuid,
-    orders_status: OrderStatus,
-    orders_total_amount: i32,
+    user_id: uuid::Uuid,
+    status: OrderStatus,
+    total_amount: i32,
 }
 impl CreateOrder {
     pub const QUERY: &'static str = r"INSERT INTO orders (user_id, status, total_amount)
@@ -1441,11 +1093,7 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         let row = client
             .query_one(
                 Self::QUERY,
-                &[
-                    &self.orders_user_id,
-                    &self.orders_status,
-                    &self.orders_total_amount,
-                ],
+                &[&self.user_id, &self.status, &self.total_amount],
             )
             .await?;
         CreateOrderRow::from_row(&row)
@@ -1457,11 +1105,7 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         let row = client
             .query_opt(
                 Self::QUERY,
-                &[
-                    &self.orders_user_id,
-                    &self.orders_status,
-                    &self.orders_total_amount,
-                ],
+                &[&self.user_id, &self.status, &self.total_amount],
             )
             .await?;
         match row {
@@ -1482,82 +1126,75 @@ pub struct CreateOrderBuilder<'a, Fields = ((), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, OrdersStatus, OrdersTotalAmount>
-    CreateOrderBuilder<'a, ((), OrdersStatus, OrdersTotalAmount)>
-{
-    pub fn orders_user_id(
+impl<'a, Status, TotalAmount> CreateOrderBuilder<'a, ((), Status, TotalAmount)> {
+    pub fn user_id(
         self,
-        orders_user_id: uuid::Uuid,
-    ) -> CreateOrderBuilder<'a, (uuid::Uuid, OrdersStatus, OrdersTotalAmount)> {
-        let ((), orders_status, orders_total_amount) = self.fields;
+        user_id: uuid::Uuid,
+    ) -> CreateOrderBuilder<'a, (uuid::Uuid, Status, TotalAmount)> {
+        let ((), status, total_amount) = self.fields;
         let _phantom = self._phantom;
         CreateOrderBuilder {
-            fields: (orders_user_id, orders_status, orders_total_amount),
+            fields: (user_id, status, total_amount),
             _phantom,
         }
     }
 }
-impl<'a, OrdersUserId, OrdersTotalAmount>
-    CreateOrderBuilder<'a, (OrdersUserId, (), OrdersTotalAmount)>
-{
-    pub fn orders_status(
+impl<'a, UserId, TotalAmount> CreateOrderBuilder<'a, (UserId, (), TotalAmount)> {
+    pub fn status(
         self,
-        orders_status: OrderStatus,
-    ) -> CreateOrderBuilder<'a, (OrdersUserId, OrderStatus, OrdersTotalAmount)> {
-        let (orders_user_id, (), orders_total_amount) = self.fields;
+        status: OrderStatus,
+    ) -> CreateOrderBuilder<'a, (UserId, OrderStatus, TotalAmount)> {
+        let (user_id, (), total_amount) = self.fields;
         let _phantom = self._phantom;
         CreateOrderBuilder {
-            fields: (orders_user_id, orders_status, orders_total_amount),
+            fields: (user_id, status, total_amount),
             _phantom,
         }
     }
 }
-impl<'a, OrdersUserId, OrdersStatus> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, ())> {
-    pub fn orders_total_amount(
-        self,
-        orders_total_amount: i32,
-    ) -> CreateOrderBuilder<'a, (OrdersUserId, OrdersStatus, i32)> {
-        let (orders_user_id, orders_status, ()) = self.fields;
+impl<'a, UserId, Status> CreateOrderBuilder<'a, (UserId, Status, ())> {
+    pub fn total_amount(self, total_amount: i32) -> CreateOrderBuilder<'a, (UserId, Status, i32)> {
+        let (user_id, status, ()) = self.fields;
         let _phantom = self._phantom;
         CreateOrderBuilder {
-            fields: (orders_user_id, orders_status, orders_total_amount),
+            fields: (user_id, status, total_amount),
             _phantom,
         }
     }
 }
 impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
     pub const fn build(self) -> CreateOrder {
-        let (orders_user_id, orders_status, orders_total_amount) = self.fields;
+        let (user_id, status, total_amount) = self.fields;
         CreateOrder {
-            orders_user_id,
-            orders_status,
-            orders_total_amount,
+            user_id,
+            status,
+            total_amount,
         }
     }
 }
 pub struct CreateOrderItemRow {
-    pub order_items_id: i64,
-    pub order_items_order_id: i64,
-    pub order_items_product_id: uuid::Uuid,
-    pub order_items_quantity: i32,
-    pub order_items_price_at_purchase: i32,
+    pub id: i64,
+    pub order_id: i64,
+    pub product_id: uuid::Uuid,
+    pub quantity: i32,
+    pub price_at_purchase: i32,
 }
 impl CreateOrderItemRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            order_items_id: row.try_get(0)?,
-            order_items_order_id: row.try_get(1)?,
-            order_items_product_id: row.try_get(2)?,
-            order_items_quantity: row.try_get(3)?,
-            order_items_price_at_purchase: row.try_get(4)?,
+            id: row.try_get(0)?,
+            order_id: row.try_get(1)?,
+            product_id: row.try_get(2)?,
+            quantity: row.try_get(3)?,
+            price_at_purchase: row.try_get(4)?,
         })
     }
 }
 pub struct CreateOrderItem {
-    order_items_order_id: i64,
-    order_items_product_id: uuid::Uuid,
-    order_items_quantity: i32,
-    order_items_price_at_purchase: i32,
+    order_id: i64,
+    product_id: uuid::Uuid,
+    quantity: i32,
+    price_at_purchase: i32,
 }
 impl CreateOrderItem {
     pub const QUERY: &'static str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
@@ -1571,10 +1208,10 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
             .query_one(
                 Self::QUERY,
                 &[
-                    &self.order_items_order_id,
-                    &self.order_items_product_id,
-                    &self.order_items_quantity,
-                    &self.order_items_price_at_purchase,
+                    &self.order_id,
+                    &self.product_id,
+                    &self.quantity,
+                    &self.price_at_purchase,
                 ],
             )
             .await?;
@@ -1588,10 +1225,10 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
             .query_opt(
                 Self::QUERY,
                 &[
-                    &self.order_items_order_id,
-                    &self.order_items_product_id,
-                    &self.order_items_quantity,
-                    &self.order_items_price_at_purchase,
+                    &self.order_id,
+                    &self.product_id,
+                    &self.quantity,
+                    &self.price_at_purchase,
                 ],
             )
             .await?;
@@ -1613,193 +1250,101 @@ pub struct CreateOrderItemBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, OrderItemsProductId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            (),
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
-    >
+impl<'a, ProductId, Quantity, PriceAtPurchase>
+    CreateOrderItemBuilder<'a, ((), ProductId, Quantity, PriceAtPurchase)>
 {
-    pub fn order_items_order_id(
+    pub fn order_id(
         self,
-        order_items_order_id: i64,
-    ) -> CreateOrderItemBuilder<
-        'a,
-        (
-            i64,
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
-    > {
-        let ((), order_items_product_id, order_items_quantity, order_items_price_at_purchase) =
-            self.fields;
+        order_id: i64,
+    ) -> CreateOrderItemBuilder<'a, (i64, ProductId, Quantity, PriceAtPurchase)> {
+        let ((), product_id, quantity, price_at_purchase) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
-            fields: (
-                order_items_order_id,
-                order_items_product_id,
-                order_items_quantity,
-                order_items_price_at_purchase,
-            ),
+            fields: (order_id, product_id, quantity, price_at_purchase),
             _phantom,
         }
     }
 }
-impl<'a, OrderItemsOrderId, OrderItemsQuantity, OrderItemsPriceAtPurchase>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            (),
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
-    >
+impl<'a, OrderId, Quantity, PriceAtPurchase>
+    CreateOrderItemBuilder<'a, (OrderId, (), Quantity, PriceAtPurchase)>
 {
-    pub fn order_items_product_id(
+    pub fn product_id(
         self,
-        order_items_product_id: uuid::Uuid,
-    ) -> CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            uuid::Uuid,
-            OrderItemsQuantity,
-            OrderItemsPriceAtPurchase,
-        ),
-    > {
-        let (order_items_order_id, (), order_items_quantity, order_items_price_at_purchase) =
-            self.fields;
+        product_id: uuid::Uuid,
+    ) -> CreateOrderItemBuilder<'a, (OrderId, uuid::Uuid, Quantity, PriceAtPurchase)> {
+        let (order_id, (), quantity, price_at_purchase) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
-            fields: (
-                order_items_order_id,
-                order_items_product_id,
-                order_items_quantity,
-                order_items_price_at_purchase,
-            ),
+            fields: (order_id, product_id, quantity, price_at_purchase),
             _phantom,
         }
     }
 }
-impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsPriceAtPurchase>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            (),
-            OrderItemsPriceAtPurchase,
-        ),
-    >
+impl<'a, OrderId, ProductId, PriceAtPurchase>
+    CreateOrderItemBuilder<'a, (OrderId, ProductId, (), PriceAtPurchase)>
 {
-    pub fn order_items_quantity(
+    pub fn quantity(
         self,
-        order_items_quantity: i32,
-    ) -> CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            i32,
-            OrderItemsPriceAtPurchase,
-        ),
-    > {
-        let (order_items_order_id, order_items_product_id, (), order_items_price_at_purchase) =
-            self.fields;
+        quantity: i32,
+    ) -> CreateOrderItemBuilder<'a, (OrderId, ProductId, i32, PriceAtPurchase)> {
+        let (order_id, product_id, (), price_at_purchase) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
-            fields: (
-                order_items_order_id,
-                order_items_product_id,
-                order_items_quantity,
-                order_items_price_at_purchase,
-            ),
+            fields: (order_id, product_id, quantity, price_at_purchase),
             _phantom,
         }
     }
 }
-impl<'a, OrderItemsOrderId, OrderItemsProductId, OrderItemsQuantity>
-    CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            (),
-        ),
-    >
+impl<'a, OrderId, ProductId, Quantity>
+    CreateOrderItemBuilder<'a, (OrderId, ProductId, Quantity, ())>
 {
-    pub fn order_items_price_at_purchase(
+    pub fn price_at_purchase(
         self,
-        order_items_price_at_purchase: i32,
-    ) -> CreateOrderItemBuilder<
-        'a,
-        (
-            OrderItemsOrderId,
-            OrderItemsProductId,
-            OrderItemsQuantity,
-            i32,
-        ),
-    > {
-        let (order_items_order_id, order_items_product_id, order_items_quantity, ()) = self.fields;
+        price_at_purchase: i32,
+    ) -> CreateOrderItemBuilder<'a, (OrderId, ProductId, Quantity, i32)> {
+        let (order_id, product_id, quantity, ()) = self.fields;
         let _phantom = self._phantom;
         CreateOrderItemBuilder {
-            fields: (
-                order_items_order_id,
-                order_items_product_id,
-                order_items_quantity,
-                order_items_price_at_purchase,
-            ),
+            fields: (order_id, product_id, quantity, price_at_purchase),
             _phantom,
         }
     }
 }
 impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
     pub const fn build(self) -> CreateOrderItem {
-        let (
-            order_items_order_id,
-            order_items_product_id,
-            order_items_quantity,
-            order_items_price_at_purchase,
-        ) = self.fields;
+        let (order_id, product_id, quantity, price_at_purchase) = self.fields;
         CreateOrderItem {
-            order_items_order_id,
-            order_items_product_id,
-            order_items_quantity,
-            order_items_price_at_purchase,
+            order_id,
+            product_id,
+            quantity,
+            price_at_purchase,
         }
     }
 }
 pub struct GetOrderDetailsRow {
-    pub orders_order_id: i64,
-    pub orders_status: OrderStatus,
-    pub orders_total_amount: i32,
-    pub orders_ordered_at: std::time::SystemTime,
-    pub users_user_id: uuid::Uuid,
-    pub users_username: String,
-    pub users_email: String,
+    pub order_id: i64,
+    pub status: OrderStatus,
+    pub total_amount: i32,
+    pub ordered_at: std::time::SystemTime,
+    pub user_id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
 }
 impl GetOrderDetailsRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            orders_order_id: row.try_get(0)?,
-            orders_status: row.try_get(1)?,
-            orders_total_amount: row.try_get(2)?,
-            orders_ordered_at: row.try_get(3)?,
-            users_user_id: row.try_get(4)?,
-            users_username: row.try_get(5)?,
-            users_email: row.try_get(6)?,
+            order_id: row.try_get(0)?,
+            status: row.try_get(1)?,
+            total_amount: row.try_get(2)?,
+            ordered_at: row.try_get(3)?,
+            user_id: row.try_get(4)?,
+            username: row.try_get(5)?,
+            email: row.try_get(6)?,
         })
     }
 }
 pub struct GetOrderDetails {
-    orders_id: i64,
+    id: i64,
 }
 impl GetOrderDetails {
     pub const QUERY: &'static str = r"SELECT
@@ -1817,14 +1362,14 @@ WHERE o.id = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetOrderDetailsRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.orders_id]).await?;
+        let row = client.query_one(Self::QUERY, &[&self.id]).await?;
         GetOrderDetailsRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetOrderDetailsRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.orders_id]).await?;
+        let row = client.query_opt(Self::QUERY, &[&self.id]).await?;
         match row {
             Some(row) => Ok(Some(GetOrderDetailsRow::from_row(&row)?)),
             None => Ok(None),
@@ -1844,39 +1389,39 @@ pub struct GetOrderDetailsBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetOrderDetailsBuilder<'a, ((),)> {
-    pub fn orders_id(self, orders_id: i64) -> GetOrderDetailsBuilder<'a, (i64,)> {
+    pub fn id(self, id: i64) -> GetOrderDetailsBuilder<'a, (i64,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetOrderDetailsBuilder {
-            fields: (orders_id,),
+            fields: (id,),
             _phantom,
         }
     }
 }
 impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
     pub const fn build(self) -> GetOrderDetails {
-        let (orders_id,) = self.fields;
-        GetOrderDetails { orders_id }
+        let (id,) = self.fields;
+        GetOrderDetails { id }
     }
 }
 pub struct ListOrderItemsByOrderIdRow {
-    pub order_items_quantity: i32,
-    pub order_items_price_at_purchase: i32,
-    pub products_product_id: uuid::Uuid,
-    pub products_product_name: String,
+    pub quantity: i32,
+    pub price_at_purchase: i32,
+    pub product_id: uuid::Uuid,
+    pub product_name: String,
 }
 impl ListOrderItemsByOrderIdRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            order_items_quantity: row.try_get(0)?,
-            order_items_price_at_purchase: row.try_get(1)?,
-            products_product_id: row.try_get(2)?,
-            products_product_name: row.try_get(3)?,
+            quantity: row.try_get(0)?,
+            price_at_purchase: row.try_get(1)?,
+            product_id: row.try_get(2)?,
+            product_name: row.try_get(3)?,
         })
     }
 }
 pub struct ListOrderItemsByOrderId {
-    order_items_order_id: i64,
+    order_id: i64,
 }
 impl ListOrderItemsByOrderId {
     pub const QUERY: &'static str = r"SELECT
@@ -1891,9 +1436,7 @@ WHERE oi.order_id = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListOrderItemsByOrderIdRow>, tokio_postgres::Error> {
-        let rows = client
-            .query(Self::QUERY, &[&self.order_items_order_id])
-            .await?;
+        let rows = client.query(Self::QUERY, &[&self.order_id]).await?;
         rows.into_iter()
             .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
             .collect()
@@ -1912,51 +1455,46 @@ pub struct ListOrderItemsByOrderIdBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, ((),)> {
-    pub fn order_items_order_id(
-        self,
-        order_items_order_id: i64,
-    ) -> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
+    pub fn order_id(self, order_id: i64) -> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         ListOrderItemsByOrderIdBuilder {
-            fields: (order_items_order_id,),
+            fields: (order_id,),
             _phantom,
         }
     }
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
     pub const fn build(self) -> ListOrderItemsByOrderId {
-        let (order_items_order_id,) = self.fields;
-        ListOrderItemsByOrderId {
-            order_items_order_id,
-        }
+        let (order_id,) = self.fields;
+        ListOrderItemsByOrderId { order_id }
     }
 }
 pub struct CreateReviewRow {
-    pub reviews_id: i64,
-    pub reviews_user_id: uuid::Uuid,
-    pub reviews_product_id: uuid::Uuid,
-    pub reviews_rating: i32,
-    pub reviews_comment: Option<String>,
-    pub reviews_created_at: std::time::SystemTime,
+    pub id: i64,
+    pub user_id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
+    pub rating: i32,
+    pub comment: Option<String>,
+    pub created_at: std::time::SystemTime,
 }
 impl CreateReviewRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            reviews_id: row.try_get(0)?,
-            reviews_user_id: row.try_get(1)?,
-            reviews_product_id: row.try_get(2)?,
-            reviews_rating: row.try_get(3)?,
-            reviews_comment: row.try_get(4)?,
-            reviews_created_at: row.try_get(5)?,
+            id: row.try_get(0)?,
+            user_id: row.try_get(1)?,
+            product_id: row.try_get(2)?,
+            rating: row.try_get(3)?,
+            comment: row.try_get(4)?,
+            created_at: row.try_get(5)?,
         })
     }
 }
 pub struct CreateReview<'a> {
-    reviews_user_id: uuid::Uuid,
-    reviews_product_id: uuid::Uuid,
-    reviews_rating: i32,
-    reviews_comment: Option<&'a str>,
+    user_id: uuid::Uuid,
+    product_id: uuid::Uuid,
+    rating: i32,
+    comment: Option<&'a str>,
 }
 impl<'a> CreateReview<'a> {
     pub const QUERY: &'static str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
@@ -1969,12 +1507,7 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         let row = client
             .query_one(
                 Self::QUERY,
-                &[
-                    &self.reviews_user_id,
-                    &self.reviews_product_id,
-                    &self.reviews_rating,
-                    &self.reviews_comment,
-                ],
+                &[&self.user_id, &self.product_id, &self.rating, &self.comment],
             )
             .await?;
         CreateReviewRow::from_row(&row)
@@ -1986,12 +1519,7 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         let row = client
             .query_opt(
                 Self::QUERY,
-                &[
-                    &self.reviews_user_id,
-                    &self.reviews_product_id,
-                    &self.reviews_rating,
-                    &self.reviews_comment,
-                ],
+                &[&self.user_id, &self.product_id, &self.rating, &self.comment],
             )
             .await?;
         match row {
@@ -2012,122 +1540,82 @@ pub struct CreateReviewBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, ReviewsProductId, ReviewsRating, ReviewsComment>
-    CreateReviewBuilder<'a, ((), ReviewsProductId, ReviewsRating, ReviewsComment)>
-{
-    pub fn reviews_user_id(
+impl<'a, ProductId, Rating, Comment> CreateReviewBuilder<'a, ((), ProductId, Rating, Comment)> {
+    pub fn user_id(
         self,
-        reviews_user_id: uuid::Uuid,
-    ) -> CreateReviewBuilder<'a, (uuid::Uuid, ReviewsProductId, ReviewsRating, ReviewsComment)>
-    {
-        let ((), reviews_product_id, reviews_rating, reviews_comment) = self.fields;
+        user_id: uuid::Uuid,
+    ) -> CreateReviewBuilder<'a, (uuid::Uuid, ProductId, Rating, Comment)> {
+        let ((), product_id, rating, comment) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
-            fields: (
-                reviews_user_id,
-                reviews_product_id,
-                reviews_rating,
-                reviews_comment,
-            ),
+            fields: (user_id, product_id, rating, comment),
             _phantom,
         }
     }
 }
-impl<'a, ReviewsUserId, ReviewsRating, ReviewsComment>
-    CreateReviewBuilder<'a, (ReviewsUserId, (), ReviewsRating, ReviewsComment)>
-{
-    pub fn reviews_product_id(
+impl<'a, UserId, Rating, Comment> CreateReviewBuilder<'a, (UserId, (), Rating, Comment)> {
+    pub fn product_id(
         self,
-        reviews_product_id: uuid::Uuid,
-    ) -> CreateReviewBuilder<'a, (ReviewsUserId, uuid::Uuid, ReviewsRating, ReviewsComment)> {
-        let (reviews_user_id, (), reviews_rating, reviews_comment) = self.fields;
+        product_id: uuid::Uuid,
+    ) -> CreateReviewBuilder<'a, (UserId, uuid::Uuid, Rating, Comment)> {
+        let (user_id, (), rating, comment) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
-            fields: (
-                reviews_user_id,
-                reviews_product_id,
-                reviews_rating,
-                reviews_comment,
-            ),
+            fields: (user_id, product_id, rating, comment),
             _phantom,
         }
     }
 }
-impl<'a, ReviewsUserId, ReviewsProductId, ReviewsComment>
-    CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, (), ReviewsComment)>
-{
-    pub fn reviews_rating(
-        self,
-        reviews_rating: i32,
-    ) -> CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, i32, ReviewsComment)> {
-        let (reviews_user_id, reviews_product_id, (), reviews_comment) = self.fields;
+impl<'a, UserId, ProductId, Comment> CreateReviewBuilder<'a, (UserId, ProductId, (), Comment)> {
+    pub fn rating(self, rating: i32) -> CreateReviewBuilder<'a, (UserId, ProductId, i32, Comment)> {
+        let (user_id, product_id, (), comment) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
-            fields: (
-                reviews_user_id,
-                reviews_product_id,
-                reviews_rating,
-                reviews_comment,
-            ),
+            fields: (user_id, product_id, rating, comment),
             _phantom,
         }
     }
 }
-impl<'a, ReviewsUserId, ReviewsProductId, ReviewsRating>
-    CreateReviewBuilder<'a, (ReviewsUserId, ReviewsProductId, ReviewsRating, ())>
-{
-    pub fn reviews_comment(
+impl<'a, UserId, ProductId, Rating> CreateReviewBuilder<'a, (UserId, ProductId, Rating, ())> {
+    pub fn comment(
         self,
-        reviews_comment: Option<&'a str>,
-    ) -> CreateReviewBuilder<
-        'a,
-        (
-            ReviewsUserId,
-            ReviewsProductId,
-            ReviewsRating,
-            Option<&'a str>,
-        ),
-    > {
-        let (reviews_user_id, reviews_product_id, reviews_rating, ()) = self.fields;
+        comment: Option<&'a str>,
+    ) -> CreateReviewBuilder<'a, (UserId, ProductId, Rating, Option<&'a str>)> {
+        let (user_id, product_id, rating, ()) = self.fields;
         let _phantom = self._phantom;
         CreateReviewBuilder {
-            fields: (
-                reviews_user_id,
-                reviews_product_id,
-                reviews_rating,
-                reviews_comment,
-            ),
+            fields: (user_id, product_id, rating, comment),
             _phantom,
         }
     }
 }
 impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)> {
     pub const fn build(self) -> CreateReview<'a> {
-        let (reviews_user_id, reviews_product_id, reviews_rating, reviews_comment) = self.fields;
+        let (user_id, product_id, rating, comment) = self.fields;
         CreateReview {
-            reviews_user_id,
-            reviews_product_id,
-            reviews_rating,
-            reviews_comment,
+            user_id,
+            product_id,
+            rating,
+            comment,
         }
     }
 }
 pub struct GetProductAverageRatingRow {
-    pub reviews_product_id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
     pub average_rating: f64,
     pub review_count: i64,
 }
 impl GetProductAverageRatingRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            reviews_product_id: row.try_get(0)?,
+            product_id: row.try_get(0)?,
             average_rating: row.try_get(1)?,
             review_count: row.try_get(2)?,
         })
     }
 }
 pub struct GetProductAverageRating {
-    reviews_product_id: uuid::Uuid,
+    product_id: uuid::Uuid,
 }
 impl GetProductAverageRating {
     pub const QUERY: &'static str = r"SELECT
@@ -2141,18 +1629,14 @@ GROUP BY product_id";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetProductAverageRatingRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.reviews_product_id])
-            .await?;
+        let row = client.query_one(Self::QUERY, &[&self.product_id]).await?;
         GetProductAverageRatingRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetProductAverageRatingRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.reviews_product_id])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &[&self.product_id]).await?;
         match row {
             Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
             None => Ok(None),
@@ -2172,35 +1656,35 @@ pub struct GetProductAverageRatingBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetProductAverageRatingBuilder<'a, ((),)> {
-    pub fn reviews_product_id(
+    pub fn product_id(
         self,
-        reviews_product_id: uuid::Uuid,
+        product_id: uuid::Uuid,
     ) -> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetProductAverageRatingBuilder {
-            fields: (reviews_product_id,),
+            fields: (product_id,),
             _phantom,
         }
     }
 }
 impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
     pub const fn build(self) -> GetProductAverageRating {
-        let (reviews_product_id,) = self.fields;
-        GetProductAverageRating { reviews_product_id }
+        let (product_id,) = self.fields;
+        GetProductAverageRating { product_id }
     }
 }
 pub struct GetCategorySalesRankingRow {
-    pub categories_category_id: i32,
-    pub categories_category_name: String,
+    pub category_id: i32,
+    pub category_name: String,
     pub total_sales: i64,
     pub total_orders: i64,
 }
 impl GetCategorySalesRankingRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            categories_category_id: row.try_get(0)?,
-            categories_category_name: row.try_get(1)?,
+            category_id: row.try_get(0)?,
+            category_name: row.try_get(1)?,
             total_sales: row.try_get(2)?,
             total_orders: row.try_get(3)?,
         })
@@ -2237,7 +1721,7 @@ impl DeleteUserAndRelatedDataRow {
     }
 }
 pub struct DeleteUserAndRelatedData {
-    users_id: uuid::Uuid,
+    id: uuid::Uuid,
 }
 impl DeleteUserAndRelatedData {
     pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";
@@ -2245,7 +1729,7 @@ impl DeleteUserAndRelatedData {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.users_id]).await
+        client.execute(Self::QUERY, &[&self.id]).await
     }
 }
 impl DeleteUserAndRelatedData {
@@ -2261,21 +1745,18 @@ pub struct DeleteUserAndRelatedDataBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, ((),)> {
-    pub fn users_id(
-        self,
-        users_id: uuid::Uuid,
-    ) -> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
+    pub fn id(self, id: uuid::Uuid) -> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         DeleteUserAndRelatedDataBuilder {
-            fields: (users_id,),
+            fields: (id,),
             _phantom,
         }
     }
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
     pub const fn build(self) -> DeleteUserAndRelatedData {
-        let (users_id,) = self.fields;
-        DeleteUserAndRelatedData { users_id }
+        let (id,) = self.fields;
+        DeleteUserAndRelatedData { id }
     }
 }

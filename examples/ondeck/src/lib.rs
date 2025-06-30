@@ -30,8 +30,8 @@ mod tests {
 
         // Create city
         let city = CreateCity::builder()
-            .city_slug("san-francisco")
-            .city_name("San Francisco")
+            .slug("san-francisco")
+            .name("San Francisco")
             .build()
             .query_one(client)
             .await
@@ -41,70 +41,70 @@ mod tests {
         let tags = vec!["rock".to_string(), "punk".to_string()];
         let statuses = vec![Status::Open, Status::Closed];
         let create_venue = CreateVenue::builder()
-            .venue_slug("the-fillmore")
-            .venue_name("The Fillmore")
-            .venue_city(&city.city_slug)
-            .venue_spotify_playlist("spotify:uri")
-            .venue_status(Status::Open)
-            .venue_statuses(Some(&statuses))
-            .venue_tags(Some(&tags))
+            .slug("the-fillmore")
+            .name("The Fillmore")
+            .city(&city.slug)
+            .spotify_playlist("spotify:uri")
+            .status(Status::Open)
+            .statuses(Some(&statuses))
+            .tags(Some(&tags))
             .build();
 
-        let venue_id = create_venue.query_one(client).await.unwrap().venue_id;
+        let venue_id = create_venue.query_one(client).await.unwrap().id;
 
         // Get venue
         let venue = GetVenue::builder()
-            .venue_slug("the-fillmore")
-            .venue_city(&city.city_slug)
+            .slug("the-fillmore")
+            .city(&city.slug)
             .build()
             .query_one(client)
             .await
             .unwrap();
 
-        assert_eq!(venue.venue_id, venue_id);
+        assert_eq!(venue.id, venue_id);
 
         // Get city
         let actual_city = GetCity::builder()
-            .city_slug(&city.city_slug)
+            .slug(&city.slug)
             .build()
             .query_one(client)
             .await
             .unwrap();
 
-        assert_eq!(actual_city.city_slug, city.city_slug);
-        assert_eq!(actual_city.city_name, city.city_name);
+        assert_eq!(actual_city.slug, city.slug);
+        assert_eq!(actual_city.name, city.name);
 
         // Venue count by city
         let venue_counts = VenueCountByCity.query_many(client).await.unwrap();
 
         assert_eq!(venue_counts.len(), 1);
-        assert_eq!(venue_counts[0].venue_city, city.city_slug);
+        assert_eq!(venue_counts[0].city, city.slug);
         assert_eq!(venue_counts[0].count, 1);
 
         // List cities
         let cities = ListCities.query_many(client).await.unwrap();
 
         assert_eq!(cities.len(), 1);
-        assert_eq!(cities[0].city_slug, city.city_slug);
-        assert_eq!(cities[0].city_name, city.city_name);
+        assert_eq!(cities[0].slug, city.slug);
+        assert_eq!(cities[0].name, city.name);
 
         // List venues
         let venues = ListVenues::builder()
-            .venue_city(&city.city_slug)
+            .city(&city.slug)
             .build()
             .query_many(client)
             .await
             .unwrap();
 
         assert_eq!(venues.len(), 1);
-        assert_eq!(venues[0].venue_id, venue.venue_id);
-        assert_eq!(venues[0].venue_slug, venue.venue_slug);
-        assert_eq!(venues[0].venue_name, venue.venue_name);
+        assert_eq!(venues[0].id, venue.id);
+        assert_eq!(venues[0].slug, venue.slug);
+        assert_eq!(venues[0].name, venue.name);
 
         // Update city name
         let updated_rows = UpdateCityName::builder()
-            .city_slug(&city.city_slug)
-            .city_name("SF")
+            .slug(&city.slug)
+            .name("SF")
             .build()
             .execute(client)
             .await
@@ -114,18 +114,18 @@ mod tests {
 
         // Update venue name
         let updated_venue = UpdateVenueName::builder()
-            .venue_slug(&venue.venue_slug)
-            .venue_name("Fillmore")
+            .slug(&venue.slug)
+            .name("Fillmore")
             .build()
             .query_one(client)
             .await
             .unwrap();
 
-        assert_eq!(updated_venue.venue_id, venue.venue_id);
+        assert_eq!(updated_venue.id, venue.id);
 
         // Delete venue
         let deleted = DeleteVenue::builder()
-            .venue_slug(&venue.venue_slug)
+            .slug(&venue.slug)
             .build()
             .execute(client)
             .await

@@ -43,11 +43,11 @@ mod tests {
         // List pilots
         let pilots = ListPilots.query_many(&conn).await.unwrap();
         assert_eq!(pilots.len(), 5);
-        assert_eq!(pilots[0].pilots_name, "Tom Cruise");
+        assert_eq!(pilots[0].name, "Tom Cruise");
 
         // Delete pilot
         let deleted = DeletePilot::builder()
-            .pilots_id(3)
+            .id(3)
             .build()
             .execute(&conn)
             .await
@@ -60,7 +60,7 @@ mod tests {
 
         // Delete non-existent pilot
         let deleted_none = DeletePilot::builder()
-            .pilots_id(999)
+            .id(999)
             .build()
             .execute(&conn)
             .await
