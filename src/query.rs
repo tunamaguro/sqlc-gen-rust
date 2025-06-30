@@ -1,7 +1,118 @@
 use quote::ToTokens;
-use std::vec;
 
-use crate::{field_ident, plugin, value_ident};
+use crate::{StackError, StackErrorResult, field_ident, plugin, value_ident};
+
+#[derive(Debug, Clone)]
+pub enum QueryError {
+    MissingColumnType {
+        column_name: String,
+        location: &'static std::panic::Location<'static>,
+    },
+    MissingParamColumn {
+        param_number: i32,
+        location: &'static std::panic::Location<'static>,
+    },
+    Stacked {
+        source: Box<Self>,
+        location: &'static std::panic::Location<'static>,
+    },
+}
+
+impl QueryError {
+    #[track_caller]
+    fn missing_column_type(column_name: String) -> Self {
+        Self::MissingColumnType {
+            column_name,
+            location: std::panic::Location::caller(),
+        }
+    }
+
+    #[track_caller]
+    fn missing_param_column(param_number: i32) -> Self {
+        Self::MissingParamColumn {
+            param_number,
+            location: std::panic::Location::caller(),
+        }
+    }
+
+    fn location(&self) -> &'static std::panic::Location<'static> {
+        match self {
+            QueryError::MissingColumnType { location, .. } => location,
+            QueryError::MissingParamColumn { location, .. } => location,
+            QueryError::Stacked { location, .. } => location,
+        }
+    }
+}
+
+impl std::fmt::Display for QueryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryError::MissingColumnType { column_name, .. } => {
+                write!(f, "Column type not found for column: `{}`", column_name)
+            }
+            QueryError::MissingParamColumn { param_number, .. } => {
+                write!(
+                    f,
+                    "Parameter column not found for parameter #{}",
+                    param_number
+                )
+            }
+
+            QueryError::Stacked { source, .. } => source.fmt(f),
+        }
+    }
+}
+
+impl StackError for QueryError {
+    fn format_stack(&self, layer: usize, buf: &mut Vec<String>) {
+        let location = self.location();
+        match self {
+            QueryError::Stacked { .. } => {
+                buf.push(format!(
+                    "{}: at {}:{}",
+                    layer,
+                    location.file(),
+                    location.line()
+                ));
+            }
+            _ => {
+                buf.push(format!(
+                    "{}:{}, at {}:{}",
+                    layer,
+                    self,
+                    location.file(),
+                    location.line()
+                ));
+            }
+        }
+    }
+
+    fn next(&self) -> Option<&dyn StackError> {
+        None
+    }
+}
+
+impl std::error::Error for QueryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            QueryError::Stacked { source, .. } => Some(source.as_ref()),
+            _ => None,
+        }
+    }
+}
+
+impl<T> StackErrorResult<T, QueryError> for Result<T, QueryError> {
+    #[track_caller]
+    fn stacked(self) -> Self {
+        match self {
+            Ok(v) => Ok(v),
+            Err(err) => Err(QueryError::Stacked {
+                source: err.into(),
+                location: std::panic::Location::caller(),
+            }),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct RsType {
@@ -42,32 +153,42 @@ pub(crate) struct RsColType {
     /// col is optional
     optional: bool,
 }
+fn make_column_type(db_type: &plugin::Identifier) -> String {
+    if !db_type.schema.is_empty() {
+        format!("{}.{}", db_type.schema, db_type.name)
+    } else {
+        db_type.name.to_string()
+    }
+}
+
+fn make_column_name(column: &plugin::Column) -> String {
+    if let Some(table) = &column.table {
+        format!("{}.{}", table.name, column.name)
+    } else {
+        column.name.clone()
+    }
+}
 
 impl RsColType {
-    pub(crate) fn new_with_type(db_type: &DbTypeMap, column: &plugin::Column) -> Self {
-        fn make_column_type(db_type: &plugin::Identifier) -> String {
-            if !db_type.schema.is_empty() {
-                format!("{}.{}", db_type.schema, db_type.name)
-            } else {
-                db_type.name.to_string()
-            }
-        }
-
+    pub(crate) fn new_with_type(
+        db_type: &DbTypeMap,
+        column: &plugin::Column,
+    ) -> Result<Self, QueryError> {
         let db_col_type = column
             .r#type
             .as_ref()
             .map(make_column_type)
-            .expect("column type not found");
+            .ok_or_else(|| QueryError::missing_column_type(make_column_name(column)))?;
 
         let rs_type = db_type.get(&db_col_type);
         let dim = usize::try_from(column.array_dims).unwrap_or_default();
         let optional = !column.not_null;
 
-        Self {
+        Ok(Self {
             rs_type,
             dim,
             optional,
-        }
+        })
     }
 
     /// Convert to tokens for row struct
@@ -254,6 +375,7 @@ pub(crate) struct DbEnum {
 
     /// values of enum
     ///
+    /// ```sql
     /// CREATE TYPE book_type AS ENUM (
     ///           'FICTION',
     ///            ^^^^^^^
@@ -293,27 +415,26 @@ pub(crate) struct ReturningRows {
 }
 
 impl ReturningRows {
-    pub(crate) fn from_query(db_type: &DbTypeMap, query: &plugin::Query) -> Self {
-        let mut column_names = vec![];
+    pub(crate) fn from_query(
+        db_type: &DbTypeMap,
+        query: &plugin::Query,
+    ) -> Result<Self, QueryError> {
+        let column_names = generate_column_names(&query.columns)
+            .into_iter()
+            .map(|s| field_ident(&s))
+            .collect::<Vec<_>>();
         let mut column_types = vec![];
         for column in &query.columns {
-            let col_name = if let Some(table) = &column.table {
-                format!("{}_{}", table.name, column.name)
-            } else {
-                column.name.to_string()
-            };
+            let rs_type = RsColType::new_with_type(db_type, column).stacked()?;
 
-            let rs_type = RsColType::new_with_type(db_type, column);
-
-            column_names.push(field_ident(&col_name));
             column_types.push(rs_type);
         }
 
-        Self {
+        Ok(Self {
             column_names,
             column_types,
             query_name: query.name.to_string(),
-        }
+        })
     }
 
     pub(crate) fn struct_ident(&self) -> syn::Ident {
@@ -376,6 +497,38 @@ impl std::str::FromStr for Annotation {
         Ok(annotation)
     }
 }
+fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
+    // 文字列内の"#の組み合わせを検出して、必要なハッシュ数を決定
+    let mut hash_count = 0;
+    let mut current_hashes = 0;
+    let mut in_quote = false;
+
+    for ch in s.chars() {
+        match ch {
+            '"' => {
+                if in_quote {
+                    hash_count = hash_count.max(current_hashes + 1);
+                }
+                in_quote = !in_quote;
+                current_hashes = 0;
+            }
+            '#' if in_quote => {
+                current_hashes += 1;
+            }
+            _ => {
+                current_hashes = 0;
+            }
+        }
+    }
+
+    // raw string literalを構築
+    let hashes = "#".repeat(hash_count);
+    let raw_str = format!("r{0}\"{1}\"{0}", hashes, s);
+
+    raw_str
+        .parse::<proc_macro2::TokenStream>()
+        .unwrap_or_else(|_| proc_macro2::Literal::string(s).to_token_stream())
+}
 
 pub(crate) struct Query {
     pub(crate) param_names: Vec<syn::Ident>,
@@ -400,75 +553,261 @@ pub(crate) struct Query {
 }
 
 impl Query {
-    pub(crate) fn from_query(db_type: &DbTypeMap, query: &plugin::Query) -> Self {
-        let mut param_data = vec![];
-        for param in &query.params {
-            let col = param.column.as_ref().unwrap();
-            let col_name = if let Some(table) = &col.table {
-                format!("{}_{}", table.name, col.name)
-            } else if !col.name.is_empty() {
-                col.name.to_string()
-            } else {
-                "param".to_string()
-            };
+    pub(crate) fn from_query(
+        db_type: &DbTypeMap,
+        query: &plugin::Query,
+    ) -> Result<Self, QueryError> {
+        let (param_idx, columns): (Vec<_>, Vec<_>) = query
+            .params
+            .iter()
+            .map(|p| {
+                p.column
+                    .as_ref()
+                    .ok_or_else(|| QueryError::missing_param_column(p.number))
+                    .map(|c| (p.number, c))
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .unzip();
 
-            let param_name = quote::format_ident!("{}", col_name);
-            let param_type = RsColType::new_with_type(db_type, col);
-            let param_idx = param.number;
+        let param_names = generate_column_names(columns.iter().copied())
+            .into_iter()
+            .map(|s| field_ident(&s))
+            .collect::<Vec<_>>();
+        let param_types = columns
+            .iter()
+            .map(|c| RsColType::new_with_type(db_type, c))
+            .collect::<Result<Vec<_>, _>>()?;
 
-            param_data.push((param_name, param_type, param_idx));
-        }
+        let mut param_data = param_names
+            .into_iter()
+            .zip(param_types)
+            .zip(param_idx)
+            .collect::<Vec<_>>();
 
-        param_data.sort_by_key(|(_, _, idx)| *idx);
+        param_data.sort_by_key(|((_, _), idx)| *idx);
         let (param_names, param_types): (Vec<_>, Vec<_>) = param_data
             .into_iter()
-            .map(|(name, typ, _)| (name, typ))
+            .map(|((name, typ), _)| (name, typ))
             .unzip();
 
         let annotation = query.cmd.parse::<Annotation>().unwrap();
         let query_name = query.name.to_string();
 
-        fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
-            // 文字列内の"#の組み合わせを検出して、必要なハッシュ数を決定
-            let mut hash_count = 0;
-            let mut current_hashes = 0;
-            let mut in_quote = false;
-
-            for ch in s.chars() {
-                match ch {
-                    '"' => {
-                        if in_quote {
-                            hash_count = hash_count.max(current_hashes + 1);
-                        }
-                        in_quote = !in_quote;
-                        current_hashes = 0;
-                    }
-                    '#' if in_quote => {
-                        current_hashes += 1;
-                    }
-                    _ => {
-                        current_hashes = 0;
-                    }
-                }
-            }
-
-            // raw string literalを構築
-            let hashes = "#".repeat(hash_count);
-            let raw_str = format!("r{0}\"{1}\"{0}", hashes, s);
-
-            raw_str
-                .parse::<proc_macro2::TokenStream>()
-                .unwrap_or_else(|_| proc_macro2::Literal::string(s).to_token_stream())
-        }
-
         let query_str = make_raw_string_literal(&query.text);
 
-        Self {
+        Ok(Self {
             param_names,
             param_types,
             annotation,
             query_name,
             query_str,
+        })
+    }
+}
+
+/// 次の命名規則で、カラム名を生成する
+///
+/// 1. テーブル名とカラム名が両方とも空の時: column_1, column_2...
+/// 2. 同じカラム名が存在しないとき: column_name
+/// 3. 同じカラム名が存在し、テーブル名が異なる時: table_column
+/// 4. テーブル名もカラム名も同一の時: table_column_1, table_column_2
+fn generate_column_names<'a, I>(columns: I) -> Vec<String>
+where
+    I: IntoIterator<Item = &'a plugin::Column>,
+{
+    // Step 1: カラム情報を収集
+    let column_info: Vec<_> = columns
+        .into_iter()
+        .map(|column| {
+            let table_name = column.table.as_ref().map(|t| t.name.as_str()).unwrap_or("");
+            let column_name = column.name.as_str();
+            (table_name, column_name)
+        })
+        .collect();
+
+    // Step 2: 空でないカラム名の出現回数をカウント
+    let mut column_name_counts = std::collections::HashMap::new();
+    for &(_, column_name) in &column_info {
+        if !column_name.is_empty() {
+            *column_name_counts.entry(column_name).or_insert(0) += 1;
         }
+    }
+
+    // Step 3: 各カラムの基本名を決定
+    let mut base_names = Vec::new();
+    for (i, &(table_name, column_name)) in column_info.iter().enumerate() {
+        let base_name = match (table_name.is_empty(), column_name.is_empty()) {
+            (true, true) => {
+                // Rule 1: テーブル名とカラム名が両方とも空
+                format!("column_{}", i + 1)
+            }
+            (_, true) => {
+                // カラム名が空の場合（テーブル名の有無は関係なし）
+                format!("column_{}", i + 1)
+            }
+            (_, false) => {
+                // カラム名が存在する場合
+                let count = column_name_counts.get(column_name).unwrap_or(&0);
+                if *count == 1 {
+                    // Rule 2: 同じカラム名が存在しない
+                    column_name.to_string()
+                } else {
+                    // Rule 3: 同じカラム名が存在する
+                    if table_name.is_empty() {
+                        column_name.to_string()
+                    } else {
+                        format!("{}_{}", table_name, column_name)
+                    }
+                }
+            }
+        };
+        base_names.push(base_name);
+    }
+
+    // Step 4: 最終的な名前の重複を解決（Rule 4）
+    // まず重複する基本名を特定
+    let mut base_name_counts = std::collections::HashMap::new();
+    for base_name in &base_names {
+        *base_name_counts.entry(base_name.clone()).or_insert(0) += 1;
+    }
+
+    let mut final_names = Vec::new();
+    let mut name_occurrence_counts = std::collections::HashMap::new();
+
+    for base_name in base_names {
+        let total_count = base_name_counts.get(&base_name).unwrap_or(&1);
+        let occurrence_count = name_occurrence_counts.entry(base_name.clone()).or_insert(0);
+        *occurrence_count += 1;
+
+        let final_name = if *total_count == 1 {
+            // 重複がない場合はそのまま
+            base_name
+        } else {
+            // 重複がある場合は最初から連番を付ける
+            format!("{}_{}", base_name, occurrence_count)
+        };
+        final_names.push(final_name);
+    }
+
+    final_names
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_column(table_name: Option<&str>, column_name: &str) -> plugin::Column {
+        plugin::Column {
+            name: column_name.to_string(),
+            table: table_name.map(|name| plugin::Identifier {
+                name: name.to_string(),
+                schema: String::new(),
+                catalog: String::new(),
+            }),
+            not_null: false,
+            is_array: false,
+            comment: String::new(),
+            length: 0,
+            is_named_param: false,
+            is_func_call: false,
+            scope: String::new(),
+            table_alias: String::new(),
+            r#type: None,
+            is_sqlc_slice: false,
+            embed_table: None,
+            original_name: String::new(),
+            unsigned: false,
+            array_dims: 0,
+        }
+    }
+
+    #[test]
+    fn test_empty_columns() {
+        let columns = vec![create_test_column(None, ""), create_test_column(None, "")];
+
+        let names = generate_column_names(&columns);
+        assert_eq!(names, vec!["column_1", "column_2"]);
+    }
+
+    #[test]
+    fn test_unique_column_names() {
+        let columns = vec![
+            create_test_column(None, "id"),
+            create_test_column(None, "name"),
+        ];
+
+        let names = generate_column_names(&columns);
+        assert_eq!(names, vec!["id", "name"]);
+    }
+
+    #[test]
+    fn test_duplicate_column_names_different_tables() {
+        let columns = vec![
+            create_test_column(Some("users"), "id"),
+            create_test_column(Some("posts"), "id"),
+        ];
+
+        let names = generate_column_names(&columns);
+        assert_eq!(names, vec!["users_id", "posts_id"]);
+    }
+
+    #[test]
+    fn test_duplicate_table_and_column() {
+        let columns = vec![
+            create_test_column(Some("users"), "id"),
+            create_test_column(Some("users"), "id"),
+        ];
+
+        let names = generate_column_names(&columns);
+        assert_eq!(names, vec!["users_id_1", "users_id_2"]);
+    }
+
+    #[test]
+    fn test_mixed_scenarios() {
+        let columns = vec![
+            create_test_column(None, ""),            // column_1
+            create_test_column(None, "name"),        // name (unique)
+            create_test_column(Some("users"), "id"), // users_id_1 (重複するので連番)
+            create_test_column(Some("posts"), "id"), // posts_id (重複しないのでそのまま)
+            create_test_column(None, "id"),          // id (重複しないのでそのまま)
+            create_test_column(Some("users"), "id"), // users_id_2 (重複するので連番)
+        ];
+
+        let names = generate_column_names(&columns);
+        assert_eq!(
+            names,
+            vec![
+                "column_1",
+                "name",
+                "users_id_1",
+                "posts_id",
+                "id",
+                "users_id_2"
+            ]
+        );
+    }
+
+    #[test]
+    fn test_complex_scenario_with_multiple_duplicates() {
+        let columns = vec![
+            create_test_column(Some("users"), "name"), // users_name_1
+            create_test_column(Some("posts"), "name"), // posts_name
+            create_test_column(Some("users"), "name"), // users_name_2
+            create_test_column(None, "name"),          // name_1
+            create_test_column(None, "name"),          // name_2
+        ];
+
+        let names = generate_column_names(&columns);
+        assert_eq!(
+            names,
+            vec![
+                "users_name_1",
+                "posts_name",
+                "users_name_2",
+                "name_1",
+                "name_2"
+            ]
+        );
     }
 }
