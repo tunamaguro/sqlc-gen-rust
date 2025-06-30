@@ -14,6 +14,7 @@ mod tests {
             .unwrap();
     }
 
+    /// port from https://github.com/sqlc-dev/sqlc/blob/v1.29.0/examples/authors/postgresql/db_test.go
     #[test_context(PgTokioTestContext)]
     #[tokio::test]
     async fn test_authors(ctx: &mut PgTokioTestContext) {

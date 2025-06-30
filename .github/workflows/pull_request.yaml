@@ -20,6 +20,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
 
 jobs:
   format:
@@ -82,6 +84,7 @@ jobs:
       - name: Install Rust
         uses: moonrepo/setup-rust@ede6de059f8046a5e236c94046823e2af11ca670 # v1.2.2
         with:
+          targets: wasm32-wasip1
           cache-base: main
       - name: Setup Just
         uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3.0.0
@@ -89,7 +92,14 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           version: "29.3"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}         
+      - name: Setup sqlc
+        uses: sqlc-dev/setup-sqlc@c0209b9199cd1cce6a14fc27cabcec491b651761 # v4.0.0
+        with:
+          sqlc-version: '1.28.0'
+      - name: Regenerate query
+        run: |
+          just generate
       - name: Run test
         env:
           DATABASE_URL: postgres://root:password@localhost:5432/app

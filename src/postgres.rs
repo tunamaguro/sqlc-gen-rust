@@ -355,7 +355,7 @@ impl DbCrate for Postgres {
                     }
                 }
             }
-            Annotation::Exec => {
+            Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
                 quote::quote! {
                     pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
                         client.execute(Self::QUERY, &#params) #await_part

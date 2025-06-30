@@ -1,0 +1,18 @@
+[package]
+name = "jets"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { workspace = true }
+postgres-types = { workspace = true }
+postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+tokio-postgres = { workspace = true }
+serde_json = { workspace = true }
+test-utils = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+test-context = { workspace = true }
+test-utils = { workspace = true }
