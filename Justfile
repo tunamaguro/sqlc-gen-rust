@@ -47,3 +47,12 @@ generate:
     sqlc generate -f _sqlc_dev.json
 
     rm _sqlc_dev.json
+
+build-release:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    cargo build --target wasm32-wasip1 --release
+    WASM_SHA256=$(sha256sum target/wasm32-wasip1/release/sqlc-gen-rust.wasm | awk '{print $1}');
+
+    
