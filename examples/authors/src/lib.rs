@@ -7,8 +7,8 @@ mod tests {
     use test_context::test_context;
     use test_utils::PgTokioTestContext;
 
-    async fn migrate_db(clinet: &tokio_postgres::Client) {
-        clinet
+    async fn migrate_db(client: &tokio_postgres::Client) {
+        client
             .batch_execute(include_str!("../schema.sql"))
             .await
             .unwrap();
@@ -25,8 +25,8 @@ mod tests {
         assert_eq!(authors.len(), 0);
 
         let inserted_author = queries::CreateAuthor::builder()
-            .authors_name("Brian Kernighan")
-            .authors_bio(Some(
+            .name("Brian Kernighan")
+            .bio(Some(
                 "Co-author of The C Programming Language and The Go Programming Language",
             ))
             .build()
@@ -35,7 +35,7 @@ mod tests {
             .unwrap();
 
         let _fetched_author = queries::GetAuthor::builder()
-            .authors_id(inserted_author.authors_id)
+            .id(inserted_author.id)
             .build()
             .query_one(client)
             .await

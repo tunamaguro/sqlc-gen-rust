@@ -7,14 +7,14 @@ pub enum Status {
     Closed,
 }
 pub struct ListCitiesRow {
-    pub city_slug: String,
-    pub city_name: String,
+    pub slug: String,
+    pub name: String,
 }
 impl ListCitiesRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            city_slug: row.try_get(0)?,
-            city_name: row.try_get(1)?,
+            slug: row.try_get(0)?,
+            name: row.try_get(1)?,
         })
     }
 }
@@ -34,19 +34,19 @@ ORDER BY name";
     }
 }
 pub struct GetCityRow {
-    pub city_slug: String,
-    pub city_name: String,
+    pub slug: String,
+    pub name: String,
 }
 impl GetCityRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            city_slug: row.try_get(0)?,
-            city_name: row.try_get(1)?,
+            slug: row.try_get(0)?,
+            name: row.try_get(1)?,
         })
     }
 }
 pub struct GetCity<'a> {
-    city_slug: &'a str,
+    slug: &'a str,
 }
 impl<'a> GetCity<'a> {
     pub const QUERY: &'static str = r"SELECT slug, name
@@ -56,14 +56,14 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetCityRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.city_slug]).await?;
+        let row = client.query_one(Self::QUERY, &[&self.slug]).await?;
         GetCityRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetCityRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.city_slug]).await?;
+        let row = client.query_opt(Self::QUERY, &[&self.slug]).await?;
         match row {
             Some(row) => Ok(Some(GetCityRow::from_row(&row)?)),
             None => Ok(None),
@@ -83,36 +83,36 @@ pub struct GetCityBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetCityBuilder<'a, ((),)> {
-    pub fn city_slug(self, city_slug: &'a str) -> GetCityBuilder<'a, (&'a str,)> {
+    pub fn slug(self, slug: &'a str) -> GetCityBuilder<'a, (&'a str,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         GetCityBuilder {
-            fields: (city_slug,),
+            fields: (slug,),
             _phantom,
         }
     }
 }
 impl<'a> GetCityBuilder<'a, (&'a str,)> {
     pub const fn build(self) -> GetCity<'a> {
-        let (city_slug,) = self.fields;
-        GetCity { city_slug }
+        let (slug,) = self.fields;
+        GetCity { slug }
     }
 }
 pub struct CreateCityRow {
-    pub city_slug: String,
-    pub city_name: String,
+    pub slug: String,
+    pub name: String,
 }
 impl CreateCityRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            city_slug: row.try_get(0)?,
-            city_name: row.try_get(1)?,
+            slug: row.try_get(0)?,
+            name: row.try_get(1)?,
         })
     }
 }
 pub struct CreateCity<'a> {
-    city_name: &'a str,
-    city_slug: &'a str,
+    name: &'a str,
+    slug: &'a str,
 }
 impl<'a> CreateCity<'a> {
     pub const QUERY: &'static str = r"INSERT INTO city (
@@ -127,7 +127,7 @@ impl<'a> CreateCity<'a> {
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateCityRow, tokio_postgres::Error> {
         let row = client
-            .query_one(Self::QUERY, &[&self.city_name, &self.city_slug])
+            .query_one(Self::QUERY, &[&self.name, &self.slug])
             .await?;
         CreateCityRow::from_row(&row)
     }
@@ -136,7 +136,7 @@ impl<'a> CreateCity<'a> {
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateCityRow>, tokio_postgres::Error> {
         let row = client
-            .query_opt(Self::QUERY, &[&self.city_name, &self.city_slug])
+            .query_opt(Self::QUERY, &[&self.name, &self.slug])
             .await?;
         match row {
             Some(row) => Ok(Some(CreateCityRow::from_row(&row)?)),
@@ -156,33 +156,30 @@ pub struct CreateCityBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, CitySlug> CreateCityBuilder<'a, ((), CitySlug)> {
-    pub fn city_name(self, city_name: &'a str) -> CreateCityBuilder<'a, (&'a str, CitySlug)> {
-        let ((), city_slug) = self.fields;
+impl<'a, Slug> CreateCityBuilder<'a, ((), Slug)> {
+    pub fn name(self, name: &'a str) -> CreateCityBuilder<'a, (&'a str, Slug)> {
+        let ((), slug) = self.fields;
         let _phantom = self._phantom;
         CreateCityBuilder {
-            fields: (city_name, city_slug),
+            fields: (name, slug),
             _phantom,
         }
     }
 }
-impl<'a, CityName> CreateCityBuilder<'a, (CityName, ())> {
-    pub fn city_slug(self, city_slug: &'a str) -> CreateCityBuilder<'a, (CityName, &'a str)> {
-        let (city_name, ()) = self.fields;
+impl<'a, Name> CreateCityBuilder<'a, (Name, ())> {
+    pub fn slug(self, slug: &'a str) -> CreateCityBuilder<'a, (Name, &'a str)> {
+        let (name, ()) = self.fields;
         let _phantom = self._phantom;
         CreateCityBuilder {
-            fields: (city_name, city_slug),
+            fields: (name, slug),
             _phantom,
         }
     }
 }
 impl<'a> CreateCityBuilder<'a, (&'a str, &'a str)> {
     pub const fn build(self) -> CreateCity<'a> {
-        let (city_name, city_slug) = self.fields;
-        CreateCity {
-            city_name,
-            city_slug,
-        }
+        let (name, slug) = self.fields;
+        CreateCity { name, slug }
     }
 }
 pub struct UpdateCityNameRow {}
@@ -192,8 +189,8 @@ impl UpdateCityNameRow {
     }
 }
 pub struct UpdateCityName<'a> {
-    city_slug: &'a str,
-    city_name: &'a str,
+    slug: &'a str,
+    name: &'a str,
 }
 impl<'a> UpdateCityName<'a> {
     pub const QUERY: &'static str = r"UPDATE city
@@ -203,9 +200,7 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client
-            .execute(Self::QUERY, &[&self.city_slug, &self.city_name])
-            .await
+        client.execute(Self::QUERY, &[&self.slug, &self.name]).await
     }
 }
 impl<'a> UpdateCityName<'a> {
@@ -220,65 +215,62 @@ pub struct UpdateCityNameBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, CityName> UpdateCityNameBuilder<'a, ((), CityName)> {
-    pub fn city_slug(self, city_slug: &'a str) -> UpdateCityNameBuilder<'a, (&'a str, CityName)> {
-        let ((), city_name) = self.fields;
+impl<'a, Name> UpdateCityNameBuilder<'a, ((), Name)> {
+    pub fn slug(self, slug: &'a str) -> UpdateCityNameBuilder<'a, (&'a str, Name)> {
+        let ((), name) = self.fields;
         let _phantom = self._phantom;
         UpdateCityNameBuilder {
-            fields: (city_slug, city_name),
+            fields: (slug, name),
             _phantom,
         }
     }
 }
-impl<'a, CitySlug> UpdateCityNameBuilder<'a, (CitySlug, ())> {
-    pub fn city_name(self, city_name: &'a str) -> UpdateCityNameBuilder<'a, (CitySlug, &'a str)> {
-        let (city_slug, ()) = self.fields;
+impl<'a, Slug> UpdateCityNameBuilder<'a, (Slug, ())> {
+    pub fn name(self, name: &'a str) -> UpdateCityNameBuilder<'a, (Slug, &'a str)> {
+        let (slug, ()) = self.fields;
         let _phantom = self._phantom;
         UpdateCityNameBuilder {
-            fields: (city_slug, city_name),
+            fields: (slug, name),
             _phantom,
         }
     }
 }
 impl<'a> UpdateCityNameBuilder<'a, (&'a str, &'a str)> {
     pub const fn build(self) -> UpdateCityName<'a> {
-        let (city_slug, city_name) = self.fields;
-        UpdateCityName {
-            city_slug,
-            city_name,
-        }
+        let (slug, name) = self.fields;
+        UpdateCityName { slug, name }
     }
 }
 pub struct ListVenuesRow {
-    pub venue_id: i32,
-    pub venue_status: Status,
-    pub venue_statuses: Option<Vec<Status>>,
-    pub venue_slug: String,
-    pub venue_name: String,
-    pub venue_city: String,
-    pub venue_spotify_playlist: String,
-    pub venue_songkick_id: Option<String>,
-    pub venue_tags: Option<Vec<String>>,
-    pub venue_created_at: std::time::SystemTime,
+    pub id: i32,
+    pub status: Status,
+    pub statuses: Option<Vec<Status>>,
+    pub slug: String,
+    pub name: String,
+    pub city: String,
+    pub spotify_playlist: String,
+    pub songkick_id: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub created_at: std::time::SystemTime,
 }
 impl ListVenuesRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            venue_id: row.try_get(0)?,
-            venue_status: row.try_get(1)?,
-            venue_statuses: row.try_get(2)?,
-            venue_slug: row.try_get(3)?,
-            venue_name: row.try_get(4)?,
-            venue_city: row.try_get(5)?,
-            venue_spotify_playlist: row.try_get(6)?,
-            venue_songkick_id: row.try_get(7)?,
-            venue_tags: row.try_get(8)?,
-            venue_created_at: row.try_get(9)?,
+            id: row.try_get(0)?,
+            status: row.try_get(1)?,
+            statuses: row.try_get(2)?,
+            slug: row.try_get(3)?,
+            name: row.try_get(4)?,
+            city: row.try_get(5)?,
+            spotify_playlist: row.try_get(6)?,
+            songkick_id: row.try_get(7)?,
+            tags: row.try_get(8)?,
+            created_at: row.try_get(9)?,
         })
     }
 }
 pub struct ListVenues<'a> {
-    venue_city: &'a str,
+    city: &'a str,
 }
 impl<'a> ListVenues<'a> {
     pub const QUERY: &'static str = r"SELECT id, status, statuses, slug, name, city, spotify_playlist, songkick_id, tags, created_at
@@ -289,7 +281,7 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListVenuesRow>, tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &[&self.venue_city]).await?;
+        let rows = client.query(Self::QUERY, &[&self.city]).await?;
         rows.into_iter()
             .map(|r| ListVenuesRow::from_row(&r))
             .collect()
@@ -308,19 +300,19 @@ pub struct ListVenuesBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListVenuesBuilder<'a, ((),)> {
-    pub fn venue_city(self, venue_city: &'a str) -> ListVenuesBuilder<'a, (&'a str,)> {
+    pub fn city(self, city: &'a str) -> ListVenuesBuilder<'a, (&'a str,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         ListVenuesBuilder {
-            fields: (venue_city,),
+            fields: (city,),
             _phantom,
         }
     }
 }
 impl<'a> ListVenuesBuilder<'a, (&'a str,)> {
     pub const fn build(self) -> ListVenues<'a> {
-        let (venue_city,) = self.fields;
-        ListVenues { venue_city }
+        let (city,) = self.fields;
+        ListVenues { city }
     }
 }
 pub struct DeleteVenueRow {}
@@ -330,7 +322,7 @@ impl DeleteVenueRow {
     }
 }
 pub struct DeleteVenue<'a> {
-    venue_slug: &'a str,
+    slug: &'a str,
 }
 impl<'a> DeleteVenue<'a> {
     pub const QUERY: &'static str = r"DELETE FROM venue
@@ -339,7 +331,7 @@ WHERE slug = $1 AND slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.venue_slug]).await
+        client.execute(Self::QUERY, &[&self.slug]).await
     }
 }
 impl<'a> DeleteVenue<'a> {
@@ -355,52 +347,52 @@ pub struct DeleteVenueBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> DeleteVenueBuilder<'a, ((),)> {
-    pub fn venue_slug(self, venue_slug: &'a str) -> DeleteVenueBuilder<'a, (&'a str,)> {
+    pub fn slug(self, slug: &'a str) -> DeleteVenueBuilder<'a, (&'a str,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         DeleteVenueBuilder {
-            fields: (venue_slug,),
+            fields: (slug,),
             _phantom,
         }
     }
 }
 impl<'a> DeleteVenueBuilder<'a, (&'a str,)> {
     pub const fn build(self) -> DeleteVenue<'a> {
-        let (venue_slug,) = self.fields;
-        DeleteVenue { venue_slug }
+        let (slug,) = self.fields;
+        DeleteVenue { slug }
     }
 }
 pub struct GetVenueRow {
-    pub venue_id: i32,
-    pub venue_status: Status,
-    pub venue_statuses: Option<Vec<Status>>,
-    pub venue_slug: String,
-    pub venue_name: String,
-    pub venue_city: String,
-    pub venue_spotify_playlist: String,
-    pub venue_songkick_id: Option<String>,
-    pub venue_tags: Option<Vec<String>>,
-    pub venue_created_at: std::time::SystemTime,
+    pub id: i32,
+    pub status: Status,
+    pub statuses: Option<Vec<Status>>,
+    pub slug: String,
+    pub name: String,
+    pub city: String,
+    pub spotify_playlist: String,
+    pub songkick_id: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub created_at: std::time::SystemTime,
 }
 impl GetVenueRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            venue_id: row.try_get(0)?,
-            venue_status: row.try_get(1)?,
-            venue_statuses: row.try_get(2)?,
-            venue_slug: row.try_get(3)?,
-            venue_name: row.try_get(4)?,
-            venue_city: row.try_get(5)?,
-            venue_spotify_playlist: row.try_get(6)?,
-            venue_songkick_id: row.try_get(7)?,
-            venue_tags: row.try_get(8)?,
-            venue_created_at: row.try_get(9)?,
+            id: row.try_get(0)?,
+            status: row.try_get(1)?,
+            statuses: row.try_get(2)?,
+            slug: row.try_get(3)?,
+            name: row.try_get(4)?,
+            city: row.try_get(5)?,
+            spotify_playlist: row.try_get(6)?,
+            songkick_id: row.try_get(7)?,
+            tags: row.try_get(8)?,
+            created_at: row.try_get(9)?,
         })
     }
 }
 pub struct GetVenue<'a> {
-    venue_slug: &'a str,
-    venue_city: &'a str,
+    slug: &'a str,
+    city: &'a str,
 }
 impl<'a> GetVenue<'a> {
     pub const QUERY: &'static str = r"SELECT id, status, statuses, slug, name, city, spotify_playlist, songkick_id, tags, created_at
@@ -411,7 +403,7 @@ WHERE slug = $1 AND city = $2";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetVenueRow, tokio_postgres::Error> {
         let row = client
-            .query_one(Self::QUERY, &[&self.venue_slug, &self.venue_city])
+            .query_one(Self::QUERY, &[&self.slug, &self.city])
             .await?;
         GetVenueRow::from_row(&row)
     }
@@ -420,7 +412,7 @@ WHERE slug = $1 AND city = $2";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetVenueRow>, tokio_postgres::Error> {
         let row = client
-            .query_opt(Self::QUERY, &[&self.venue_slug, &self.venue_city])
+            .query_opt(Self::QUERY, &[&self.slug, &self.city])
             .await?;
         match row {
             Some(row) => Ok(Some(GetVenueRow::from_row(&row)?)),
@@ -440,53 +432,50 @@ pub struct GetVenueBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, VenueCity> GetVenueBuilder<'a, ((), VenueCity)> {
-    pub fn venue_slug(self, venue_slug: &'a str) -> GetVenueBuilder<'a, (&'a str, VenueCity)> {
-        let ((), venue_city) = self.fields;
+impl<'a, City> GetVenueBuilder<'a, ((), City)> {
+    pub fn slug(self, slug: &'a str) -> GetVenueBuilder<'a, (&'a str, City)> {
+        let ((), city) = self.fields;
         let _phantom = self._phantom;
         GetVenueBuilder {
-            fields: (venue_slug, venue_city),
+            fields: (slug, city),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug> GetVenueBuilder<'a, (VenueSlug, ())> {
-    pub fn venue_city(self, venue_city: &'a str) -> GetVenueBuilder<'a, (VenueSlug, &'a str)> {
-        let (venue_slug, ()) = self.fields;
+impl<'a, Slug> GetVenueBuilder<'a, (Slug, ())> {
+    pub fn city(self, city: &'a str) -> GetVenueBuilder<'a, (Slug, &'a str)> {
+        let (slug, ()) = self.fields;
         let _phantom = self._phantom;
         GetVenueBuilder {
-            fields: (venue_slug, venue_city),
+            fields: (slug, city),
             _phantom,
         }
     }
 }
 impl<'a> GetVenueBuilder<'a, (&'a str, &'a str)> {
     pub const fn build(self) -> GetVenue<'a> {
-        let (venue_slug, venue_city) = self.fields;
-        GetVenue {
-            venue_slug,
-            venue_city,
-        }
+        let (slug, city) = self.fields;
+        GetVenue { slug, city }
     }
 }
 pub struct CreateVenueRow {
-    pub venue_id: i32,
+    pub id: i32,
 }
 impl CreateVenueRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            venue_id: row.try_get(0)?,
+            id: row.try_get(0)?,
         })
     }
 }
 pub struct CreateVenue<'a> {
-    venue_slug: &'a str,
-    venue_name: &'a str,
-    venue_city: &'a str,
-    venue_spotify_playlist: &'a str,
-    venue_status: Status,
-    venue_statuses: Option<&'a [Status]>,
-    venue_tags: Option<&'a [String]>,
+    slug: &'a str,
+    name: &'a str,
+    city: &'a str,
+    spotify_playlist: &'a str,
+    status: Status,
+    statuses: Option<&'a [Status]>,
+    tags: Option<&'a [String]>,
 }
 impl<'a> CreateVenue<'a> {
     pub const QUERY: &'static str = r"INSERT INTO venue (
@@ -516,13 +505,13 @@ impl<'a> CreateVenue<'a> {
             .query_one(
                 Self::QUERY,
                 &[
-                    &self.venue_slug,
-                    &self.venue_name,
-                    &self.venue_city,
-                    &self.venue_spotify_playlist,
-                    &self.venue_status,
-                    &self.venue_statuses,
-                    &self.venue_tags,
+                    &self.slug,
+                    &self.name,
+                    &self.city,
+                    &self.spotify_playlist,
+                    &self.status,
+                    &self.statuses,
+                    &self.tags,
                 ],
             )
             .await?;
@@ -536,13 +525,13 @@ impl<'a> CreateVenue<'a> {
             .query_opt(
                 Self::QUERY,
                 &[
-                    &self.venue_slug,
-                    &self.venue_name,
-                    &self.venue_city,
-                    &self.venue_spotify_playlist,
-                    &self.venue_status,
-                    &self.venue_statuses,
-                    &self.venue_tags,
+                    &self.slug,
+                    &self.name,
+                    &self.city,
+                    &self.spotify_playlist,
+                    &self.status,
+                    &self.statuses,
+                    &self.tags,
                 ],
             )
             .await?;
@@ -564,366 +553,132 @@ pub struct CreateVenueBuilder<'a, Fields = ((), (), (), (), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, VenueName, VenueCity, VenueSpotifyPlaylist, VenueStatus, VenueStatuses, VenueTags>
-    CreateVenueBuilder<
-        'a,
-        (
-            (),
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    >
+impl<'a, Name, City, SpotifyPlaylist, Status, Statuses, Tags>
+    CreateVenueBuilder<'a, ((), Name, City, SpotifyPlaylist, Status, Statuses, Tags)>
 {
-    pub fn venue_slug(
+    pub fn slug(
         self,
-        venue_slug: &'a str,
-    ) -> CreateVenueBuilder<
-        'a,
-        (
-            &'a str,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    > {
-        let (
-            (),
-            venue_name,
-            venue_city,
-            venue_spotify_playlist,
-            venue_status,
-            venue_statuses,
-            venue_tags,
-        ) = self.fields;
+        slug: &'a str,
+    ) -> CreateVenueBuilder<'a, (&'a str, Name, City, SpotifyPlaylist, Status, Statuses, Tags)>
+    {
+        let ((), name, city, spotify_playlist, status, statuses, tags) = self.fields;
         let _phantom = self._phantom;
         CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug, VenueCity, VenueSpotifyPlaylist, VenueStatus, VenueStatuses, VenueTags>
-    CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            (),
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    >
+impl<'a, Slug, City, SpotifyPlaylist, Status, Statuses, Tags>
+    CreateVenueBuilder<'a, (Slug, (), City, SpotifyPlaylist, Status, Statuses, Tags)>
 {
-    pub fn venue_name(
+    pub fn name(
         self,
-        venue_name: &'a str,
-    ) -> CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            &'a str,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    > {
-        let (
-            venue_slug,
-            (),
-            venue_city,
-            venue_spotify_playlist,
-            venue_status,
-            venue_statuses,
-            venue_tags,
-        ) = self.fields;
+        name: &'a str,
+    ) -> CreateVenueBuilder<'a, (Slug, &'a str, City, SpotifyPlaylist, Status, Statuses, Tags)>
+    {
+        let (slug, (), city, spotify_playlist, status, statuses, tags) = self.fields;
         let _phantom = self._phantom;
         CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug, VenueName, VenueSpotifyPlaylist, VenueStatus, VenueStatuses, VenueTags>
-    CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            (),
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    >
+impl<'a, Slug, Name, SpotifyPlaylist, Status, Statuses, Tags>
+    CreateVenueBuilder<'a, (Slug, Name, (), SpotifyPlaylist, Status, Statuses, Tags)>
 {
-    pub fn venue_city(
+    pub fn city(
         self,
-        venue_city: &'a str,
-    ) -> CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            &'a str,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    > {
-        let (
-            venue_slug,
-            venue_name,
-            (),
-            venue_spotify_playlist,
-            venue_status,
-            venue_statuses,
-            venue_tags,
-        ) = self.fields;
+        city: &'a str,
+    ) -> CreateVenueBuilder<'a, (Slug, Name, &'a str, SpotifyPlaylist, Status, Statuses, Tags)>
+    {
+        let (slug, name, (), spotify_playlist, status, statuses, tags) = self.fields;
         let _phantom = self._phantom;
         CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug, VenueName, VenueCity, VenueStatus, VenueStatuses, VenueTags>
-    CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            (),
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    >
+impl<'a, Slug, Name, City, Status, Statuses, Tags>
+    CreateVenueBuilder<'a, (Slug, Name, City, (), Status, Statuses, Tags)>
 {
-    pub fn venue_spotify_playlist(
+    pub fn spotify_playlist(
         self,
-        venue_spotify_playlist: &'a str,
-    ) -> CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            &'a str,
-            VenueStatus,
-            VenueStatuses,
-            VenueTags,
-        ),
-    > {
-        let (venue_slug, venue_name, venue_city, (), venue_status, venue_statuses, venue_tags) =
-            self.fields;
+        spotify_playlist: &'a str,
+    ) -> CreateVenueBuilder<'a, (Slug, Name, City, &'a str, Status, Statuses, Tags)> {
+        let (slug, name, city, (), status, statuses, tags) = self.fields;
         let _phantom = self._phantom;
         CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug, VenueName, VenueCity, VenueSpotifyPlaylist, VenueStatuses, VenueTags>
-    CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            (),
-            VenueStatuses,
-            VenueTags,
-        ),
-    >
+impl<'a, Slug, Name, City, SpotifyPlaylist, Statuses, Tags>
+    CreateVenueBuilder<'a, (Slug, Name, City, SpotifyPlaylist, (), Statuses, Tags)>
 {
-    pub fn venue_status(
+    pub fn status(
         self,
-        venue_status: Status,
+        status: Status,
+    ) -> CreateVenueBuilder<'a, (Slug, Name, City, SpotifyPlaylist, Status, Statuses, Tags)> {
+        let (slug, name, city, spotify_playlist, (), statuses, tags) = self.fields;
+        let _phantom = self._phantom;
+        CreateVenueBuilder {
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
+            _phantom,
+        }
+    }
+}
+impl<'a, Slug, Name, City, SpotifyPlaylist, Status, Tags>
+    CreateVenueBuilder<'a, (Slug, Name, City, SpotifyPlaylist, Status, (), Tags)>
+{
+    pub fn statuses(
+        self,
+        statuses: Option<&'a [Status]>,
     ) -> CreateVenueBuilder<
         'a,
         (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
+            Slug,
+            Name,
+            City,
+            SpotifyPlaylist,
             Status,
-            VenueStatuses,
-            VenueTags,
-        ),
-    > {
-        let (
-            venue_slug,
-            venue_name,
-            venue_city,
-            venue_spotify_playlist,
-            (),
-            venue_statuses,
-            venue_tags,
-        ) = self.fields;
-        let _phantom = self._phantom;
-        CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
-            _phantom,
-        }
-    }
-}
-impl<'a, VenueSlug, VenueName, VenueCity, VenueSpotifyPlaylist, VenueStatus, VenueTags>
-    CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            (),
-            VenueTags,
-        ),
-    >
-{
-    pub fn venue_statuses(
-        self,
-        venue_statuses: Option<&'a [Status]>,
-    ) -> CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
             Option<&'a [Status]>,
-            VenueTags,
+            Tags,
         ),
     > {
-        let (
-            venue_slug,
-            venue_name,
-            venue_city,
-            venue_spotify_playlist,
-            venue_status,
-            (),
-            venue_tags,
-        ) = self.fields;
+        let (slug, name, city, spotify_playlist, status, (), tags) = self.fields;
         let _phantom = self._phantom;
         CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug, VenueName, VenueCity, VenueSpotifyPlaylist, VenueStatus, VenueStatuses>
-    CreateVenueBuilder<
-        'a,
-        (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
-            (),
-        ),
-    >
+impl<'a, Slug, Name, City, SpotifyPlaylist, Status, Statuses>
+    CreateVenueBuilder<'a, (Slug, Name, City, SpotifyPlaylist, Status, Statuses, ())>
 {
-    pub fn venue_tags(
+    pub fn tags(
         self,
-        venue_tags: Option<&'a [String]>,
+        tags: Option<&'a [String]>,
     ) -> CreateVenueBuilder<
         'a,
         (
-            VenueSlug,
-            VenueName,
-            VenueCity,
-            VenueSpotifyPlaylist,
-            VenueStatus,
-            VenueStatuses,
+            Slug,
+            Name,
+            City,
+            SpotifyPlaylist,
+            Status,
+            Statuses,
             Option<&'a [String]>,
         ),
     > {
-        let (
-            venue_slug,
-            venue_name,
-            venue_city,
-            venue_spotify_playlist,
-            venue_status,
-            venue_statuses,
-            (),
-        ) = self.fields;
+        let (slug, name, city, spotify_playlist, status, statuses, ()) = self.fields;
         let _phantom = self._phantom;
         CreateVenueBuilder {
-            fields: (
-                venue_slug,
-                venue_name,
-                venue_city,
-                venue_spotify_playlist,
-                venue_status,
-                venue_statuses,
-                venue_tags,
-            ),
+            fields: (slug, name, city, spotify_playlist, status, statuses, tags),
             _phantom,
         }
     }
@@ -943,39 +698,31 @@ impl<'a>
     >
 {
     pub const fn build(self) -> CreateVenue<'a> {
-        let (
-            venue_slug,
-            venue_name,
-            venue_city,
-            venue_spotify_playlist,
-            venue_status,
-            venue_statuses,
-            venue_tags,
-        ) = self.fields;
+        let (slug, name, city, spotify_playlist, status, statuses, tags) = self.fields;
         CreateVenue {
-            venue_slug,
-            venue_name,
-            venue_city,
-            venue_spotify_playlist,
-            venue_status,
-            venue_statuses,
-            venue_tags,
+            slug,
+            name,
+            city,
+            spotify_playlist,
+            status,
+            statuses,
+            tags,
         }
     }
 }
 pub struct UpdateVenueNameRow {
-    pub venue_id: i32,
+    pub id: i32,
 }
 impl UpdateVenueNameRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            venue_id: row.try_get(0)?,
+            id: row.try_get(0)?,
         })
     }
 }
 pub struct UpdateVenueName<'a> {
-    venue_slug: &'a str,
-    venue_name: &'a str,
+    slug: &'a str,
+    name: &'a str,
 }
 impl<'a> UpdateVenueName<'a> {
     pub const QUERY: &'static str = r"UPDATE venue
@@ -987,7 +734,7 @@ RETURNING id";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<UpdateVenueNameRow, tokio_postgres::Error> {
         let row = client
-            .query_one(Self::QUERY, &[&self.venue_slug, &self.venue_name])
+            .query_one(Self::QUERY, &[&self.slug, &self.name])
             .await?;
         UpdateVenueNameRow::from_row(&row)
     }
@@ -996,7 +743,7 @@ RETURNING id";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<UpdateVenueNameRow>, tokio_postgres::Error> {
         let row = client
-            .query_opt(Self::QUERY, &[&self.venue_slug, &self.venue_name])
+            .query_opt(Self::QUERY, &[&self.slug, &self.name])
             .await?;
         match row {
             Some(row) => Ok(Some(UpdateVenueNameRow::from_row(&row)?)),
@@ -1016,49 +763,40 @@ pub struct UpdateVenueNameBuilder<'a, Fields = ((), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, VenueName> UpdateVenueNameBuilder<'a, ((), VenueName)> {
-    pub fn venue_slug(
-        self,
-        venue_slug: &'a str,
-    ) -> UpdateVenueNameBuilder<'a, (&'a str, VenueName)> {
-        let ((), venue_name) = self.fields;
+impl<'a, Name> UpdateVenueNameBuilder<'a, ((), Name)> {
+    pub fn slug(self, slug: &'a str) -> UpdateVenueNameBuilder<'a, (&'a str, Name)> {
+        let ((), name) = self.fields;
         let _phantom = self._phantom;
         UpdateVenueNameBuilder {
-            fields: (venue_slug, venue_name),
+            fields: (slug, name),
             _phantom,
         }
     }
 }
-impl<'a, VenueSlug> UpdateVenueNameBuilder<'a, (VenueSlug, ())> {
-    pub fn venue_name(
-        self,
-        venue_name: &'a str,
-    ) -> UpdateVenueNameBuilder<'a, (VenueSlug, &'a str)> {
-        let (venue_slug, ()) = self.fields;
+impl<'a, Slug> UpdateVenueNameBuilder<'a, (Slug, ())> {
+    pub fn name(self, name: &'a str) -> UpdateVenueNameBuilder<'a, (Slug, &'a str)> {
+        let (slug, ()) = self.fields;
         let _phantom = self._phantom;
         UpdateVenueNameBuilder {
-            fields: (venue_slug, venue_name),
+            fields: (slug, name),
             _phantom,
         }
     }
 }
 impl<'a> UpdateVenueNameBuilder<'a, (&'a str, &'a str)> {
     pub const fn build(self) -> UpdateVenueName<'a> {
-        let (venue_slug, venue_name) = self.fields;
-        UpdateVenueName {
-            venue_slug,
-            venue_name,
-        }
+        let (slug, name) = self.fields;
+        UpdateVenueName { slug, name }
     }
 }
 pub struct VenueCountByCityRow {
-    pub venue_city: String,
+    pub city: String,
     pub count: i64,
 }
 impl VenueCountByCityRow {
     fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
-            venue_city: row.try_get(0)?,
+            city: row.try_get(0)?,
             count: row.try_get(1)?,
         })
     }

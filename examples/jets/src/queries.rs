@@ -32,16 +32,16 @@ impl CountPilots {
     }
 }
 pub struct ListPilotsRow {
-    pub pilots_id: i32,
-    pub pilots_name: String,
+    pub id: i32,
+    pub name: String,
 }
 impl ListPilotsRow {
     fn from_row(
         row: &deadpool_postgres::tokio_postgres::Row,
     ) -> Result<Self, deadpool_postgres::tokio_postgres::Error> {
         Ok(Self {
-            pilots_id: row.try_get(0)?,
-            pilots_name: row.try_get(1)?,
+            id: row.try_get(0)?,
+            name: row.try_get(1)?,
         })
     }
 }
@@ -67,7 +67,7 @@ impl DeletePilotRow {
     }
 }
 pub struct DeletePilot {
-    pilots_id: i32,
+    id: i32,
 }
 impl DeletePilot {
     pub const QUERY: &'static str = r"DELETE FROM pilots WHERE id = $1";
@@ -75,7 +75,7 @@ impl DeletePilot {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.pilots_id]).await
+        client.execute(Self::QUERY, &[&self.id]).await
     }
 }
 impl DeletePilot {
@@ -91,18 +91,18 @@ pub struct DeletePilotBuilder<'a, Fields = ((),)> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> DeletePilotBuilder<'a, ((),)> {
-    pub fn pilots_id(self, pilots_id: i32) -> DeletePilotBuilder<'a, (i32,)> {
+    pub fn id(self, id: i32) -> DeletePilotBuilder<'a, (i32,)> {
         let ((),) = self.fields;
         let _phantom = self._phantom;
         DeletePilotBuilder {
-            fields: (pilots_id,),
+            fields: (id,),
             _phantom,
         }
     }
 }
 impl<'a> DeletePilotBuilder<'a, (i32,)> {
     pub const fn build(self) -> DeletePilot {
-        let (pilots_id,) = self.fields;
-        DeletePilot { pilots_id }
+        let (id,) = self.fields;
+        DeletePilot { id }
     }
 }

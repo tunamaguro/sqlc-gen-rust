@@ -32,6 +32,10 @@ pub trait StackError: std::error::Error {
     }
 }
 
+pub(crate) trait StackErrorResult<T, E> {
+    fn stacked(self) -> Result<T, E>;
+}
+
 pub trait StackErrorExt: StackError {
     fn stack_error(&self) -> Vec<String>
     where
@@ -72,6 +76,10 @@ pub enum Error {
         source: serde_json::Error,
         location: &'static std::panic::Location<'static>,
     },
+    QueryError {
+        source: query::QueryError,
+        location: &'static std::panic::Location<'static>,
+    },
     Any {
         source: Box<dyn std::error::Error + 'static>,
         location: &'static std::panic::Location<'static>,
@@ -85,6 +93,7 @@ impl Error {
             Error::ProstDecode { location, .. } => location,
             Error::Json { location, .. } => location,
             Error::Any { location, .. } => location,
+            Error::QueryError { location, .. } => location,
         }
     }
 
@@ -127,6 +136,16 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl From<query::QueryError> for Error {
+    #[track_caller]
+    fn from(value: query::QueryError) -> Self {
+        Self::QueryError {
+            source: value,
+            location: std::panic::Location::caller(),
+        }
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -134,6 +153,7 @@ impl std::fmt::Display for Error {
             Error::ProstDecode { source, .. } => source.fmt(f),
             Error::Json { source, .. } => source.fmt(f),
             Error::Any { source, .. } => source.fmt(f),
+            Error::QueryError { source, .. } => source.fmt(f),
         }
     }
 }
@@ -169,7 +189,17 @@ impl StackError for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Io { source, .. } => Some(source),
+            Error::ProstDecode { source, .. } => Some(source),
+            Error::Json { source, .. } => Some(source),
+            Error::QueryError { source, .. } => Some(source),
+            Error::Any { source, .. } => Some(source.as_ref()),
+        }
+    }
+}
 
 fn deserialize_codegen_request(data: &[u8]) -> Result<plugin::GenerateRequest, prost::DecodeError> {
     plugin::GenerateRequest::decode(data)
@@ -295,12 +325,12 @@ pub fn try_main() -> Result<(), Error> {
         .queries
         .iter()
         .map(|q| ReturningRows::from_query(&db_type, q))
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     let queries = request
         .queries
         .iter()
         .map(|q| Query::from_query(&db_type, q))
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let enums_ts = defined_enums
         .iter()
