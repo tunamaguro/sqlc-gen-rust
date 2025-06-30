@@ -20,7 +20,7 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "tokio_query.rs",
-                        "db_crate": "tokio_postgres"
+                        "driver": "tokio_postgres"
                     }
                 },
                 {
@@ -28,7 +28,7 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "postgres_query.rs",
-                        "db_crate": "postgres"
+                        "driver": "postgres"
                     }
                 },
                 {
@@ -36,7 +36,7 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "deadpool_query.rs",
-                        "db_crate": "deadpool_postgres"
+                        "driver": "deadpool_postgres"
                     }
                 }
             ]
@@ -51,7 +51,7 @@
                     "out": "examples/authors/src",
                     "options": {
                         "output": "queries.rs",
-                        "db_crate": "tokio_postgres"
+                        "driver": "tokio_postgres"
                     }
                 }
             ]
@@ -66,7 +66,7 @@
                     "out": "examples/jets/src",
                     "options": {
                         "output": "queries.rs",
-                        "db_crate": "deadpool_postgres"
+                        "driver": "deadpool_postgres"
                     }
                 }
             ]
@@ -81,7 +81,7 @@
                     "out": "examples/ondeck/src",
                     "options": {
                         "output": "queries.rs",
-                        "db_crate": "tokio_postgres"
+                        "driver": "tokio_postgres"
                     }
                 }
             ]

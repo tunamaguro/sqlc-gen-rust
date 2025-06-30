@@ -257,7 +257,7 @@ struct OverrideType {
 #[serde(default)]
 struct Config {
     output: String,
-    db_crate: Postgres,
+    driver: Postgres,
     overrides: Vec<OverrideType>,
 }
 
@@ -265,7 +265,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             output: "queries.rs".into(),
-            db_crate: Default::default(),
+            driver: Default::default(),
             overrides: Default::default(),
         }
     }
@@ -334,7 +334,7 @@ pub fn try_main() -> Result<(), Error> {
 
     let enums_ts = defined_enums
         .iter()
-        .map(|e| config.db_crate.defined_enum(e))
+        .map(|e| config.driver.defined_enum(e))
         .collect::<Vec<_>>();
     let enums_tt = quote::quote! {#(#enums_ts)*};
 
@@ -342,8 +342,8 @@ pub fn try_main() -> Result<(), Error> {
         .iter()
         .zip(queries.iter())
         .map(|(r, q)| {
-            let row_tt = config.db_crate.returning_row(r);
-            let query_tt = config.db_crate.call_query(r, q);
+            let row_tt = config.driver.returning_row(r);
+            let query_tt = config.driver.call_query(r, q);
 
             quote::quote! {
                 #row_tt
