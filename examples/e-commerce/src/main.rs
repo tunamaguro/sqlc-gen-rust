@@ -1,5 +1,9 @@
 #[allow(warnings)]
-mod queries;
+mod deadpool_query;
+#[allow(warnings)]
+mod postgres_query;
+#[allow(warnings)]
+mod tokio_query;
 
 fn main() {
     println!("Hello, world!");

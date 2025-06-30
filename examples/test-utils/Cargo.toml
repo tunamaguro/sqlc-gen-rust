@@ -1,0 +1,13 @@
+[package]
+name = "test-utils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+postgres = { workspace = true }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+tokio = { workspace = true }
+fastrand = "2.3.0"
+test-context = { workspace = true }
+url = "2.5.4"

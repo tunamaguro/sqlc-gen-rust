@@ -5,11 +5,6 @@ services:
     command: /bin/sh -c "while sleep 1000; do :; done"
     volumes:
       - .:/workspace:cached
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: password
-      POSTGRES_PORT: 5432
   postgres:
     image: postgres:17.0-bookworm
     environment:

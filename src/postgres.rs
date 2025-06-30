@@ -1,0 +1,393 @@
+use crate::DbCrate;
+use crate::{
+    query::{Annotation, DbEnum, Query, ReturningRows},
+    value_ident,
+};
+use quote::ToTokens as _;
+
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) enum Postgres {
+    Sync,
+    #[default]
+    Tokio,
+    DeadPool,
+}
+
+impl<'de> serde::Deserialize<'de> for Postgres {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.trim() {
+            "postgres" => Ok(Self::Sync),
+            "tokio_postgres" => Ok(Self::Tokio),
+            "deadpool_postgres" => Ok(Self::DeadPool),
+            _ => Err(serde::de::Error::custom(format!(
+                "unknown db crate: `{}`",
+                s
+            ))),
+        }
+    }
+}
+
+impl Postgres {
+    fn client_type(&self) -> syn::Type {
+        let s = match self {
+            Postgres::Sync => "&mut impl postgres::GenericClient",
+            Postgres::Tokio => "&impl tokio_postgres::GenericClient",
+            Postgres::DeadPool => "&impl deadpool_postgres::GenericClient",
+        };
+        syn::parse_str(s).unwrap()
+    }
+
+    fn row_type(&self) -> syn::Type {
+        let s = match self {
+            Postgres::Sync => "postgres::Row",
+            Postgres::Tokio => "tokio_postgres::Row",
+            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Row",
+        };
+        syn::parse_str(s).unwrap()
+    }
+
+    fn error_type(&self) -> syn::Type {
+        let s = match self {
+            Postgres::Sync => "postgres::Error",
+            Postgres::Tokio => "tokio_postgres::Error",
+            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Error",
+        };
+        syn::parse_str(s).unwrap()
+    }
+
+    fn async_part(&self) -> proc_macro2::TokenStream {
+        match self {
+            Postgres::Sync => quote::quote! {},
+            Postgres::Tokio => quote::quote! {async},
+            Postgres::DeadPool => quote::quote! {async},
+        }
+    }
+
+    fn await_part(&self) -> proc_macro2::TokenStream {
+        match self {
+            Postgres::Sync => quote::quote! {},
+            Postgres::Tokio => quote::quote! {.await},
+            Postgres::DeadPool => quote::quote! {.await},
+        }
+    }
+
+    fn need_lifetime(query: &Query) -> bool {
+        query.param_types.iter().any(|x| x.need_lifetime())
+    }
+    /// Generate type-state builder
+    fn create_builder(query: &Query) -> proc_macro2::TokenStream {
+        let num_params = query.param_names.len();
+
+        if num_params == 0 {
+            return quote::quote! {};
+        }
+
+        let fields_tuple =
+            (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
+        let need_lifetime = Self::need_lifetime(query);
+        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+        let struct_ident = value_ident(&query.query_name);
+        let builder_ident = value_ident(&format!("{}Builder", query.query_name));
+
+        let field_list = query
+            .param_names
+            .iter()
+            .map(|n| n.to_token_stream())
+            .collect::<Vec<_>>();
+        let typ_list = query
+            .param_types
+            .iter()
+            .map(|typ| typ.to_param_tokens(&lifetime))
+            .collect::<Vec<_>>();
+
+        // implement `GetXXX::builder`
+        let impl_struct_tt = if need_lifetime {
+            quote::quote! {
+                impl <#lifetime> #struct_ident<#lifetime>{
+                    pub const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
+                        #builder_ident{
+                            fields: (#fields_tuple),
+                            _phantom: std::marker::PhantomData
+                        }
+                    }
+                }
+            }
+        } else {
+            quote::quote! {
+                impl #struct_ident{
+                    pub const fn builder()->#builder_ident<'static, (#fields_tuple)>{
+                        #builder_ident{
+                            fields: (#fields_tuple),
+                            _phantom: std::marker::PhantomData
+                        }
+                    }
+                }
+            }
+        };
+
+        // implement `GetXXXBuilder`
+        let builder_tt = quote::quote! {
+            pub struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
+                fields: Fields,
+                _phantom: std::marker::PhantomData<&#lifetime ()>
+            }
+        };
+
+        // implement `GetXXXBuilder`
+        let builder_setter_tt = {
+            let typ_generics = query
+                .param_names
+                .iter()
+                .map(|n| value_ident(&n.to_string()))
+                .collect::<Vec<_>>();
+
+            let mut result = quote::quote! {};
+            for (idx, (typ, name)) in typ_list.iter().zip(field_list.iter()).enumerate() {
+                let (generics_head, rest) = typ_generics.split_at(idx);
+                let generics_tail = if rest.is_empty() { &[] } else { &rest[1..] };
+
+                let (field_head, rest) = field_list.split_at(idx);
+                let field_tail = if rest.is_empty() { &[] } else { &rest[1..] };
+
+                let tt = quote::quote! {
+                    impl <#lifetime,#(#generics_head,)* #(#generics_tail,)*> #builder_ident<#lifetime,(#(#generics_head,)* (), #(#generics_tail,)*)>{
+                        pub fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
+                            let (#(#field_head,)* (), #(#field_tail,)*) = self.fields;
+                            let _phantom = self._phantom;
+
+                            #builder_ident{
+                                fields: (#(#field_head,)* #name, #(#field_tail,)*),
+                                _phantom
+                            }
+                        }
+                    }
+                };
+
+                result = quote::quote! {
+                    #result
+                    #tt
+                }
+            }
+
+            result
+        };
+
+        let builder_build_tt = {
+            let build_struct = if need_lifetime {
+                quote::quote! {#struct_ident<#lifetime>}
+            } else {
+                quote::quote! {#struct_ident}
+            };
+            quote::quote! {
+                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                    pub const fn build(self)->#build_struct{
+                        let (#(#field_list,)*) = self.fields;
+                        #struct_ident{
+                            #(#field_list,)*
+                        }
+                    }
+                }
+            }
+        };
+
+        quote::quote! {
+            #impl_struct_tt
+            #builder_tt
+            #builder_setter_tt
+            #builder_build_tt
+        }
+    }
+}
+
+impl DbCrate for Postgres {
+    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
+        let fields = row
+            .column_names
+            .iter()
+            .zip(row.column_types.iter())
+            .map(|(col, rs_type)| {
+                let col_t = rs_type.to_row_tokens();
+                quote::quote! {pub #col:#col_t}
+            })
+            .collect::<Vec<_>>();
+
+        let ident = row.struct_ident();
+
+        // struct XXXRow {
+        //  table_col: i32,...
+        // }
+        let row_tt = quote::quote! {
+            pub struct #ident {
+                #(#fields,)*
+            }
+        };
+
+        let error_typ = self.error_type();
+        let row_typ = self.row_type();
+        let arg_ident = quote::format_ident!("row");
+        let from_fields = row
+            .column_names
+            .iter()
+            .enumerate()
+            .map(|(idx, r)| {
+                let literal = proc_macro2::Literal::usize_unsuffixed(idx);
+                quote::quote! {#r:#arg_ident.try_get(#literal)?}
+            })
+            .collect::<Vec<_>>();
+        let from_tt = quote::quote! {
+            impl #ident {
+                fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
+                    Ok(Self{
+                        #(#from_fields,)*
+                    })
+                }
+            }
+        };
+
+        quote::quote! {
+            #row_tt
+            #from_tt
+        }
+    }
+    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
+        let fields = enum_type
+            .values
+            .iter()
+            .map(|field| {
+                let ident = value_ident(field);
+                quote::quote! {
+                    #[postgres(name = #field)]
+                    #ident
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let original_name = &enum_type.name;
+        let enum_name = enum_type.ident();
+        quote::quote! {
+            #[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]
+            #[postgres(name = #original_name)]
+            pub enum #enum_name {
+                #(#fields,)*
+            }
+        }
+    }
+    fn call_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+        let struct_ident = value_ident(&query.query_name);
+        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+
+        let fields = query
+            .param_names
+            .iter()
+            .zip(query.param_types.iter())
+            .map(|(r, typ)| {
+                let typ = typ.to_param_tokens(&lifetime);
+                quote::quote! {#r:#typ}
+            })
+            .collect::<Vec<_>>();
+
+        let need_lifetime = Postgres::need_lifetime(query);
+        let has_fields = !query.param_names.is_empty();
+        let struct_tt = match (need_lifetime, has_fields) {
+            (true, _) => {
+                quote::quote! {
+                    pub struct #struct_ident<#lifetime>{
+                        #(#fields,)*
+                    }
+                }
+            }
+            (false, true) => {
+                quote::quote! {
+                    pub struct #struct_ident{
+                        #(#fields,)*
+                    }
+                }
+            }
+            (false, false) => {
+                quote::quote! {
+                    pub struct #struct_ident;
+                }
+            }
+        };
+
+        let client_ident = quote::format_ident!("client");
+        let client_typ = self.client_type();
+        let error_typ = self.error_type();
+        let async_part = self.async_part();
+        let await_part = self.await_part();
+
+        let params = query
+            .param_names
+            .iter()
+            .fold(quote::quote! {}, |acc, x| quote::quote! {#acc &self.#x,});
+        let params = quote::quote! {[#params]};
+
+        let query_fns = match query.annotation {
+            Annotation::One => {
+                let row_ident = row.struct_ident();
+
+                quote::quote! {
+                    pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
+                        let row = client.query_one(Self::QUERY, &#params) #await_part?;
+                        #row_ident::from_row(&row)
+                    }
+
+                    pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
+                        let row = client.query_opt(Self::QUERY, &#params) #await_part?;
+                        match row {
+                            Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
+                            None => Ok(None)
+                        }
+                    }
+                }
+            }
+            Annotation::Many => {
+                let row_ident = row.struct_ident();
+
+                quote::quote! {
+                    pub #async_part fn query_many(&self,#client_ident: #client_typ)->Result<Vec<#row_ident>,#error_typ>{
+                        let rows = client.query(Self::QUERY, &#params) #await_part?;
+                        rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
+                    }
+                }
+            }
+            Annotation::Exec => {
+                quote::quote! {
+                    pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
+                        client.execute(Self::QUERY, &#params) #await_part
+                    }
+                }
+            }
+            _ => {
+                // not supported
+                quote::quote! {}
+            }
+        };
+
+        let fetch_tt = {
+            let query_str = &query.query_str;
+            let imp_ident = if need_lifetime {
+                quote::quote! {<#lifetime> #struct_ident<#lifetime>}
+            } else {
+                quote::quote! {#struct_ident}
+            };
+            quote::quote! {
+                impl #imp_ident {
+                    pub const QUERY:&'static str = #query_str;
+                    #query_fns
+                }
+            }
+        };
+
+        let builder = Self::create_builder(query);
+        quote::quote! {
+            #struct_tt
+            #fetch_tt
+            #builder
+        }
+    }
+}
