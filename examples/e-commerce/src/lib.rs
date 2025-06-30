@@ -4,7 +4,3 @@ mod deadpool_query;
 mod postgres_query;
 #[allow(warnings)]
 mod tokio_query;
-
-fn main() {
-    println!("Hello, world!");
-}
