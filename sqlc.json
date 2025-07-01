@@ -38,6 +38,14 @@
                         "output": "deadpool_query.rs",
                         "db_crate": "deadpool-postgres"
                     }
+                },
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/e-commerce/src",
+                    "options": {
+                        "output": "sqlx_query.rs",
+                        "db_crate": "sqlx-postgres"
+                    }
                 }
             ]
         },

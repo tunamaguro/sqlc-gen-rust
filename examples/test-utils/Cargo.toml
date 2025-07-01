@@ -7,6 +7,7 @@ edition = "2024"
 postgres = { workspace = true }
 tokio-postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 fastrand = "2.3.0"
 test-context = { workspace = true }

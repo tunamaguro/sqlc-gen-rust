@@ -8,7 +8,7 @@ pub(crate) mod plugin {
 
 pub(crate) mod postgres;
 pub(crate) mod query;
-use postgres::Postgres;
+pub(crate) mod sqlx;
 use query::{DbEnum, DbTypeMap, Query, ReturningRows, RsType, collect_enums};
 
 pub trait StackError: std::error::Error {
@@ -239,6 +239,35 @@ pub(crate) trait DbCrate {
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+enum SupportedDbCrate {
+    Postgres(postgres::Postgres),
+    Sqlx(sqlx::Sqlx),
+}
+
+impl DbCrate for SupportedDbCrate {
+    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.defined_enum(enum_type),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.defined_enum(enum_type),
+        }
+    }
+
+    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.generate_query(row, query),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.generate_query(row, query),
+        }
+    }
+}
+
+impl Default for SupportedDbCrate {
+    fn default() -> Self {
+        Self::Postgres(postgres::Postgres::Tokio)
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize, Default)]
 struct OverrideType {
     /// Override db type
@@ -255,7 +284,7 @@ struct OverrideType {
 #[serde(default)]
 struct Config {
     output: String,
-    db_crate: Postgres,
+    db_crate: SupportedDbCrate,
     overrides: Vec<OverrideType>,
 }
 
