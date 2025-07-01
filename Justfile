@@ -10,6 +10,7 @@ alias lf:= lint-fix
 
 setup-tools:
     rustup target add wasm32-wasip1
+    cargo install sqlx-cli --no-default-features --features native-tls,postgres
 
 # format
 format:

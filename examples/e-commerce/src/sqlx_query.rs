@@ -26,6 +26,66 @@ pub struct CreateUserRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
+pub struct CreateUser<'a> {
+    username: &'a str,
+    email: &'a str,
+    hashed_password: &'a str,
+    full_name: Option<&'a str>,
+}
+impl<'a> CreateUser<'a> {
+    pub fn query_one<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<CreateUserRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateUserRow,
+                r"INSERT INTO users (
+    username, email, hashed_password, full_name
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, username, email, hashed_password, full_name, created_at, updated_at",
+                self.username,
+                self.email,
+                self.hashed_password,
+                self.full_name,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<CreateUserRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateUserRow,
+                r"INSERT INTO users (
+    username, email, hashed_password, full_name
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, username, email, hashed_password, full_name, created_at, updated_at",
+                self.username,
+                self.email,
+                self.hashed_password,
+                self.full_name,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct GetUserByEmailRow {
     pub id: uuid::Uuid,
@@ -36,6 +96,49 @@ pub struct GetUserByEmailRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
+pub struct GetUserByEmail<'a> {
+    email: &'a str,
+}
+impl<'a> GetUserByEmail<'a> {
+    pub fn query_one<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<GetUserByEmailRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetUserByEmailRow,
+                r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+WHERE email = $1 LIMIT 1",
+                self.email,
+            )
+                .fetch_one(&mut *conn)
+                .await
+        }
+    }
+    pub fn query_opt<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<GetUserByEmailRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetUserByEmailRow,
+                r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+WHERE email = $1 LIMIT 1",
+                self.email,
+            )
+                .fetch_optional(&mut *conn)
+                .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct ListUsersRow {
     pub id: uuid::Uuid,
@@ -43,6 +146,34 @@ pub struct ListUsersRow {
     pub email: String,
     pub full_name: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+pub struct ListUsers {
+    limit: i32,
+    offset: i32,
+}
+impl ListUsers {
+    pub fn query_many<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<ListUsersRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                ListUsersRow,
+                r"SELECT id, username, email, full_name, created_at FROM users
+ORDER BY created_at DESC
+LIMIT $1
+OFFSET $2",
+                self.limit,
+                self.offset,
+            )
+            .fetch_all(&mut *conn)
+            .await
+        }
+    }
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateProductRow {
@@ -56,6 +187,64 @@ pub struct CreateProductRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
+pub struct CreateProduct<'a> {
+    category_id: i32,
+    name: &'a str,
+    description: Option<&'a str>,
+    price: i32,
+    stock_quantity: i32,
+    attributes: Option<&'a serde_json::Value>,
+}
+impl<'a> CreateProduct<'a> {
+    pub fn query_one<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<CreateProductRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateProductRow,
+                r"INSERT INTO products (
+    category_id, name, description, price, stock_quantity, attributes
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at",
+                self.category_id, self.name, self.description, self.price, self
+                .stock_quantity, self.attributes,
+            )
+                .fetch_one(&mut *conn)
+                .await
+        }
+    }
+    pub fn query_opt<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<CreateProductRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateProductRow,
+                r"INSERT INTO products (
+    category_id, name, description, price, stock_quantity, attributes
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at",
+                self.category_id, self.name, self.description, self.price, self
+                .stock_quantity, self.attributes,
+            )
+                .fetch_optional(&mut *conn)
+                .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct GetProductWithCategoryRow {
     pub id: uuid::Uuid,
@@ -67,6 +256,77 @@ pub struct GetProductWithCategoryRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub category_name: String,
     pub category_slug: String,
+}
+pub struct GetProductWithCategory {
+    id: uuid::Uuid,
+}
+impl GetProductWithCategory {
+    pub fn query_one<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<GetProductWithCategoryRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetProductWithCategoryRow,
+                r"SELECT
+    p.id,
+    p.name,
+    p.description,
+    p.price,
+    p.stock_quantity,
+    p.attributes,
+    p.created_at,
+    c.name as category_name,
+    c.slug as category_slug
+FROM
+    products p
+JOIN
+    categories c ON p.category_id = c.id
+WHERE
+    p.id = $1",
+                self.id,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<GetProductWithCategoryRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetProductWithCategoryRow,
+                r"SELECT
+    p.id,
+    p.name,
+    p.description,
+    p.price,
+    p.stock_quantity,
+    p.attributes,
+    p.created_at,
+    c.name as category_name,
+    c.slug as category_slug
+FROM
+    products p
+JOIN
+    categories c ON p.category_id = c.id
+WHERE
+    p.id = $1",
+                self.id,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
 }
 #[derive(sqlx::FromRow)]
 pub struct SearchProductsRow {
@@ -81,6 +341,52 @@ pub struct SearchProductsRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub average_rating: f64,
 }
+pub struct SearchProducts<'a> {
+    limit: i32,
+    offset: i32,
+    name: Option<&'a str>,
+    category_ids: &'a [i32],
+    min_price: Option<i32>,
+    max_price: Option<i32>,
+}
+impl<'a> SearchProducts<'a> {
+    pub fn query_many<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<SearchProductsRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                SearchProductsRow,
+                r"SELECT
+    p.id, p.category_id, p.name, p.description, p.price, p.stock_quantity, p.attributes, p.created_at, p.updated_at,
+    (SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id) as average_rating
+FROM products p
+WHERE
+    (p.name ILIKE $3 OR p.description ILIKE $3)
+AND
+    p.category_id = ANY($4::int[])
+AND
+    p.price >= $5
+AND
+    p.price <= $6
+AND
+    p.stock_quantity > 0
+ORDER BY
+    p.created_at DESC
+LIMIT $1
+OFFSET $2",
+                self.limit, self.offset, self.name, self.category_ids, self.min_price,
+                self.max_price,
+            )
+                .fetch_all(&mut *conn)
+                .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct GetProductsWithSpecificAttributeRow {
     pub id: uuid::Uuid,
@@ -93,8 +399,60 @@ pub struct GetProductsWithSpecificAttributeRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
+pub struct GetProductsWithSpecificAttribute<'a> {
+    column_1: &'a serde_json::Value,
+}
+impl<'a> GetProductsWithSpecificAttribute<'a> {
+    pub fn query_many<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<GetProductsWithSpecificAttributeRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetProductsWithSpecificAttributeRow,
+                r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
+WHERE attributes @> $1::jsonb",
+                self.column_1,
+            )
+                .fetch_all(&mut *conn)
+                .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct UpdateProductStockRow {}
+pub struct UpdateProductStock {
+    id: uuid::Uuid,
+    add_quantity: i32,
+}
+impl UpdateProductStock {
+    pub fn execute<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<<sqlx::Postgres as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query!(
+                r"UPDATE products
+SET stock_quantity = stock_quantity + $2
+WHERE id = $1",
+                self.id,
+                self.add_quantity,
+            )
+            .execute(&mut *conn)
+            .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct CreateOrderRow {
     pub id: i64,
@@ -103,6 +461,57 @@ pub struct CreateOrderRow {
     pub total_amount: i32,
     pub ordered_at: chrono::DateTime<chrono::Utc>,
 }
+pub struct CreateOrder {
+    user_id: uuid::Uuid,
+    status: OrderStatus,
+    total_amount: i32,
+}
+impl CreateOrder {
+    pub fn query_one<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<CreateOrderRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateOrderRow,
+                r"INSERT INTO orders (user_id, status, total_amount)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, status, total_amount, ordered_at",
+                self.user_id,
+                self.status,
+                self.total_amount,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<CreateOrderRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateOrderRow,
+                r"INSERT INTO orders (user_id, status, total_amount)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, status, total_amount, ordered_at",
+                self.user_id,
+                self.status,
+                self.total_amount,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct CreateOrderItemRow {
     pub id: i64,
@@ -110,6 +519,60 @@ pub struct CreateOrderItemRow {
     pub product_id: uuid::Uuid,
     pub quantity: i32,
     pub price_at_purchase: i32,
+}
+pub struct CreateOrderItem {
+    order_id: i64,
+    product_id: uuid::Uuid,
+    quantity: i32,
+    price_at_purchase: i32,
+}
+impl CreateOrderItem {
+    pub fn query_one<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<CreateOrderItemRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateOrderItemRow,
+                r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
+VALUES ($1, $2, $3, $4)
+RETURNING id, order_id, product_id, quantity, price_at_purchase",
+                self.order_id,
+                self.product_id,
+                self.quantity,
+                self.price_at_purchase,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<CreateOrderItemRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateOrderItemRow,
+                r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
+VALUES ($1, $2, $3, $4)
+RETURNING id, order_id, product_id, quantity, price_at_purchase",
+                self.order_id,
+                self.product_id,
+                self.quantity,
+                self.price_at_purchase,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
 }
 #[derive(sqlx::FromRow)]
 pub struct GetOrderDetailsRow {
@@ -121,12 +584,103 @@ pub struct GetOrderDetailsRow {
     pub username: String,
     pub email: String,
 }
+pub struct GetOrderDetails {
+    id: i64,
+}
+impl GetOrderDetails {
+    pub fn query_one<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<GetOrderDetailsRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetOrderDetailsRow,
+                r"SELECT
+    o.id as order_id,
+    o.status,
+    o.total_amount,
+    o.ordered_at,
+    u.id as user_id,
+    u.username,
+    u.email
+FROM orders o
+JOIN users u ON o.user_id = u.id
+WHERE o.id = $1",
+                self.id,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<GetOrderDetailsRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetOrderDetailsRow,
+                r"SELECT
+    o.id as order_id,
+    o.status,
+    o.total_amount,
+    o.ordered_at,
+    u.id as user_id,
+    u.username,
+    u.email
+FROM orders o
+JOIN users u ON o.user_id = u.id
+WHERE o.id = $1",
+                self.id,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct ListOrderItemsByOrderIdRow {
     pub quantity: i32,
     pub price_at_purchase: i32,
     pub product_id: uuid::Uuid,
     pub product_name: String,
+}
+pub struct ListOrderItemsByOrderId {
+    order_id: i64,
+}
+impl ListOrderItemsByOrderId {
+    pub fn query_many<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<ListOrderItemsByOrderIdRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                ListOrderItemsByOrderIdRow,
+                r"SELECT
+    oi.quantity,
+    oi.price_at_purchase,
+    p.id as product_id,
+    p.name as product_name
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id
+WHERE oi.order_id = $1",
+                self.order_id,
+            )
+            .fetch_all(&mut *conn)
+            .await
+        }
+    }
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateReviewRow {
@@ -137,11 +691,118 @@ pub struct CreateReviewRow {
     pub comment: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
+pub struct CreateReview<'a> {
+    user_id: uuid::Uuid,
+    product_id: uuid::Uuid,
+    rating: i32,
+    comment: Option<&'a str>,
+}
+impl<'a> CreateReview<'a> {
+    pub fn query_one<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<CreateReviewRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateReviewRow,
+                r"INSERT INTO reviews (user_id, product_id, rating, comment)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, product_id, rating, comment, created_at",
+                self.user_id,
+                self.product_id,
+                self.rating,
+                self.comment,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<CreateReviewRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                CreateReviewRow,
+                r"INSERT INTO reviews (user_id, product_id, rating, comment)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, product_id, rating, comment, created_at",
+                self.user_id,
+                self.product_id,
+                self.rating,
+                self.comment,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct GetProductAverageRatingRow {
     pub product_id: uuid::Uuid,
     pub average_rating: f64,
     pub review_count: i64,
+}
+pub struct GetProductAverageRating {
+    product_id: uuid::Uuid,
+}
+impl GetProductAverageRating {
+    pub fn query_one<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<GetProductAverageRatingRow, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetProductAverageRatingRow,
+                r"SELECT
+    product_id,
+    AVG(rating)::float as average_rating,
+    COUNT(id) as review_count
+FROM reviews
+WHERE product_id = $1
+GROUP BY product_id",
+                self.product_id,
+            )
+            .fetch_one(&mut *conn)
+            .await
+        }
+    }
+    pub fn query_opt<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<GetProductAverageRatingRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetProductAverageRatingRow,
+                r"SELECT
+    product_id,
+    AVG(rating)::float as average_rating,
+    COUNT(id) as review_count
+FROM reviews
+WHERE product_id = $1
+GROUP BY product_id",
+                self.product_id,
+            )
+            .fetch_optional(&mut *conn)
+            .await
+        }
+    }
 }
 #[derive(sqlx::FromRow)]
 pub struct GetCategorySalesRankingRow {
@@ -150,5 +811,57 @@ pub struct GetCategorySalesRankingRow {
     pub total_sales: i64,
     pub total_orders: i64,
 }
+pub struct GetCategorySalesRanking;
+impl GetCategorySalesRanking {
+    pub fn query_many<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<GetCategorySalesRankingRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query_as!(
+                GetCategorySalesRankingRow,
+                r"SELECT
+    c.id as category_id,
+    c.name as category_name,
+    SUM(oi.quantity * oi.price_at_purchase) as total_sales,
+    COUNT(DISTINCT o.id) as total_orders
+FROM categories c
+JOIN products p ON c.id = p.category_id
+JOIN order_items oi ON p.id = oi.product_id
+JOIN orders o ON oi.order_id = o.id
+WHERE o.status IN ('delivered', 'shipped')
+GROUP BY c.id, c.name
+ORDER BY total_sales DESC",
+            )
+            .fetch_all(&mut *conn)
+            .await
+        }
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct DeleteUserAndRelatedDataRow {}
+pub struct DeleteUserAndRelatedData {
+    id: uuid::Uuid,
+}
+impl DeleteUserAndRelatedData {
+    pub fn execute<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<<sqlx::Postgres as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query!(r"DELETE FROM users WHERE id = $1", self.id,)
+                .execute(&mut *conn)
+                .await
+        }
+    }
+}

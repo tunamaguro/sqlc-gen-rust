@@ -1,6 +1,6 @@
 use crate::{
     DbCrate,
-    query::{DbEnum, DbTypeMap, Query, ReturningRows, RsType},
+    query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
     value_ident,
 };
 
@@ -26,6 +26,10 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 }
 
 impl Sqlx {
+    fn need_lifetime(query: &Query) -> bool {
+        query.param_types.iter().any(|x| x.need_lifetime())
+    }
+
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let fields = row
             .column_names
@@ -169,6 +173,151 @@ impl DbCrate for Sqlx {
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        self.returning_row(row)
+        let struct_ident = value_ident(&query.query_name);
+        let lifetime_a = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+
+        let fields = query
+            .param_names
+            .iter()
+            .zip(query.param_types.iter())
+            .map(|(r, typ)| {
+                let typ = typ.to_param_tokens(&lifetime_a);
+                quote::quote! {#r:#typ}
+            })
+            .collect::<Vec<_>>();
+
+        let need_lifetime = Sqlx::need_lifetime(query);
+        let has_fields = !query.param_names.is_empty();
+        let struct_tt = match (need_lifetime, has_fields) {
+            (true, _) => {
+                quote::quote! {
+                    pub struct #struct_ident<#lifetime_a>{
+                        #(#fields,)*
+                    }
+                }
+            }
+            (false, true) => {
+                quote::quote! {
+                    pub struct #struct_ident{
+                        #(#fields,)*
+                    }
+                }
+            }
+            (false, false) => {
+                quote::quote! {
+                    pub struct #struct_ident;
+                }
+            }
+        };
+
+        let params = query
+            .param_names
+            .iter()
+            .fold(quote::quote! {}, |acc, x| quote::quote! {#acc self.#x,});
+        let query_fns = {
+            let query_str = &query.query_str;
+            let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
+
+            let lifetime_generic = if need_lifetime {
+                quote::quote! {#lifetime_b  }
+            } else {
+                quote::quote! {#lifetime_a, #lifetime_b }
+            };
+
+            match query.annotation {
+                Annotation::One => {
+                    let row_ident = row.struct_ident();
+
+                    // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
+                    quote::quote! {
+                        pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                sqlx::query_as!(
+                                    #row_ident,
+                                    #query_str,
+                                    #params
+                                ).fetch_one(&mut *conn).await
+                            }
+                        }
+
+                        pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                sqlx::query_as!(
+                                    #row_ident,
+                                    #query_str,
+                                    #params
+                                ).fetch_optional(&mut *conn).await
+                            }
+                        }
+                    }
+                }
+                Annotation::Many => {
+                    let row_ident = row.struct_ident();
+
+                    quote::quote! {
+                        pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                sqlx::query_as!(
+                                    #row_ident,
+                                    #query_str,
+                                    #params
+                                ).fetch_all(&mut *conn).await
+                            }
+                        }
+                    }
+                }
+                Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
+                    quote::quote! {
+                        pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                sqlx::query!(
+                                    #query_str,
+                                    #params
+                                ).execute(&mut *conn).await
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    // not supported
+                    quote::quote! {}
+                }
+            }
+        };
+        let fetch_tt = {
+            let imp_ident = if need_lifetime {
+                quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
+            } else {
+                quote::quote! {#struct_ident}
+            };
+            quote::quote! {
+                impl #imp_ident {
+                    #query_fns
+                }
+            }
+        };
+
+        let returning_row = self.returning_row(row);
+        quote::quote! {
+            #returning_row
+            #struct_tt
+            #fetch_tt
+        }
     }
 }
