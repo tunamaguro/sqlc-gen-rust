@@ -75,7 +75,8 @@ jobs:
           env:
             DATABASE_URL: postgres://root:password@localhost:5432/app
           run: |
-            cargo sqlx prepare --workspace
+            cargo sqlx migrate run --source ./examples/e-commerce/migrations/
+            cargo sqlx prepare --workspace --all -no-dotenv
         - name: Upload artifact
           uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
           with:
@@ -160,5 +161,6 @@ jobs:
       - name: Run test
         env:
           DATABASE_URL: postgres://root:password@localhost:5432/app
+          SQLX_OFFLINE: true
         run: |
           just test
