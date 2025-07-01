@@ -64,6 +64,7 @@ jobs:
       - name: Install Rust
         uses: moonrepo/setup-rust@ede6de059f8046a5e236c94046823e2af11ca670 # v1.2.2
         with:
+          bins: sqlx-cli
           components: clippy
           cache-base: main
       - name: Setup Just
@@ -77,6 +78,7 @@ jobs:
         env:
             DATABASE_URL: postgres://root:password@localhost:5432/app
         run: |
+          cargo sqlx migrate run --source ./examples/e-commerce/migrations/
           just lint-ci
   test:
     name: Test
@@ -101,6 +103,7 @@ jobs:
       - name: Install Rust
         uses: moonrepo/setup-rust@ede6de059f8046a5e236c94046823e2af11ca670 # v1.2.2
         with:
+          bins: sqlx-cli
           targets: wasm32-wasip1
           cache-base: main
       - name: Setup Just
@@ -126,4 +129,5 @@ jobs:
         env:
           DATABASE_URL: postgres://root:password@localhost:5432/app
         run: |
+          cargo sqlx migrate run --source ./examples/e-commerce/migrations/
           just test
