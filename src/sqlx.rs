@@ -1,28 +1,25 @@
+use quote::ToTokens as _;
+
 use crate::{
     DbCrate,
     query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
     value_ident,
 };
-use quote::ToTokens as _;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) enum Postgres {
-    Sync,
+pub(crate) enum Sqlx {
     #[default]
-    Tokio,
-    DeadPool,
+    Postgres,
 }
 
-impl<'de> serde::Deserialize<'de> for Postgres {
+impl<'de> serde::Deserialize<'de> for Sqlx {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         match s.trim() {
-            "postgres" => Ok(Self::Sync),
-            "tokio-postgres" => Ok(Self::Tokio),
-            "deadpool-postgres" => Ok(Self::DeadPool),
+            "sqlx-postgres" => Ok(Self::Postgres),
             _ => Err(serde::de::Error::custom(format!(
                 "`{s}` is unsupported crate."
             ))),
@@ -30,50 +27,7 @@ impl<'de> serde::Deserialize<'de> for Postgres {
     }
 }
 
-impl Postgres {
-    fn client_type(&self) -> syn::Type {
-        let s = match self {
-            Postgres::Sync => "&mut impl postgres::GenericClient",
-            Postgres::Tokio => "&impl tokio_postgres::GenericClient",
-            Postgres::DeadPool => "&impl deadpool_postgres::GenericClient",
-        };
-        syn::parse_str(s).unwrap()
-    }
-
-    fn row_type(&self) -> syn::Type {
-        let s = match self {
-            Postgres::Sync => "postgres::Row",
-            Postgres::Tokio => "tokio_postgres::Row",
-            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Row",
-        };
-        syn::parse_str(s).unwrap()
-    }
-
-    fn error_type(&self) -> syn::Type {
-        let s = match self {
-            Postgres::Sync => "postgres::Error",
-            Postgres::Tokio => "tokio_postgres::Error",
-            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Error",
-        };
-        syn::parse_str(s).unwrap()
-    }
-
-    fn async_part(&self) -> proc_macro2::TokenStream {
-        match self {
-            Postgres::Sync => quote::quote! {},
-            Postgres::Tokio => quote::quote! {async},
-            Postgres::DeadPool => quote::quote! {async},
-        }
-    }
-
-    fn await_part(&self) -> proc_macro2::TokenStream {
-        match self {
-            Postgres::Sync => quote::quote! {},
-            Postgres::Tokio => quote::quote! {.await},
-            Postgres::DeadPool => quote::quote! {.await},
-        }
-    }
-
+impl Sqlx {
     fn need_lifetime(query: &Query) -> bool {
         query.param_types.iter().any(|x| x.need_lifetime())
     }
@@ -90,42 +44,14 @@ impl Postgres {
             .collect::<Vec<_>>();
 
         let ident = row.struct_ident();
-
-        // struct XXXRow {
-        //  table_col: i32,...
-        // }
         let row_tt = quote::quote! {
+            #[derive(sqlx::FromRow)]
             pub struct #ident {
                 #(#fields,)*
             }
         };
 
-        let error_typ = self.error_type();
-        let row_typ = self.row_type();
-        let arg_ident = quote::format_ident!("row");
-        let from_fields = row
-            .column_names
-            .iter()
-            .enumerate()
-            .map(|(idx, r)| {
-                let literal = proc_macro2::Literal::usize_unsuffixed(idx);
-                quote::quote! {#r:#arg_ident.try_get(#literal)?}
-            })
-            .collect::<Vec<_>>();
-        let from_tt = quote::quote! {
-            impl #ident {
-                fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
-                    Ok(Self{
-                        #(#from_fields,)*
-                    })
-                }
-            }
-        };
-
-        quote::quote! {
-            #row_tt
-            #from_tt
-        }
+        row_tt
     }
 
     /// Generate type-state builder
@@ -249,14 +175,12 @@ impl Postgres {
     }
 }
 
-impl DbCrate for Postgres {
+impl DbCrate for Sqlx {
     /// Creates a new `DbTypeMap` with default types for PostgreSQL.
     ///
     /// See below
-    /// -
     /// - https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605
-    /// - https://docs.rs/postgres-types/0.2.9/postgres_types/trait.ToSql.html#types
-    /// - https://www.postgresql.jp/document/17/html/datatype.html
+    /// - https://docs.rs/sqlx/latest/sqlx/postgres/types/index.html
     fn db_type_map(&self) -> crate::query::DbTypeMap {
         let copy_cheap = [
             ("i32", vec!["serial", "serial4", "pg_catalog.serial4"]),
@@ -291,15 +215,28 @@ impl DbCrate for Postgres {
                 ("Vec<u8>", Some("[u8]")),
                 vec!["bytea", "blob", "pg_catalog.bytea"],
             ),
-            (("HashMap<String, Option<String>>", None), vec!["hstore"]),
             (
-                ("std::time::SystemTime", None),
-                vec![
-                    "pg_catalog.timestamp",
-                    "timestamp",
-                    "pg_catalog.timestamptz",
-                    "timestamptz",
-                ],
+                ("sqlx::postgres::types::PgInterval", None),
+                vec!["interval", "pg_catalog.interval"],
+            ),
+            // TODO: Add PgRange<T>
+            // https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L355-L461
+            (("sqlx::postgres::types::PgMoney", None), vec!["money"]),
+            (("sqlx::postgres::types::PgLTree", None), vec!["ltree"]),
+            (("sqlx::postgres::types::PgLQuery", None), vec!["lquery"]),
+            // `citext` is not added because `String` is usually sufficient.
+            (("sqlx::postgres::types::PgCube", None), vec!["cube"]),
+            (("sqlx::postgres::types::PgPoint", None), vec!["point"]),
+            (("sqlx::postgres::types::PgLine", None), vec!["line"]),
+            (("sqlx::postgres::types::PgLSeg", None), vec!["lseg"]),
+            (("sqlx::postgres::types::PgBox", None), vec!["box"]),
+            (("sqlx::postgres::types::PgPath", None), vec!["path"]),
+            (("sqlx::postgres::types::PgPolygon", None), vec!["polygon"]),
+            (("sqlx::postgres::types::PgCircle", None), vec!["circle"]),
+            (("sqlx::postgres::types::PgHstore", None), vec!["hstore"]),
+            (
+                ("sqlx::postgres::types::PgTimeTz", None),
+                vec!["pg_catalog.timetz"],
             ),
             (("std::net::IpAddr", None), vec!["inet"]),
             (
@@ -340,7 +277,7 @@ impl DbCrate for Postgres {
             .map(|field| {
                 let ident = value_ident(field);
                 quote::quote! {
-                    #[postgres(name = #field)]
+                    #[sqlx(rename = #field)]
                     #ident
                 }
             })
@@ -349,33 +286,34 @@ impl DbCrate for Postgres {
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
         quote::quote! {
-            #[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]
-            #[postgres(name = #original_name)]
+            #[derive(Debug,Clone,Copy, sqlx::Type)]
+            #[sqlx(type_name = #original_name)]
             pub enum #enum_name {
                 #(#fields,)*
             }
         }
     }
+
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
         let struct_ident = value_ident(&query.query_name);
-        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+        let lifetime_a = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
         let fields = query
             .param_names
             .iter()
             .zip(query.param_types.iter())
             .map(|(r, typ)| {
-                let typ = typ.to_param_tokens(&lifetime);
+                let typ = typ.to_param_tokens(&lifetime_a);
                 quote::quote! {#r:#typ}
             })
             .collect::<Vec<_>>();
 
-        let need_lifetime = Postgres::need_lifetime(query);
+        let need_lifetime = Sqlx::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
                 quote::quote! {
-                    pub struct #struct_ident<#lifetime>{
+                    pub struct #struct_ident<#lifetime_a>{
                         #(#fields,)*
                     }
                 }
@@ -394,82 +332,122 @@ impl DbCrate for Postgres {
             }
         };
 
-        let client_ident = quote::format_ident!("client");
-        let client_typ = self.client_type();
-        let error_typ = self.error_type();
-        let async_part = self.async_part();
-        let await_part = self.await_part();
+        let params = query.param_names.iter().fold(
+            quote::quote! {},
+            |acc, x| quote::quote! {#acc .bind(self.#x)},
+        );
+        let query_fns = {
+            let query_str = &query.query_str;
+            let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
 
-        let params = query
-            .param_names
-            .iter()
-            .fold(quote::quote! {}, |acc, x| quote::quote! {#acc &self.#x,});
-        let params = quote::quote! {[#params]};
+            let lifetime_generic = if need_lifetime {
+                quote::quote! {#lifetime_b  }
+            } else {
+                quote::quote! {#lifetime_a, #lifetime_b }
+            };
 
-        let query_fns = match query.annotation {
-            Annotation::One => {
-                let row_ident = row.struct_ident();
+            match query.annotation {
+                Annotation::One => {
+                    let row_ident = row.struct_ident();
 
-                quote::quote! {
-                    pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
-                        let row = client.query_one(Self::QUERY, &#params) #await_part?;
-                        #row_ident::from_row(&row)
-                    }
+                    // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
+                    quote::quote! {
+                        pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                let val :#row_ident = sqlx::query_as(
+                                    #query_str,
+                                ) #params .fetch_one(&mut *conn).await?;
 
-                    pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
-                        let row = client.query_opt(Self::QUERY, &#params) #await_part?;
-                        match row {
-                            Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
-                            None => Ok(None)
+                                Ok(val)
+                            }
+                        }
+
+                        pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                let val:Option<#row_ident> = sqlx::query_as(
+                                    #query_str,
+                                ) #params .fetch_optional(&mut *conn).await?;
+
+                                Ok(val)
+                            }
                         }
                     }
                 }
-            }
-            Annotation::Many => {
-                let row_ident = row.struct_ident();
+                Annotation::Many => {
+                    let row_ident = row.struct_ident();
 
-                quote::quote! {
-                    pub #async_part fn query_many(&self,#client_ident: #client_typ)->Result<Vec<#row_ident>,#error_typ>{
-                        let rows = client.query(Self::QUERY, &#params) #await_part?;
-                        rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
+                    quote::quote! {
+                        pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                let vals:Vec<#row_ident> = sqlx::query_as(
+                                    #query_str,
+                                ) #params .fetch_all(&mut *conn).await?;
+
+                                Ok(vals)
+                            }
+                        }
                     }
                 }
-            }
-            Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
-                quote::quote! {
-                    pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
-                        client.execute(Self::QUERY, &#params) #await_part
+                Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
+                    // Use macro instead
+                    let params = query
+                        .param_names
+                        .iter()
+                        .fold(quote::quote! {}, |acc, x| quote::quote! {#acc self.#x,});
+
+                    quote::quote! {
+                        pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                        ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        {
+                            async move {
+                                let mut conn = conn.acquire().await?;
+                                sqlx::query!(
+                                    #query_str,
+                                    #params
+                                ).execute(&mut *conn).await
+                            }
+                        }
                     }
                 }
-            }
-            _ => {
-                // not supported
-                quote::quote! {}
+                _ => {
+                    // not supported
+                    quote::quote! {}
+                }
             }
         };
-
         let fetch_tt = {
-            let query_str = &query.query_str;
             let imp_ident = if need_lifetime {
-                quote::quote! {<#lifetime> #struct_ident<#lifetime>}
+                quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
             } else {
                 quote::quote! {#struct_ident}
             };
             quote::quote! {
                 impl #imp_ident {
-                    pub const QUERY:&'static str = #query_str;
                     #query_fns
                 }
             }
         };
 
         let returning_row = self.returning_row(row);
-        let builder = Self::create_builder(query);
+        let builder_tt = Self::create_builder(query);
         quote::quote! {
             #returning_row
             #struct_tt
             #fetch_tt
-            #builder
+            #builder_tt
         }
     }
 }

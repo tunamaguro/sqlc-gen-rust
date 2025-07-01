@@ -24,7 +24,7 @@ sqlc-plugin for rust db crates.
             "codegen": [
                 {
                     "plugin": "sqlc-gen-rust",
-                    "out": "examples/e-commerce/src"
+                    "out": "src/db"
                 }
             ]
         }
@@ -39,17 +39,82 @@ sqlc-plugin for rust db crates.
 - [deadpool-postgres](https://crates.io/crates/deadpool-postgres)
 
 
+## Example
+
+### Schema
+
+```sql
+-- schema.sql
+CREATE TABLE authors (
+    id   BIGSERIAL PRIMARY KEY,
+    name text      NOT NULL,
+    bio  text
+);
+```
+
+### Query
+
+```sql
+-- queries.sql
+-- name: GetAuthor :one
+SELECT * FROM authors
+WHERE id = $1 LIMIT 1;
+
+-- name: CreateAuthor :one
+INSERT INTO authors (name, bio)
+VALUES ($1, $2)
+RETURNING *;
+```
+
+### Generated code
+
+```rust
+pub struct GetAuthorRow {
+    pub id: i64,
+    pub name: String,
+    pub bio: Option<String>,
+}
+
+pub struct GetAuthor {
+    id: i64,
+}
+
+impl GetAuthor {
+    pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
+WHERE id = $1 LIMIT 1";
+    
+    pub async fn query_one(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<GetAuthorRow, tokio_postgres::Error> {
+        // ...
+    }
+}
+
+// Builder API
+let author = GetAuthor::builder()
+    .id(1)
+    .build()
+    .query_one(&client)
+    .await?;
+```
+
+See below to see other crates example.
+
+- [`postgres` generated code](./examples/e-commerce/src/postgres_query.rs)
+- [`tokio-postgres` generated code](./examples/e-commerce/src/tokio_query.rs)
+- [`deadpool-postgres` generated code](./examples/e-commerce/src/deadpool_query.rs)
 
 ## Options
 
 > [!NOTE]
-> This plugin supports json only.
+> This plugin supports json option only. yaml is not supported.
 
 ### `db_crate`
 
 The crate of generated code. Default is `tokio-postgres`. Available values are below.
 
-- `postgres`
+- `postgres` 
 - `tokio-postgres`
 - `deadpool-postgres`
 
@@ -87,7 +152,7 @@ See [source code](https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen
 
 ### `output`
 
-Change the output destination of the generated code. Default is `queries.rs`. 
+Generated code destination. Default is `queries.rs`. 
 
 ## License
 

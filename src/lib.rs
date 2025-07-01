@@ -8,7 +8,7 @@ pub(crate) mod plugin {
 
 pub(crate) mod postgres;
 pub(crate) mod query;
-use postgres::Postgres;
+pub(crate) mod sqlx;
 use query::{DbEnum, DbTypeMap, Query, ReturningRows, RsType, collect_enums};
 
 pub trait StackError: std::error::Error {
@@ -162,7 +162,7 @@ impl StackError for Error {
     fn format_stack(&self, layer: usize, buf: &mut Vec<String>) {
         let location = self.location();
         let message = format!(
-            "{}:{}, at {}:{}",
+            "{}:{} , at {}:{}",
             layer,
             self,
             location.file(),
@@ -233,15 +233,51 @@ pub(crate) fn field_ident(ident: &str) -> syn::Ident {
 }
 
 pub(crate) trait DbCrate {
-    /// Generate returning row
-    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream;
+    // Generate DB type to Rust type mapping
+    fn db_type_map(&self) -> DbTypeMap;
     /// Generate enum
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream;
-    /// Generate query fn
-    fn call_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
+    /// Generate returning row and query fn
+    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+enum SupportedDbCrate {
+    Postgres(postgres::Postgres),
+    Sqlx(sqlx::Sqlx),
+}
+
+impl DbCrate for SupportedDbCrate {
+    fn db_type_map(&self) -> DbTypeMap {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.db_type_map(),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.db_type_map(),
+        }
+    }
+    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.defined_enum(enum_type),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.defined_enum(enum_type),
+        }
+    }
+
+    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.generate_query(row, query),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.generate_query(row, query),
+        }
+    }
+}
+
+impl Default for SupportedDbCrate {
+    fn default() -> Self {
+        Self::Postgres(postgres::Postgres::Tokio)
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Default)]
+#[serde(default)]
 struct OverrideType {
     /// Override db type
     db_type: String,
@@ -257,7 +293,7 @@ struct OverrideType {
 #[serde(default)]
 struct Config {
     output: String,
-    db_crate: Postgres,
+    db_crate: SupportedDbCrate,
     overrides: Vec<OverrideType>,
 }
 
@@ -297,7 +333,7 @@ pub fn try_main() -> Result<(), Error> {
     let request = deserialize_codegen_request(&buffer)?;
     let config = Config::from_option(&request.plugin_options)?;
 
-    let mut db_type = DbTypeMap::new_for_postgres();
+    let mut db_type = config.db_crate.db_type_map();
     for override_type in config.overrides {
         let owned_type = syn::parse_str::<syn::Type>(&override_type.rs_type)
             .map_err(|e| Error::any(e.into()))?;
@@ -353,15 +389,7 @@ pub fn try_main() -> Result<(), Error> {
     let queries_ts = returning_rows
         .iter()
         .zip(queries.iter())
-        .map(|(r, q)| {
-            let row_tt = config.db_crate.returning_row(r);
-            let query_tt = config.db_crate.call_query(r, q);
-
-            quote::quote! {
-                #row_tt
-                #query_tt
-            }
-        })
+        .map(|(r, q)| config.db_crate.generate_query(r, q))
         .collect::<Vec<_>>();
     let queries_tt = quote::quote! {#(#queries_ts)*};
 

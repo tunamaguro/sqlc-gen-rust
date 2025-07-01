@@ -43,8 +43,7 @@ impl QueryError {
     fn cannot_map_type(col_name: String, typ_name: String) -> Self {
         Self::CannotMapType {
             message: format!(
-                "Cannot map type `{}` of table `{}` to a Rust type. Consider add entry to overrides.",
-                col_name, typ_name
+                "Cannot map type `{col_name}` of table `{typ_name}` to a Rust type. Consider add entry to overrides."
             ),
             location: std::panic::Location::caller(),
         }
@@ -64,13 +63,12 @@ impl std::fmt::Display for QueryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QueryError::MissingColumnType { column_name, .. } => {
-                write!(f, "Column type not found for column: `{}`", column_name)
+                write!(f, "Column type not found for column: `{column_name}`")
             }
             QueryError::MissingParamColumn { param_number, .. } => {
                 write!(
                     f,
-                    "Parameter column not found for parameter #{}",
-                    param_number
+                    "Parameter column not found for parameter #{param_number}"
                 )
             }
             QueryError::CannotMapType { message, .. } => message.fmt(f),
@@ -279,92 +277,6 @@ pub(crate) struct DbTypeMap {
 }
 
 impl DbTypeMap {
-    /// Creates a new `DbTypeMap` with default types for PostgreSQL.
-    ///
-    /// See below
-    /// -
-    /// - https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605
-    /// - https://docs.rs/postgres-types/0.2.9/postgres_types/trait.ToSql.html#types
-    /// - https://www.postgresql.jp/document/17/html/datatype.html
-    pub(crate) fn new_for_postgres() -> Self {
-        let copy_cheap = [
-            ("i32", vec!["serial", "serial4", "pg_catalog.serial4"]),
-            ("i64", vec!["bigserial", "serial8", "pg_catalog.serial8"]),
-            ("i16", vec!["smallserial", "serial2", "pg_catalog.serial2"]),
-            ("i32", vec!["integer", "int", "int4", "pg_catalog.int4"]),
-            ("i64", vec!["bigint", "int8", "pg_catalog.int8"]),
-            ("i16", vec!["smallint", "int2", "pg_catalog.int2"]),
-            (
-                "f64",
-                vec!["float", "double precision", "float8", "pg_catalog.float8"],
-            ),
-            ("f32", vec!["real", "float4", "pg_catalog.float4"]),
-            ("bool", vec!["boolean", "bool", "pg_catalog.bool"]),
-            ("u32", vec!["oid", "pg_catalog.oid"]),
-            ("uuid::Uuid", vec!["uuid"]),
-        ];
-
-        let default_types = [
-            (
-                ("String", Some("str")),
-                vec![
-                    "text",
-                    "pg_catalog.varchar",
-                    "pg_catalog.bpchar",
-                    "string",
-                    "citext",
-                    "name",
-                ],
-            ),
-            (
-                ("Vec<u8>", Some("[u8]")),
-                vec!["bytea", "blob", "pg_catalog.bytea"],
-            ),
-            (("HashMap<String, Option<String>>", None), vec!["hstore"]),
-            (
-                ("std::time::SystemTime", None),
-                vec![
-                    "pg_catalog.timestamp",
-                    "timestamp",
-                    "pg_catalog.timestamptz",
-                    "timestamptz",
-                ],
-            ),
-            (("std::net::IpAddr", None), vec!["inet"]),
-            (
-                ("serde_json::Value", None),
-                vec!["json", "pg_catalog.json", "jsonb", "pg_catalog.jsonb"],
-            ),
-        ];
-
-        let mut map = DbTypeMap::default();
-
-        for (owned_type, pg_types) in copy_cheap {
-            let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
-
-            for pg_type in pg_types {
-                map.typ_map.insert(
-                    pg_type.to_string(),
-                    RsType::new(owned_type.clone(), None, true),
-                );
-            }
-        }
-
-        for ((owned_type, slice_type), pg_types) in default_types {
-            let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
-            let slice_type = slice_type
-                .map(|s| syn::parse_str::<syn::Type>(s).expect("Failed to parse slice type"));
-
-            for pg_type in pg_types {
-                map.typ_map.insert(
-                    pg_type.to_string(),
-                    RsType::new(owned_type.clone(), slice_type.clone(), false),
-                );
-            }
-        }
-        map
-    }
-
     fn get(&self, db_type: &str) -> Option<RsType> {
         self.typ_map.get(db_type).cloned()
     }
@@ -537,7 +449,7 @@ fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
 
     // raw string literalを構築
     let hashes = "#".repeat(hash_count);
-    let raw_str = format!("r{0}\"{1}\"{0}", hashes, s);
+    let raw_str = format!("r{hashes}\"{s}\"{hashes}");
 
     raw_str
         .parse::<proc_macro2::TokenStream>()
@@ -671,7 +583,7 @@ where
                     if table_name.is_empty() {
                         column_name.to_string()
                     } else {
-                        format!("{}_{}", table_name, column_name)
+                        format!("{table_name}_{column_name}")
                     }
                 }
             }
@@ -699,7 +611,7 @@ where
             base_name
         } else {
             // 重複がある場合は最初から連番を付ける
-            format!("{}_{}", base_name, occurrence_count)
+            format!("{base_name}_{occurrence_count}")
         };
         final_names.push(final_name);
     }
