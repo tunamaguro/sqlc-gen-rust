@@ -66,6 +66,11 @@ jobs:
           with:
             bins: sqlx-cli
             cache-base: main
+        - name: Setup Protoc
+          uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+          with:
+            version: "29.3"
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
         - name: Prepare sqlx
           env:
             DATABASE_URL: postgres://root:password@localhost:5432/app
