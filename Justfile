@@ -21,7 +21,7 @@ format-ci:
 
 # Show lint error
 lint:
-    cargo clippy --workspace --all-targets --all-features --fix
+    cargo clippy --workspace --all-targets --all-features 
 
 # Fix clippy error
 lint-fix:
