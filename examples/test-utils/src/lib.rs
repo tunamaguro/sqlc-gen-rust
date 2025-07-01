@@ -15,6 +15,11 @@ pub struct DeadPoolContext {
     pub pool: deadpool_postgres::Pool,
 }
 
+pub struct SqlxPgContext {
+    db_name: String,
+    pub pool: sqlx::PgPool,
+}
+
 fn postgres_config() -> postgres::Config {
     let database_url = std::env::var("DATABASE_URL").unwrap();
     let postgres_url = url::Url::parse(&database_url).unwrap();
@@ -208,5 +213,112 @@ impl AsyncTestContext for DeadPoolContext {
         });
         let stmt = format!("DROP DATABASE {};", self.db_name);
         admin_client.batch_execute(&stmt).await.unwrap();
+    }
+}
+
+impl AsyncTestContext for SqlxPgContext {
+    async fn setup() -> Self {
+        let (admin_client, admin_conn) = tokio_postgres_config()
+            .connect(tokio_postgres::NoTls)
+            .await
+            .unwrap();
+        tokio::spawn(async move {
+            if let Err(e) = admin_conn.await {
+                panic!("connection error: {e}");
+            }
+        });
+
+        let test_db_name = generate_tmp_db();
+
+        let stmt = format!("CREATE DATABASE {test_db_name};");
+        admin_client.batch_execute(&stmt).await.unwrap();
+
+        let database_url = std::env::var("DATABASE_URL").unwrap();
+        let mut postgres_url = url::Url::parse(&database_url).unwrap();
+        postgres_url.set_path(&format!("/{test_db_name}"));
+
+        let pool = sqlx::PgPool::connect(postgres_url.as_str()).await.unwrap();
+        Self {
+            pool,
+            db_name: test_db_name,
+        }
+    }
+
+    async fn teardown(self) {
+        drop(self.pool);
+
+        let (admin_client, admin_conn) = tokio_postgres_config()
+            .connect(tokio_postgres::NoTls)
+            .await
+            .unwrap();
+        tokio::spawn(async move {
+            if let Err(e) = admin_conn.await {
+                panic!("connection error: {e}");
+            }
+        });
+        let stmt = format!("DROP DATABASE {};", self.db_name);
+        admin_client.batch_execute(&stmt).await.unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_context::test_context;
+
+    #[test_context(PgSyncTestContext)]
+    fn test_pg_sync(ctx: &mut PgSyncTestContext) {
+        let client = &mut ctx.client;
+
+        let row = client
+            .query_one("SELECT $1::INT as int_val", &[&123])
+            .unwrap();
+
+        let int_val: i32 = row.try_get("int_val").unwrap();
+        assert_eq!(int_val, 123);
+    }
+
+    #[test_context(PgTokioTestContext)]
+    #[tokio::test]
+    async fn test_pg_tokio(ctx: &mut PgTokioTestContext) {
+        let client = &ctx.client;
+
+        let row = client
+            .query_one("SELECT $1::INT as int_val", &[&123])
+            .await
+            .unwrap();
+
+        let int_val: i32 = row.try_get("int_val").unwrap();
+        assert_eq!(int_val, 123);
+    }
+
+    #[test_context(DeadPoolContext)]
+    #[tokio::test]
+    async fn test_deadpool(ctx: &mut DeadPoolContext) {
+        let client = ctx.pool.get().await.unwrap();
+
+        let row = client
+            .query_one("SELECT $1::INT as int_val", &[&123])
+            .await
+            .unwrap();
+
+        let int_val: i32 = row.try_get("int_val").unwrap();
+        assert_eq!(int_val, 123);
+    }
+
+    #[test_context(SqlxPgContext)]
+    #[tokio::test]
+    async fn test_sqlx_postgres(ctx: &mut SqlxPgContext) {
+        use sqlx::Row as _;
+        let pool = &ctx.pool;
+
+        let row = sqlx::query("SELECT $1::INT as int_val")
+            .bind(123)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+
+        let int_val: i32 = row.try_get("int_val").unwrap();
+        assert_eq!(int_val, 123);
     }
 }
