@@ -233,12 +233,10 @@ pub(crate) fn field_ident(ident: &str) -> syn::Ident {
 }
 
 pub(crate) trait DbCrate {
-    /// Generate returning row
-    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream;
     /// Generate enum
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream;
-    /// Generate query fn
-    fn call_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
+    /// Generate returning row and query fn
+    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Default)]
@@ -353,15 +351,7 @@ pub fn try_main() -> Result<(), Error> {
     let queries_ts = returning_rows
         .iter()
         .zip(queries.iter())
-        .map(|(r, q)| {
-            let row_tt = config.db_crate.returning_row(r);
-            let query_tt = config.db_crate.call_query(r, q);
-
-            quote::quote! {
-                #row_tt
-                #query_tt
-            }
-        })
+        .map(|(r, q)| config.db_crate.generate_query(r, q))
         .collect::<Vec<_>>();
     let queries_tt = quote::quote! {#(#queries_ts)*};
 

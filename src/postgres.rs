@@ -77,6 +77,57 @@ impl Postgres {
     fn need_lifetime(query: &Query) -> bool {
         query.param_types.iter().any(|x| x.need_lifetime())
     }
+
+    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
+        let fields = row
+            .column_names
+            .iter()
+            .zip(row.column_types.iter())
+            .map(|(col, rs_type)| {
+                let col_t = rs_type.to_row_tokens();
+                quote::quote! {pub #col:#col_t}
+            })
+            .collect::<Vec<_>>();
+
+        let ident = row.struct_ident();
+
+        // struct XXXRow {
+        //  table_col: i32,...
+        // }
+        let row_tt = quote::quote! {
+            pub struct #ident {
+                #(#fields,)*
+            }
+        };
+
+        let error_typ = self.error_type();
+        let row_typ = self.row_type();
+        let arg_ident = quote::format_ident!("row");
+        let from_fields = row
+            .column_names
+            .iter()
+            .enumerate()
+            .map(|(idx, r)| {
+                let literal = proc_macro2::Literal::usize_unsuffixed(idx);
+                quote::quote! {#r:#arg_ident.try_get(#literal)?}
+            })
+            .collect::<Vec<_>>();
+        let from_tt = quote::quote! {
+            impl #ident {
+                fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
+                    Ok(Self{
+                        #(#from_fields,)*
+                    })
+                }
+            }
+        };
+
+        quote::quote! {
+            #row_tt
+            #from_tt
+        }
+    }
+
     /// Generate type-state builder
     fn create_builder(query: &Query) -> proc_macro2::TokenStream {
         let num_params = query.param_names.len();
@@ -199,55 +250,6 @@ impl Postgres {
 }
 
 impl DbCrate for Postgres {
-    fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
-        let fields = row
-            .column_names
-            .iter()
-            .zip(row.column_types.iter())
-            .map(|(col, rs_type)| {
-                let col_t = rs_type.to_row_tokens();
-                quote::quote! {pub #col:#col_t}
-            })
-            .collect::<Vec<_>>();
-
-        let ident = row.struct_ident();
-
-        // struct XXXRow {
-        //  table_col: i32,...
-        // }
-        let row_tt = quote::quote! {
-            pub struct #ident {
-                #(#fields,)*
-            }
-        };
-
-        let error_typ = self.error_type();
-        let row_typ = self.row_type();
-        let arg_ident = quote::format_ident!("row");
-        let from_fields = row
-            .column_names
-            .iter()
-            .enumerate()
-            .map(|(idx, r)| {
-                let literal = proc_macro2::Literal::usize_unsuffixed(idx);
-                quote::quote! {#r:#arg_ident.try_get(#literal)?}
-            })
-            .collect::<Vec<_>>();
-        let from_tt = quote::quote! {
-            impl #ident {
-                fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
-                    Ok(Self{
-                        #(#from_fields,)*
-                    })
-                }
-            }
-        };
-
-        quote::quote! {
-            #row_tt
-            #from_tt
-        }
-    }
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         let fields = enum_type
             .values
@@ -271,7 +273,7 @@ impl DbCrate for Postgres {
             }
         }
     }
-    fn call_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
+    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
         let struct_ident = value_ident(&query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
 
@@ -378,8 +380,10 @@ impl DbCrate for Postgres {
             }
         };
 
+        let returning_row = self.returning_row(row);
         let builder = Self::create_builder(query);
         quote::quote! {
+            #returning_row
             #struct_tt
             #fetch_tt
             #builder
