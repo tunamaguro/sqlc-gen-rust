@@ -210,10 +210,10 @@ impl DbCrate for Sqlx {
             }
         };
 
-        let params = query
-            .param_names
-            .iter()
-            .fold(quote::quote! {}, |acc, x| quote::quote! {#acc self.#x,});
+        let params = query.param_names.iter().fold(
+            quote::quote! {},
+            |acc, x| quote::quote! {#acc .bind(self.#x)},
+        );
         let query_fns = {
             let query_str = &query.query_str;
             let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
@@ -236,11 +236,11 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query_as!(
-                                    #row_ident,
+                                let val :#row_ident = sqlx::query_as(
                                     #query_str,
-                                    #params
-                                ).fetch_one(&mut *conn).await
+                                ) #params .fetch_one(&mut *conn).await?;
+
+                                Ok(val)
                             }
                         }
 
@@ -250,11 +250,11 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query_as!(
-                                    #row_ident,
+                                let val:Option<#row_ident> = sqlx::query_as(
                                     #query_str,
-                                    #params
-                                ).fetch_optional(&mut *conn).await
+                                ) #params .fetch_optional(&mut *conn).await?;
+
+                                Ok(val)
                             }
                         }
                     }
@@ -269,16 +269,22 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query_as!(
-                                    #row_ident,
+                                let vals:Vec<#row_ident> = sqlx::query_as(
                                     #query_str,
-                                    #params
-                                ).fetch_all(&mut *conn).await
+                                ) #params .fetch_all(&mut *conn).await?;
+
+                                Ok(vals)
                             }
                         }
                     }
                 }
                 Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
+                    // Use macro instead
+                    let params = query
+                        .param_names
+                        .iter()
+                        .fold(quote::quote! {}, |acc, x| quote::quote! {#acc self.#x,});
+
                     quote::quote! {
                         pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a

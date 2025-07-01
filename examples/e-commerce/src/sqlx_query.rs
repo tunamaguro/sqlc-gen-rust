@@ -42,21 +42,21 @@ impl<'a> CreateUser<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateUserRow,
+            let val: CreateUserRow = sqlx::query_as(
                 r"INSERT INTO users (
     username, email, hashed_password, full_name
 ) VALUES (
     $1, $2, $3, $4
 )
 RETURNING id, username, email, hashed_password, full_name, created_at, updated_at",
-                self.username,
-                self.email,
-                self.hashed_password,
-                self.full_name,
             )
+            .bind(self.username)
+            .bind(self.email)
+            .bind(self.hashed_password)
+            .bind(self.full_name)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'b, A>(
@@ -68,21 +68,21 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateUserRow,
+            let val: Option<CreateUserRow> = sqlx::query_as(
                 r"INSERT INTO users (
     username, email, hashed_password, full_name
 ) VALUES (
     $1, $2, $3, $4
 )
 RETURNING id, username, email, hashed_password, full_name, created_at, updated_at",
-                self.username,
-                self.email,
-                self.hashed_password,
-                self.full_name,
             )
+            .bind(self.username)
+            .bind(self.email)
+            .bind(self.hashed_password)
+            .bind(self.full_name)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -109,14 +109,14 @@ impl<'a> GetUserByEmail<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetUserByEmailRow,
-                r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+            let val: GetUserByEmailRow = sqlx::query_as(
+                    r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1",
-                self.email,
-            )
+                )
+                .bind(self.email)
                 .fetch_one(&mut *conn)
-                .await
+                .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'b, A>(
@@ -128,14 +128,14 @@ WHERE email = $1 LIMIT 1",
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetUserByEmailRow,
-                r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
+            let val: Option<GetUserByEmailRow> = sqlx::query_as(
+                    r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1",
-                self.email,
-            )
+                )
+                .bind(self.email)
                 .fetch_optional(&mut *conn)
-                .await
+                .await?;
+            Ok(val)
         }
     }
 }
@@ -161,17 +161,17 @@ impl ListUsers {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                ListUsersRow,
+            let vals: Vec<ListUsersRow> = sqlx::query_as(
                 r"SELECT id, username, email, full_name, created_at FROM users
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2",
-                self.limit,
-                self.offset,
             )
+            .bind(self.limit)
+            .bind(self.offset)
             .fetch_all(&mut *conn)
-            .await
+            .await?;
+            Ok(vals)
         }
     }
 }
@@ -205,19 +205,23 @@ impl<'a> CreateProduct<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateProductRow,
-                r"INSERT INTO products (
+            let val: CreateProductRow = sqlx::query_as(
+                    r"INSERT INTO products (
     category_id, name, description, price, stock_quantity, attributes
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
 RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at",
-                self.category_id, self.name, self.description, self.price, self
-                .stock_quantity, self.attributes,
-            )
+                )
+                .bind(self.category_id)
+                .bind(self.name)
+                .bind(self.description)
+                .bind(self.price)
+                .bind(self.stock_quantity)
+                .bind(self.attributes)
                 .fetch_one(&mut *conn)
-                .await
+                .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'b, A>(
@@ -229,19 +233,23 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateProductRow,
-                r"INSERT INTO products (
+            let val: Option<CreateProductRow> = sqlx::query_as(
+                    r"INSERT INTO products (
     category_id, name, description, price, stock_quantity, attributes
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
 RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at",
-                self.category_id, self.name, self.description, self.price, self
-                .stock_quantity, self.attributes,
-            )
+                )
+                .bind(self.category_id)
+                .bind(self.name)
+                .bind(self.description)
+                .bind(self.price)
+                .bind(self.stock_quantity)
+                .bind(self.attributes)
                 .fetch_optional(&mut *conn)
-                .await
+                .await?;
+            Ok(val)
         }
     }
 }
@@ -270,8 +278,7 @@ impl GetProductWithCategory {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetProductWithCategoryRow,
+            let val: GetProductWithCategoryRow = sqlx::query_as(
                 r"SELECT
     p.id,
     p.name,
@@ -288,10 +295,11 @@ JOIN
     categories c ON p.category_id = c.id
 WHERE
     p.id = $1",
-                self.id,
             )
+            .bind(self.id)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'a, 'b, A>(
@@ -303,8 +311,7 @@ WHERE
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetProductWithCategoryRow,
+            let val: Option<GetProductWithCategoryRow> = sqlx::query_as(
                 r"SELECT
     p.id,
     p.name,
@@ -321,10 +328,11 @@ JOIN
     categories c ON p.category_id = c.id
 WHERE
     p.id = $1",
-                self.id,
             )
+            .bind(self.id)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -359,9 +367,8 @@ impl<'a> SearchProducts<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                SearchProductsRow,
-                r"SELECT
+            let vals: Vec<SearchProductsRow> = sqlx::query_as(
+                    r"SELECT
     p.id, p.category_id, p.name, p.description, p.price, p.stock_quantity, p.attributes, p.created_at, p.updated_at,
     (SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id) as average_rating
 FROM products p
@@ -379,11 +386,16 @@ ORDER BY
     p.created_at DESC
 LIMIT $1
 OFFSET $2",
-                self.limit, self.offset, self.name, self.category_ids, self.min_price,
-                self.max_price,
-            )
+                )
+                .bind(self.limit)
+                .bind(self.offset)
+                .bind(self.name)
+                .bind(self.category_ids)
+                .bind(self.min_price)
+                .bind(self.max_price)
                 .fetch_all(&mut *conn)
-                .await
+                .await?;
+            Ok(vals)
         }
     }
 }
@@ -412,14 +424,14 @@ impl<'a> GetProductsWithSpecificAttribute<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetProductsWithSpecificAttributeRow,
-                r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
+            let vals: Vec<GetProductsWithSpecificAttributeRow> = sqlx::query_as(
+                    r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb",
-                self.column_1,
-            )
+                )
+                .bind(self.column_1)
                 .fetch_all(&mut *conn)
-                .await
+                .await?;
+            Ok(vals)
         }
     }
 }
@@ -476,17 +488,17 @@ impl CreateOrder {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateOrderRow,
+            let val: CreateOrderRow = sqlx::query_as(
                 r"INSERT INTO orders (user_id, status, total_amount)
 VALUES ($1, $2, $3)
 RETURNING id, user_id, status, total_amount, ordered_at",
-                self.user_id,
-                self.status,
-                self.total_amount,
             )
+            .bind(self.user_id)
+            .bind(self.status)
+            .bind(self.total_amount)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'a, 'b, A>(
@@ -498,17 +510,17 @@ RETURNING id, user_id, status, total_amount, ordered_at",
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateOrderRow,
+            let val: Option<CreateOrderRow> = sqlx::query_as(
                 r"INSERT INTO orders (user_id, status, total_amount)
 VALUES ($1, $2, $3)
 RETURNING id, user_id, status, total_amount, ordered_at",
-                self.user_id,
-                self.status,
-                self.total_amount,
             )
+            .bind(self.user_id)
+            .bind(self.status)
+            .bind(self.total_amount)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -536,18 +548,18 @@ impl CreateOrderItem {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateOrderItemRow,
+            let val: CreateOrderItemRow = sqlx::query_as(
                 r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
 VALUES ($1, $2, $3, $4)
 RETURNING id, order_id, product_id, quantity, price_at_purchase",
-                self.order_id,
-                self.product_id,
-                self.quantity,
-                self.price_at_purchase,
             )
+            .bind(self.order_id)
+            .bind(self.product_id)
+            .bind(self.quantity)
+            .bind(self.price_at_purchase)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'a, 'b, A>(
@@ -559,18 +571,18 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase",
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateOrderItemRow,
+            let val: Option<CreateOrderItemRow> = sqlx::query_as(
                 r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
 VALUES ($1, $2, $3, $4)
 RETURNING id, order_id, product_id, quantity, price_at_purchase",
-                self.order_id,
-                self.product_id,
-                self.quantity,
-                self.price_at_purchase,
             )
+            .bind(self.order_id)
+            .bind(self.product_id)
+            .bind(self.quantity)
+            .bind(self.price_at_purchase)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -597,8 +609,7 @@ impl GetOrderDetails {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetOrderDetailsRow,
+            let val: GetOrderDetailsRow = sqlx::query_as(
                 r"SELECT
     o.id as order_id,
     o.status,
@@ -610,10 +621,11 @@ impl GetOrderDetails {
 FROM orders o
 JOIN users u ON o.user_id = u.id
 WHERE o.id = $1",
-                self.id,
             )
+            .bind(self.id)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'a, 'b, A>(
@@ -625,8 +637,7 @@ WHERE o.id = $1",
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetOrderDetailsRow,
+            let val: Option<GetOrderDetailsRow> = sqlx::query_as(
                 r"SELECT
     o.id as order_id,
     o.status,
@@ -638,10 +649,11 @@ WHERE o.id = $1",
 FROM orders o
 JOIN users u ON o.user_id = u.id
 WHERE o.id = $1",
-                self.id,
             )
+            .bind(self.id)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -665,8 +677,7 @@ impl ListOrderItemsByOrderId {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                ListOrderItemsByOrderIdRow,
+            let vals: Vec<ListOrderItemsByOrderIdRow> = sqlx::query_as(
                 r"SELECT
     oi.quantity,
     oi.price_at_purchase,
@@ -675,10 +686,11 @@ impl ListOrderItemsByOrderId {
 FROM order_items oi
 JOIN products p ON oi.product_id = p.id
 WHERE oi.order_id = $1",
-                self.order_id,
             )
+            .bind(self.order_id)
             .fetch_all(&mut *conn)
-            .await
+            .await?;
+            Ok(vals)
         }
     }
 }
@@ -707,18 +719,18 @@ impl<'a> CreateReview<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateReviewRow,
+            let val: CreateReviewRow = sqlx::query_as(
                 r"INSERT INTO reviews (user_id, product_id, rating, comment)
 VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, product_id, rating, comment, created_at",
-                self.user_id,
-                self.product_id,
-                self.rating,
-                self.comment,
             )
+            .bind(self.user_id)
+            .bind(self.product_id)
+            .bind(self.rating)
+            .bind(self.comment)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'b, A>(
@@ -730,18 +742,18 @@ RETURNING id, user_id, product_id, rating, comment, created_at",
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                CreateReviewRow,
+            let val: Option<CreateReviewRow> = sqlx::query_as(
                 r"INSERT INTO reviews (user_id, product_id, rating, comment)
 VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, product_id, rating, comment, created_at",
-                self.user_id,
-                self.product_id,
-                self.rating,
-                self.comment,
             )
+            .bind(self.user_id)
+            .bind(self.product_id)
+            .bind(self.rating)
+            .bind(self.comment)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -764,8 +776,7 @@ impl GetProductAverageRating {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetProductAverageRatingRow,
+            let val: GetProductAverageRatingRow = sqlx::query_as(
                 r"SELECT
     product_id,
     AVG(rating)::float as average_rating,
@@ -773,10 +784,11 @@ impl GetProductAverageRating {
 FROM reviews
 WHERE product_id = $1
 GROUP BY product_id",
-                self.product_id,
             )
+            .bind(self.product_id)
             .fetch_one(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
     pub fn query_opt<'a, 'b, A>(
@@ -788,8 +800,7 @@ GROUP BY product_id",
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetProductAverageRatingRow,
+            let val: Option<GetProductAverageRatingRow> = sqlx::query_as(
                 r"SELECT
     product_id,
     AVG(rating)::float as average_rating,
@@ -797,10 +808,11 @@ GROUP BY product_id",
 FROM reviews
 WHERE product_id = $1
 GROUP BY product_id",
-                self.product_id,
             )
+            .bind(self.product_id)
             .fetch_optional(&mut *conn)
-            .await
+            .await?;
+            Ok(val)
         }
     }
 }
@@ -822,8 +834,7 @@ impl GetCategorySalesRanking {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query_as!(
-                GetCategorySalesRankingRow,
+            let vals: Vec<GetCategorySalesRankingRow> = sqlx::query_as(
                 r"SELECT
     c.id as category_id,
     c.name as category_name,
@@ -838,7 +849,8 @@ GROUP BY c.id, c.name
 ORDER BY total_sales DESC",
             )
             .fetch_all(&mut *conn)
-            .await
+            .await?;
+            Ok(vals)
         }
     }
 }
