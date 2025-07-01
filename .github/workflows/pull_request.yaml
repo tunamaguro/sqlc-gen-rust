@@ -119,12 +119,7 @@ jobs:
           sqlc-version: '1.28.0'
       - name: Regenerate query
         run: |
-          just generate
-      - name: Download .sqlx directory
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: sqlx-postgres-prepare
-          path: .sqlx/
+          just generate-release
       - name: Run test
         env:
           DATABASE_URL: postgres://root:password@localhost:5432/app
