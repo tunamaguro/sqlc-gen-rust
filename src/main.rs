@@ -6,7 +6,7 @@ fn main() {
         Err(e) => {
             eprintln!("generation failed.");
             let stack = e.stack_error().join("\n");
-            eprintln!("{}", stack);
+            eprintln!("{stack}");
             std::process::exit(1)
         }
     }

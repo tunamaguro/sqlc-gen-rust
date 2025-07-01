@@ -184,8 +184,7 @@ mod tests {
 
         assert_eq!(
             str_value, "hello world",
-            "expected function result to be \"hello world\". actual: {}",
-            str_value
+            "expected function result to be \"hello world\". actual: {str_value}"
         );
 
         // get book 4 and delete

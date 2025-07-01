@@ -24,8 +24,7 @@ impl<'de> serde::Deserialize<'de> for Postgres {
             "tokio-postgres" => Ok(Self::Tokio),
             "deadpool-postgres" => Ok(Self::DeadPool),
             _ => Err(serde::de::Error::custom(format!(
-                "`{}` is unsupported crate.",
-                s
+                "`{s}` is unsupported crate."
             ))),
         }
     }

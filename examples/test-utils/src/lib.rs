@@ -112,7 +112,7 @@ impl AsyncTestContext for PgTokioTestContext {
             .unwrap();
         tokio::spawn(async move {
             if let Err(e) = admin_conn.await {
-                panic!("connection error: {}", e);
+                panic!("connection error: {e}");
             }
         });
 
@@ -127,7 +127,7 @@ impl AsyncTestContext for PgTokioTestContext {
         let (client, conn) = config.connect(tokio_postgres::NoTls).await.unwrap();
         tokio::spawn(async move {
             if let Err(e) = conn.await {
-                panic!("connection error: {}", e);
+                panic!("connection error: {e}");
             }
         });
 
@@ -146,7 +146,7 @@ impl AsyncTestContext for PgTokioTestContext {
 
         tokio::spawn(async move {
             if let Err(e) = admin_conn.await {
-                panic!("connection error: {}", e);
+                panic!("connection error: {e}");
             }
         });
         let stmt = format!("DROP DATABASE {};", self.db_name);
@@ -162,7 +162,7 @@ impl AsyncTestContext for DeadPoolContext {
             .unwrap();
         tokio::spawn(async move {
             if let Err(e) = admin_conn.await {
-                panic!("connection error: {}", e);
+                panic!("connection error: {e}");
             }
         });
 
@@ -203,7 +203,7 @@ impl AsyncTestContext for DeadPoolContext {
             .unwrap();
         tokio::spawn(async move {
             if let Err(e) = admin_conn.await {
-                panic!("connection error: {}", e);
+                panic!("connection error: {e}");
             }
         });
         let stmt = format!("DROP DATABASE {};", self.db_name);

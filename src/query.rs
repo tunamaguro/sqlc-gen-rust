@@ -43,8 +43,7 @@ impl QueryError {
     fn cannot_map_type(col_name: String, typ_name: String) -> Self {
         Self::CannotMapType {
             message: format!(
-                "Cannot map type `{}` of table `{}` to a Rust type. Consider add entry to overrides.",
-                col_name, typ_name
+                "Cannot map type `{col_name}` of table `{typ_name}` to a Rust type. Consider add entry to overrides."
             ),
             location: std::panic::Location::caller(),
         }
@@ -64,13 +63,12 @@ impl std::fmt::Display for QueryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QueryError::MissingColumnType { column_name, .. } => {
-                write!(f, "Column type not found for column: `{}`", column_name)
+                write!(f, "Column type not found for column: `{column_name}`")
             }
             QueryError::MissingParamColumn { param_number, .. } => {
                 write!(
                     f,
-                    "Parameter column not found for parameter #{}",
-                    param_number
+                    "Parameter column not found for parameter #{param_number}"
                 )
             }
             QueryError::CannotMapType { message, .. } => message.fmt(f),
@@ -537,7 +535,7 @@ fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
 
     // raw string literalを構築
     let hashes = "#".repeat(hash_count);
-    let raw_str = format!("r{0}\"{1}\"{0}", hashes, s);
+    let raw_str = format!("r{hashes}\"{s}\"{hashes}");
 
     raw_str
         .parse::<proc_macro2::TokenStream>()
@@ -671,7 +669,7 @@ where
                     if table_name.is_empty() {
                         column_name.to_string()
                     } else {
-                        format!("{}_{}", table_name, column_name)
+                        format!("{table_name}_{column_name}")
                     }
                 }
             }
@@ -699,7 +697,7 @@ where
             base_name
         } else {
             // 重複がある場合は最初から連番を付ける
-            format!("{}_{}", base_name, occurrence_count)
+            format!("{base_name}_{occurrence_count}")
         };
         final_names.push(final_name);
     }
