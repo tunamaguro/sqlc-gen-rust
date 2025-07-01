@@ -29,7 +29,7 @@ lint-fix:
 
 # lint in CI
 lint-ci:
-    RUSTFLAGS="--deny warnings" cargo clippy --all-targets --all-features
+    RUSTFLAGS="--deny warnings" cargo clippy --workspace --all-targets --all-features
 
 # Run tests
 test:
