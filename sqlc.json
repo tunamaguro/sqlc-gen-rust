@@ -44,7 +44,13 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "sqlx_query.rs",
-                        "db_crate": "sqlx-postgres"
+                        "db_crate": "sqlx-postgres",
+                        "overrides": [
+                            {
+                                "db_type": "timestamptz",
+                                "rs_type": "chrono::DateTime<chrono::Utc>"
+                            }
+                        ]
                     }
                 }
             ]

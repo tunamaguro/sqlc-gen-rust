@@ -162,7 +162,7 @@ impl StackError for Error {
     fn format_stack(&self, layer: usize, buf: &mut Vec<String>) {
         let location = self.location();
         let message = format!(
-            "{}:{}, at {}:{}",
+            "{}:{} , at {}:{}",
             layer,
             self,
             location.file(),
@@ -233,6 +233,8 @@ pub(crate) fn field_ident(ident: &str) -> syn::Ident {
 }
 
 pub(crate) trait DbCrate {
+    // Generate DB type to Rust type mapping
+    fn db_type_map(&self) -> DbTypeMap;
     /// Generate enum
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream;
     /// Generate returning row and query fn
@@ -247,6 +249,12 @@ enum SupportedDbCrate {
 }
 
 impl DbCrate for SupportedDbCrate {
+    fn db_type_map(&self) -> DbTypeMap {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.db_type_map(),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.db_type_map(),
+        }
+    }
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         match self {
             SupportedDbCrate::Postgres(postgres) => postgres.defined_enum(enum_type),
@@ -269,6 +277,7 @@ impl Default for SupportedDbCrate {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Default)]
+#[serde(default)]
 struct OverrideType {
     /// Override db type
     db_type: String,
@@ -324,7 +333,7 @@ pub fn try_main() -> Result<(), Error> {
     let request = deserialize_codegen_request(&buffer)?;
     let config = Config::from_option(&request.plugin_options)?;
 
-    let mut db_type = DbTypeMap::new_for_postgres();
+    let mut db_type = config.db_crate.db_type_map();
     for override_type in config.overrides {
         let owned_type = syn::parse_str::<syn::Type>(&override_type.rs_type)
             .map_err(|e| Error::any(e.into()))?;

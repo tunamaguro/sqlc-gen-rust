@@ -16,3 +16,139 @@ pub enum OrderStatus {
     #[sqlx(rename = "cancelled")]
     Cancelled,
 }
+#[derive(sqlx::FromRow)]
+pub struct CreateUserRow {
+    pub id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+    pub hashed_password: String,
+    pub full_name: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct GetUserByEmailRow {
+    pub id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+    pub hashed_password: String,
+    pub full_name: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct ListUsersRow {
+    pub id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct CreateProductRow {
+    pub id: uuid::Uuid,
+    pub category_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct GetProductWithCategoryRow {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub category_name: String,
+    pub category_slug: String,
+}
+#[derive(sqlx::FromRow)]
+pub struct SearchProductsRow {
+    pub id: uuid::Uuid,
+    pub category_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub average_rating: f64,
+}
+#[derive(sqlx::FromRow)]
+pub struct GetProductsWithSpecificAttributeRow {
+    pub id: uuid::Uuid,
+    pub category_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct UpdateProductStockRow {}
+#[derive(sqlx::FromRow)]
+pub struct CreateOrderRow {
+    pub id: i64,
+    pub user_id: uuid::Uuid,
+    pub status: OrderStatus,
+    pub total_amount: i32,
+    pub ordered_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct CreateOrderItemRow {
+    pub id: i64,
+    pub order_id: i64,
+    pub product_id: uuid::Uuid,
+    pub quantity: i32,
+    pub price_at_purchase: i32,
+}
+#[derive(sqlx::FromRow)]
+pub struct GetOrderDetailsRow {
+    pub order_id: i64,
+    pub status: OrderStatus,
+    pub total_amount: i32,
+    pub ordered_at: chrono::DateTime<chrono::Utc>,
+    pub user_id: uuid::Uuid,
+    pub username: String,
+    pub email: String,
+}
+#[derive(sqlx::FromRow)]
+pub struct ListOrderItemsByOrderIdRow {
+    pub quantity: i32,
+    pub price_at_purchase: i32,
+    pub product_id: uuid::Uuid,
+    pub product_name: String,
+}
+#[derive(sqlx::FromRow)]
+pub struct CreateReviewRow {
+    pub id: i64,
+    pub user_id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
+    pub rating: i32,
+    pub comment: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+#[derive(sqlx::FromRow)]
+pub struct GetProductAverageRatingRow {
+    pub product_id: uuid::Uuid,
+    pub average_rating: f64,
+    pub review_count: i64,
+}
+#[derive(sqlx::FromRow)]
+pub struct GetCategorySalesRankingRow {
+    pub category_id: i32,
+    pub category_name: String,
+    pub total_sales: i64,
+    pub total_orders: i64,
+}
+#[derive(sqlx::FromRow)]
+pub struct DeleteUserAndRelatedDataRow {}
