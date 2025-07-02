@@ -1,10 +1,9 @@
-use quote::ToTokens as _;
-
+use super::DbCrate;
 use crate::{
-    DbCrate,
     query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
     value_ident,
 };
+use quote::ToTokens as _;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) enum Sqlx {

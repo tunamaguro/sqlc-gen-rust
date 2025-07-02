@@ -1,5 +1,5 @@
+use super::DbCrate;
 use crate::{
-    DbCrate,
     query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
     value_ident,
 };

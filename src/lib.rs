@@ -5,12 +5,10 @@ use std::io::{Read as _, Write};
 pub(crate) mod plugin {
     include!(concat!(env!("OUT_DIR"), "/plugin.rs"));
 }
-
-pub(crate) mod postgres;
+pub(crate) mod db_crates;
 pub(crate) mod query;
-pub(crate) mod sqlx;
-use query::{DbEnum, DbTypeMap, Query, ReturningRows, RsType, collect_enums};
-
+use db_crates::DbCrate as _;
+use query::{Query, ReturningRows, RsType, collect_enums};
 pub trait StackError: std::error::Error {
     /// format each error stack
     fn format_stack(&self, layer: usize, buf: &mut Vec<String>);
@@ -232,50 +230,6 @@ pub(crate) fn field_ident(ident: &str) -> syn::Ident {
     quote::format_ident!("{}", ident)
 }
 
-pub(crate) trait DbCrate {
-    // Generate DB type to Rust type mapping
-    fn db_type_map(&self) -> DbTypeMap;
-    /// Generate enum
-    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream;
-    /// Generate returning row and query fn
-    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream;
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(untagged)]
-enum SupportedDbCrate {
-    Postgres(postgres::Postgres),
-    Sqlx(sqlx::Sqlx),
-}
-
-impl DbCrate for SupportedDbCrate {
-    fn db_type_map(&self) -> DbTypeMap {
-        match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.db_type_map(),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.db_type_map(),
-        }
-    }
-    fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
-        match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.defined_enum(enum_type),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.defined_enum(enum_type),
-        }
-    }
-
-    fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.generate_query(row, query),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.generate_query(row, query),
-        }
-    }
-}
-
-impl Default for SupportedDbCrate {
-    fn default() -> Self {
-        Self::Postgres(postgres::Postgres::Tokio)
-    }
-}
-
 #[derive(Debug, Clone, serde::Deserialize, Default)]
 #[serde(default)]
 struct OverrideType {
@@ -293,7 +247,7 @@ struct OverrideType {
 #[serde(default)]
 struct Config {
     output: String,
-    db_crate: SupportedDbCrate,
+    db_crate: db_crates::SupportedDbCrate,
     overrides: Vec<OverrideType>,
 }
 
