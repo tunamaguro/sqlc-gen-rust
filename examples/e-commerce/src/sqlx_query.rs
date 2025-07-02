@@ -1015,13 +1015,13 @@ impl UpdateProductStock {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query!(
+            sqlx::query(
                 r"UPDATE products
 SET stock_quantity = stock_quantity + $2
 WHERE id = $1",
-                self.id,
-                self.add_quantity,
             )
+            .bind(self.id)
+            .bind(self.add_quantity)
             .execute(&mut *conn)
             .await
         }
@@ -1789,7 +1789,8 @@ impl DeleteUserAndRelatedData {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query!(r"DELETE FROM users WHERE id = $1", self.id,)
+            sqlx::query(r"DELETE FROM users WHERE id = $1")
+                .bind(self.id)
                 .execute(&mut *conn)
                 .await
         }

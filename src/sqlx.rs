@@ -401,12 +401,6 @@ impl DbCrate for Sqlx {
                     }
                 }
                 Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
-                    // Use macro instead
-                    let params = query
-                        .param_names
-                        .iter()
-                        .fold(quote::quote! {}, |acc, x| quote::quote! {#acc self.#x,});
-
                     quote::quote! {
                         pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
@@ -414,10 +408,9 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query!(
+                                sqlx::query(
                                     #query_str,
-                                    #params
-                                ).execute(&mut *conn).await
+                                )  #params .execute(&mut *conn).await
                             }
                         }
                     }
