@@ -1,7 +1,5 @@
-use quote::ToTokens as _;
-
+use super::DbCrate;
 use crate::{
-    DbCrate,
     query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
     value_ident,
 };
@@ -28,10 +26,6 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 }
 
 impl Sqlx {
-    fn need_lifetime(query: &Query) -> bool {
-        query.param_types.iter().any(|x| x.need_lifetime())
-    }
-
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let fields = row
             .column_names
@@ -52,126 +46,6 @@ impl Sqlx {
         };
 
         row_tt
-    }
-
-    /// Generate type-state builder
-    fn create_builder(query: &Query) -> proc_macro2::TokenStream {
-        let num_params = query.param_names.len();
-
-        let fields_tuple =
-            (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
-        let need_lifetime = Self::need_lifetime(query);
-        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
-        let struct_ident = value_ident(&query.query_name);
-        let builder_ident = value_ident(&format!("{}Builder", query.query_name));
-
-        let field_list = query
-            .param_names
-            .iter()
-            .map(|n| n.to_token_stream())
-            .collect::<Vec<_>>();
-        let typ_list = query
-            .param_types
-            .iter()
-            .map(|typ| typ.to_param_tokens(&lifetime))
-            .collect::<Vec<_>>();
-
-        // implement `GetXXX::builder`
-        let impl_struct_tt = if need_lifetime {
-            quote::quote! {
-                impl <#lifetime> #struct_ident<#lifetime>{
-                    pub const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
-                        #builder_ident{
-                            fields: (#fields_tuple),
-                            _phantom: std::marker::PhantomData
-                        }
-                    }
-                }
-            }
-        } else {
-            quote::quote! {
-                impl #struct_ident{
-                    pub const fn builder()->#builder_ident<'static, (#fields_tuple)>{
-                        #builder_ident{
-                            fields: (#fields_tuple),
-                            _phantom: std::marker::PhantomData
-                        }
-                    }
-                }
-            }
-        };
-
-        // implement `GetXXXBuilder`
-        let builder_tt = quote::quote! {
-            pub struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
-                fields: Fields,
-                _phantom: std::marker::PhantomData<&#lifetime ()>
-            }
-        };
-
-        // implement `GetXXXBuilder`
-        let builder_setter_tt = {
-            let typ_generics = query
-                .param_names
-                .iter()
-                .map(|n| value_ident(&n.to_string()))
-                .collect::<Vec<_>>();
-
-            let mut result = quote::quote! {};
-            for (idx, (typ, name)) in typ_list.iter().zip(field_list.iter()).enumerate() {
-                let (generics_head, rest) = typ_generics.split_at(idx);
-                let generics_tail = if rest.is_empty() { &[] } else { &rest[1..] };
-
-                let (field_head, rest) = field_list.split_at(idx);
-                let field_tail = if rest.is_empty() { &[] } else { &rest[1..] };
-
-                let tt = quote::quote! {
-                    impl <#lifetime,#(#generics_head,)* #(#generics_tail,)*> #builder_ident<#lifetime,(#(#generics_head,)* (), #(#generics_tail,)*)>{
-                        pub fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
-                            let (#(#field_head,)* (), #(#field_tail,)*) = self.fields;
-                            let _phantom = self._phantom;
-
-                            #builder_ident{
-                                fields: (#(#field_head,)* #name, #(#field_tail,)*),
-                                _phantom
-                            }
-                        }
-                    }
-                };
-
-                result = quote::quote! {
-                    #result
-                    #tt
-                }
-            }
-
-            result
-        };
-
-        let builder_build_tt = {
-            let build_struct = if need_lifetime {
-                quote::quote! {#struct_ident<#lifetime>}
-            } else {
-                quote::quote! {#struct_ident}
-            };
-            quote::quote! {
-                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                    pub const fn build(self)->#build_struct{
-                        let (#(#field_list,)*) = self.fields;
-                        #struct_ident{
-                            #(#field_list,)*
-                        }
-                    }
-                }
-            }
-        };
-
-        quote::quote! {
-            #impl_struct_tt
-            #builder_tt
-            #builder_setter_tt
-            #builder_build_tt
-        }
     }
 }
 
@@ -308,7 +182,7 @@ impl DbCrate for Sqlx {
             })
             .collect::<Vec<_>>();
 
-        let need_lifetime = Sqlx::need_lifetime(query);
+        let need_lifetime = super::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
@@ -337,7 +211,32 @@ impl DbCrate for Sqlx {
             |acc, x| quote::quote! {#acc .bind(self.#x)},
         );
         let query_fns = {
-            let query_str = &query.query_str;
+            let row_ident = row.struct_ident();
+
+            let query_as_def = if need_lifetime {
+                quote::quote! {
+                    query_as(&#lifetime_a self)
+                }
+            } else {
+                quote::quote! {
+                     query_as<#lifetime_a>(&#lifetime_a self)
+                }
+            };
+            // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directory
+            //
+            let query_as = quote::quote! {
+                pub fn #query_as_def->sqlx::query::QueryAs<
+                #lifetime_a,
+                sqlx::Postgres,
+                #row_ident,
+                <sqlx::Postgres as sqlx::Database>::Arguments<#lifetime_a>,
+                >{
+                    sqlx::query_as::<_,#row_ident>(
+                                    Self::QUERY,
+                                ) #params
+                }
+            };
+
             let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
 
             let lifetime_generic = if need_lifetime {
@@ -346,10 +245,8 @@ impl DbCrate for Sqlx {
                 quote::quote! {#lifetime_a, #lifetime_b }
             };
 
-            match query.annotation {
+            let fn_tt = match query.annotation {
                 Annotation::One => {
-                    let row_ident = row.struct_ident();
-
                     // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
                     quote::quote! {
                         pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
@@ -358,9 +255,7 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let val :#row_ident = sqlx::query_as(
-                                    #query_str,
-                                ) #params .fetch_one(&mut *conn).await?;
+                                let val = self.query_as().fetch_one(&mut *conn).await?;
 
                                 Ok(val)
                             }
@@ -372,9 +267,7 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let val:Option<#row_ident> = sqlx::query_as(
-                                    #query_str,
-                                ) #params .fetch_optional(&mut *conn).await?;
+                                let val = self.query_as().fetch_optional(&mut *conn).await?;
 
                                 Ok(val)
                             }
@@ -391,22 +284,15 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let vals:Vec<#row_ident> = sqlx::query_as(
-                                    #query_str,
-                                ) #params .fetch_all(&mut *conn).await?;
+                                let vals = self.query_as().fetch_all(&mut *conn).await?;
 
                                 Ok(vals)
                             }
                         }
+
                     }
                 }
                 Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
-                    // Use macro instead
-                    let params = query
-                        .param_names
-                        .iter()
-                        .fold(quote::quote! {}, |acc, x| quote::quote! {#acc self.#x,});
-
                     quote::quote! {
                         pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
@@ -414,10 +300,9 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query!(
-                                    #query_str,
-                                    #params
-                                ).execute(&mut *conn).await
+                                sqlx::query(
+                                    Self::QUERY,
+                                )  #params .execute(&mut *conn).await
                             }
                         }
                     }
@@ -426,9 +311,15 @@ impl DbCrate for Sqlx {
                     // not supported
                     quote::quote! {}
                 }
+            };
+
+            quote::quote! {
+                #query_as
+                #fn_tt
             }
         };
         let fetch_tt = {
+            let query_str = &query.query_str;
             let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
             } else {
@@ -436,13 +327,14 @@ impl DbCrate for Sqlx {
             };
             quote::quote! {
                 impl #imp_ident {
+                    pub const QUERY:&'static str = #query_str;
                     #query_fns
                 }
             }
         };
 
         let returning_row = self.returning_row(row);
-        let builder_tt = Self::create_builder(query);
+        let builder_tt = super::create_builder(query);
         quote::quote! {
             #returning_row
             #struct_tt

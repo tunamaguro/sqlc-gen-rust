@@ -1,9 +1,10 @@
+use quote::ToTokens;
+
+use super::DbCrate;
 use crate::{
-    DbCrate,
     query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
     value_ident,
 };
-use quote::ToTokens as _;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) enum Postgres {
@@ -27,6 +28,26 @@ impl<'de> serde::Deserialize<'de> for Postgres {
                 "`{s}` is unsupported crate."
             ))),
         }
+    }
+}
+
+struct SliceIter;
+
+impl SliceIter {
+    fn ident() -> syn::Ident {
+        quote::format_ident!("slice_iter")
+    }
+}
+
+impl ToTokens for SliceIter {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(
+            quote::quote! {
+                fn slice_iter<'a>(s:&'a [&(dyn ToSql + Sync)])->impl ExactSizeIterator<Item=&'a dyn ToSql>  +'a{
+                    s.iter().map(|s| *s as _)
+                }
+            }
+        );
     }
 }
 
@@ -74,10 +95,6 @@ impl Postgres {
         }
     }
 
-    fn need_lifetime(query: &Query) -> bool {
-        query.param_types.iter().any(|x| x.need_lifetime())
-    }
-
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let fields = row
             .column_names
@@ -114,7 +131,7 @@ impl Postgres {
             .collect::<Vec<_>>();
         let from_tt = quote::quote! {
             impl #ident {
-                fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
+                pub fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
                     Ok(Self{
                         #(#from_fields,)*
                     })
@@ -125,126 +142,6 @@ impl Postgres {
         quote::quote! {
             #row_tt
             #from_tt
-        }
-    }
-
-    /// Generate type-state builder
-    fn create_builder(query: &Query) -> proc_macro2::TokenStream {
-        let num_params = query.param_names.len();
-
-        let fields_tuple =
-            (0..num_params).fold(quote::quote! {}, |acc, _| quote::quote! {#acc (),});
-        let need_lifetime = Self::need_lifetime(query);
-        let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
-        let struct_ident = value_ident(&query.query_name);
-        let builder_ident = value_ident(&format!("{}Builder", query.query_name));
-
-        let field_list = query
-            .param_names
-            .iter()
-            .map(|n| n.to_token_stream())
-            .collect::<Vec<_>>();
-        let typ_list = query
-            .param_types
-            .iter()
-            .map(|typ| typ.to_param_tokens(&lifetime))
-            .collect::<Vec<_>>();
-
-        // implement `GetXXX::builder`
-        let impl_struct_tt = if need_lifetime {
-            quote::quote! {
-                impl <#lifetime> #struct_ident<#lifetime>{
-                    pub const fn builder()->#builder_ident<#lifetime, (#fields_tuple)>{
-                        #builder_ident{
-                            fields: (#fields_tuple),
-                            _phantom: std::marker::PhantomData
-                        }
-                    }
-                }
-            }
-        } else {
-            quote::quote! {
-                impl #struct_ident{
-                    pub const fn builder()->#builder_ident<'static, (#fields_tuple)>{
-                        #builder_ident{
-                            fields: (#fields_tuple),
-                            _phantom: std::marker::PhantomData
-                        }
-                    }
-                }
-            }
-        };
-
-        // implement `GetXXXBuilder`
-        let builder_tt = quote::quote! {
-            pub struct #builder_ident<#lifetime, Fields = (#fields_tuple)>{
-                fields: Fields,
-                _phantom: std::marker::PhantomData<&#lifetime ()>
-            }
-        };
-
-        // implement `GetXXXBuilder`
-        let builder_setter_tt = {
-            let typ_generics = query
-                .param_names
-                .iter()
-                .map(|n| value_ident(&n.to_string()))
-                .collect::<Vec<_>>();
-
-            let mut result = quote::quote! {};
-            for (idx, (typ, name)) in typ_list.iter().zip(field_list.iter()).enumerate() {
-                let (generics_head, rest) = typ_generics.split_at(idx);
-                let generics_tail = if rest.is_empty() { &[] } else { &rest[1..] };
-
-                let (field_head, rest) = field_list.split_at(idx);
-                let field_tail = if rest.is_empty() { &[] } else { &rest[1..] };
-
-                let tt = quote::quote! {
-                    impl <#lifetime,#(#generics_head,)* #(#generics_tail,)*> #builder_ident<#lifetime,(#(#generics_head,)* (), #(#generics_tail,)*)>{
-                        pub fn #name(self, #name:#typ)->#builder_ident<#lifetime,(#(#generics_head,)* #typ, #(#generics_tail,)*)>{
-                            let (#(#field_head,)* (), #(#field_tail,)*) = self.fields;
-                            let _phantom = self._phantom;
-
-                            #builder_ident{
-                                fields: (#(#field_head,)* #name, #(#field_tail,)*),
-                                _phantom
-                            }
-                        }
-                    }
-                };
-
-                result = quote::quote! {
-                    #result
-                    #tt
-                }
-            }
-
-            result
-        };
-
-        let builder_build_tt = {
-            let build_struct = if need_lifetime {
-                quote::quote! {#struct_ident<#lifetime>}
-            } else {
-                quote::quote! {#struct_ident}
-            };
-            quote::quote! {
-                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                    pub const fn build(self)->#build_struct{
-                        let (#(#field_list,)*) = self.fields;
-                        #struct_ident{
-                            #(#field_list,)*
-                        }
-                    }
-                }
-            }
-        };
-
-        quote::quote! {
-            #impl_struct_tt
-            #builder_tt
-            #builder_setter_tt
-            #builder_build_tt
         }
     }
 }
@@ -333,6 +230,21 @@ impl DbCrate for Postgres {
         map
     }
 
+    fn init(&self) -> proc_macro2::TokenStream {
+        let use_tosql = match self {
+            Postgres::Sync => quote::quote! {use postgres::types::ToSql;},
+            Postgres::Tokio => quote::quote! {use tokio_postgres::types::ToSql;},
+            Postgres::DeadPool => {
+                quote::quote! {use deadpool_postgres::tokio_postgres::types::ToSql;}
+            }
+        };
+        let slice_it = SliceIter;
+
+        quote::quote! {
+            #use_tosql
+            #slice_it
+        }
+    }
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         let fields = enum_type
             .values
@@ -370,7 +282,7 @@ impl DbCrate for Postgres {
             })
             .collect::<Vec<_>>();
 
-        let need_lifetime = Postgres::need_lifetime(query);
+        let need_lifetime = super::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
@@ -404,7 +316,6 @@ impl DbCrate for Postgres {
             .param_names
             .iter()
             .fold(quote::quote! {}, |acc, x| quote::quote! {#acc &self.#x,});
-        let params = quote::quote! {[#params]};
 
         let query_fns = match query.annotation {
             Annotation::One => {
@@ -412,12 +323,12 @@ impl DbCrate for Postgres {
 
                 quote::quote! {
                     pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
-                        let row = client.query_one(Self::QUERY, &#params) #await_part?;
+                        let row = client.query_one(Self::QUERY, &[#params]) #await_part?;
                         #row_ident::from_row(&row)
                     }
 
                     pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
-                        let row = client.query_opt(Self::QUERY, &#params) #await_part?;
+                        let row = client.query_opt(Self::QUERY, &[#params]) #await_part?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
                             None => Ok(None)
@@ -428,17 +339,57 @@ impl DbCrate for Postgres {
             Annotation::Many => {
                 let row_ident = row.struct_ident();
 
+                let query_it = {
+                    let params = query
+                        .param_names
+                        .iter()
+                        .fold(quote::quote! {}, |acc, x| quote::quote! {#acc &self.#x,});
+                    let slice_iter = SliceIter::ident();
+                    match self {
+                        Postgres::Sync => {
+                            quote::quote! {
+                                pub fn query_iter<'row_iter>(&self,#client_ident:&'row_iter mut  impl postgres::GenericClient)
+                                ->Result<postgres::RowIter<'row_iter>,#error_typ>
+                                {
+
+                                    client.query_raw(Self::QUERY, #slice_iter(&[#params]))
+                                }
+                            }
+                        }
+                        Postgres::Tokio => {
+                            quote::quote! {
+                                pub async fn query_stream(&self,#client_ident: #client_typ)
+                                ->Result<tokio_postgres::RowStream,#error_typ>{
+                                    let st = client.query_raw(Self::QUERY, #slice_iter(&[#params])).await?;
+                                    Ok(st)
+                                }
+                            }
+                        }
+                        Postgres::DeadPool => {
+                            quote::quote! {
+                                 pub async fn query_stream(&self,#client_ident: #client_typ)
+                                ->Result<deadpool_postgres::tokio_postgres::RowStream,#error_typ>{
+                                    let st = client.query_raw(Self::QUERY, #slice_iter(&[#params])).await?;
+                                    Ok(st)
+                                }
+                            }
+                        }
+                    }
+                };
+
                 quote::quote! {
                     pub #async_part fn query_many(&self,#client_ident: #client_typ)->Result<Vec<#row_ident>,#error_typ>{
-                        let rows = client.query(Self::QUERY, &#params) #await_part?;
+                        let rows = client.query(Self::QUERY, &[#params]) #await_part?;
                         rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
                     }
+
+                    #query_it
                 }
             }
             Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
                 quote::quote! {
                     pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
-                        client.execute(Self::QUERY, &#params) #await_part
+                        client.execute(Self::QUERY, &[#params]) #await_part
                     }
                 }
             }
@@ -464,7 +415,7 @@ impl DbCrate for Postgres {
         };
 
         let returning_row = self.returning_row(row);
-        let builder = Self::create_builder(query);
+        let builder = super::create_builder(query);
         quote::quote! {
             #returning_row
             #struct_tt
