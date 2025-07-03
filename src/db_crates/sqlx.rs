@@ -211,6 +211,32 @@ impl DbCrate for Sqlx {
             |acc, x| quote::quote! {#acc .bind(self.#x)},
         );
         let query_fns = {
+            let row_ident = row.struct_ident();
+
+            let query_as_def = if need_lifetime {
+                quote::quote! {
+                    query_as(&#lifetime_a self)
+                }
+            } else {
+                quote::quote! {
+                     query_as<#lifetime_a>(&#lifetime_a self)
+                }
+            };
+            // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directory
+            // 
+            let query_as = quote::quote! {
+                pub fn #query_as_def->sqlx::query::QueryAs<
+                #lifetime_a,
+                sqlx::Postgres,
+                #row_ident,
+                <sqlx::Postgres as sqlx::Database>::Arguments<#lifetime_a>,
+                >{
+                    sqlx::query_as::<_,#row_ident>(
+                                    Self::QUERY,
+                                ) #params
+                }
+            };
+
             let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
 
             let lifetime_generic = if need_lifetime {
@@ -219,10 +245,8 @@ impl DbCrate for Sqlx {
                 quote::quote! {#lifetime_a, #lifetime_b }
             };
 
-            match query.annotation {
+            let fn_tt = match query.annotation {
                 Annotation::One => {
-                    let row_ident = row.struct_ident();
-
                     // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
                     quote::quote! {
                         pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
@@ -231,9 +255,7 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let val = sqlx::query_as::<_,#row_ident>(
-                                    Self::QUERY,
-                                ) #params .fetch_one(&mut *conn).await?;
+                                let val = self.query_as().fetch_one(&mut *conn).await?;
 
                                 Ok(val)
                             }
@@ -245,9 +267,7 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let val = sqlx::query_as::<_,#row_ident>(
-                                    Self::QUERY,
-                                ) #params .fetch_optional(&mut *conn).await?;
+                                let val = self.query_as().fetch_optional(&mut *conn).await?;
 
                                 Ok(val)
                             }
@@ -264,9 +284,7 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let vals = sqlx::query_as::<_,#row_ident>(
-                                    Self::QUERY,
-                                ) #params .fetch_all(&mut *conn).await?;
+                                let vals = self.query_as().fetch_all(&mut *conn).await?;
 
                                 Ok(vals)
                             }
@@ -293,6 +311,11 @@ impl DbCrate for Sqlx {
                     // not supported
                     quote::quote! {}
                 }
+            };
+
+            quote::quote! {
+                #query_as
+                #fn_tt
             }
         };
         let fetch_tt = {
