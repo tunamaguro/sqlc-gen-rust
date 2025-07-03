@@ -2,13 +2,19 @@
 //! sqlc version: v1.28.0
 //! sqlc-gen-rust version: v0.1.3
 
+use tokio_postgres::types::ToSql;
+fn slice_iter<'a>(
+    s: &'a [&(dyn ToSql + Sync)],
+) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
+    s.iter().map(|s| *s as _)
+}
 pub struct GetAuthorRow {
     pub id: i64,
     pub name: String,
     pub bio: Option<String>,
 }
 impl GetAuthorRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -74,7 +80,7 @@ pub struct ListAuthorsRow {
     pub bio: Option<String>,
 }
 impl ListAuthorsRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -94,6 +100,13 @@ ORDER BY name";
         rows.into_iter()
             .map(|r| ListAuthorsRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        Ok(st)
     }
 }
 impl ListAuthors {
@@ -120,7 +133,7 @@ pub struct CreateAuthorRow {
     pub bio: Option<String>,
 }
 impl CreateAuthorRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -201,7 +214,7 @@ impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
 }
 pub struct DeleteAuthorRow {}
 impl DeleteAuthorRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }

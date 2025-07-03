@@ -2,6 +2,12 @@
 //! sqlc version: v1.28.0
 //! sqlc-gen-rust version: v0.1.3
 
+use tokio_postgres::types::ToSql;
+fn slice_iter<'a>(
+    s: &'a [&(dyn ToSql + Sync)],
+) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
+    s.iter().map(|s| *s as _)
+}
 #[derive(Debug, Clone, Copy, postgres_types::ToSql, postgres_types::FromSql)]
 #[postgres(name = "status")]
 pub enum Status {
@@ -15,7 +21,7 @@ pub struct ListCitiesRow {
     pub name: String,
 }
 impl ListCitiesRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             slug: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -35,6 +41,13 @@ ORDER BY name";
         rows.into_iter()
             .map(|r| ListCitiesRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        Ok(st)
     }
 }
 impl ListCities {
@@ -60,7 +73,7 @@ pub struct GetCityRow {
     pub name: String,
 }
 impl GetCityRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             slug: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -125,7 +138,7 @@ pub struct CreateCityRow {
     pub name: String,
 }
 impl CreateCityRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             slug: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -206,7 +219,7 @@ impl<'a> CreateCityBuilder<'a, (&'a str, &'a str)> {
 }
 pub struct UpdateCityNameRow {}
 impl UpdateCityNameRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
@@ -276,7 +289,7 @@ pub struct ListVenuesRow {
     pub created_at: std::time::SystemTime,
 }
 impl ListVenuesRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             status: row.try_get(1)?,
@@ -307,6 +320,15 @@ ORDER BY name";
         rows.into_iter()
             .map(|r| ListVenuesRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client
+            .query_raw(Self::QUERY, slice_iter(&[&self.city]))
+            .await?;
+        Ok(st)
     }
 }
 impl<'a> ListVenues<'a> {
@@ -339,7 +361,7 @@ impl<'a> ListVenuesBuilder<'a, (&'a str,)> {
 }
 pub struct DeleteVenueRow {}
 impl DeleteVenueRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
@@ -397,7 +419,7 @@ pub struct GetVenueRow {
     pub created_at: std::time::SystemTime,
 }
 impl GetVenueRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             status: row.try_get(1)?,
@@ -484,7 +506,7 @@ pub struct CreateVenueRow {
     pub id: i32,
 }
 impl CreateVenueRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
         })
@@ -736,7 +758,7 @@ pub struct UpdateVenueNameRow {
     pub id: i32,
 }
 impl UpdateVenueNameRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
         })
@@ -816,7 +838,7 @@ pub struct VenueCountByCityRow {
     pub count: i64,
 }
 impl VenueCountByCityRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             city: row.try_get(0)?,
             count: row.try_get(1)?,
@@ -839,6 +861,13 @@ ORDER BY 1";
         rows.into_iter()
             .map(|r| VenueCountByCityRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        Ok(st)
     }
 }
 impl VenueCountByCity {

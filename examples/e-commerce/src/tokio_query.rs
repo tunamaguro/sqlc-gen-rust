@@ -2,6 +2,12 @@
 //! sqlc version: v1.28.0
 //! sqlc-gen-rust version: v0.1.3
 
+use tokio_postgres::types::ToSql;
+fn slice_iter<'a>(
+    s: &'a [&(dyn ToSql + Sync)],
+) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
+    s.iter().map(|s| *s as _)
+}
 #[derive(Debug, Clone, Copy, postgres_types::ToSql, postgres_types::FromSql)]
 #[postgres(name = "order_status")]
 pub enum OrderStatus {
@@ -26,7 +32,7 @@ pub struct CreateUserRow {
     pub updated_at: std::time::SystemTime,
 }
 impl CreateUserRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             username: row.try_get(1)?,
@@ -180,7 +186,7 @@ pub struct GetUserByEmailRow {
     pub updated_at: std::time::SystemTime,
 }
 impl GetUserByEmailRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             username: row.try_get(1)?,
@@ -252,7 +258,7 @@ pub struct ListUsersRow {
     pub created_at: std::time::SystemTime,
 }
 impl ListUsersRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             username: row.try_get(1)?,
@@ -281,6 +287,15 @@ OFFSET $2";
         rows.into_iter()
             .map(|r| ListUsersRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client
+            .query_raw(Self::QUERY, slice_iter(&[&self.limit, &self.offset]))
+            .await?;
+        Ok(st)
     }
 }
 impl ListUsers {
@@ -333,7 +348,7 @@ pub struct CreateProductRow {
     pub updated_at: std::time::SystemTime,
 }
 impl CreateProductRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             category_id: row.try_get(1)?,
@@ -635,7 +650,7 @@ pub struct GetProductWithCategoryRow {
     pub category_slug: String,
 }
 impl GetProductWithCategoryRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -728,7 +743,7 @@ pub struct SearchProductsRow {
     pub average_rating: f64,
 }
 impl SearchProductsRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             category_id: row.try_get(1)?,
@@ -790,6 +805,25 @@ OFFSET $2";
         rows.into_iter()
             .map(|r| SearchProductsRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client
+            .query_raw(
+                Self::QUERY,
+                slice_iter(&[
+                    &self.limit,
+                    &self.offset,
+                    &self.name,
+                    &self.category_ids,
+                    &self.min_price,
+                    &self.max_price,
+                ]),
+            )
+            .await?;
+        Ok(st)
     }
 }
 impl<'a> SearchProducts<'a> {
@@ -941,7 +975,7 @@ pub struct GetProductsWithSpecificAttributeRow {
     pub updated_at: std::time::SystemTime,
 }
 impl GetProductsWithSpecificAttributeRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             category_id: row.try_get(1)?,
@@ -969,6 +1003,15 @@ WHERE attributes @> $1::jsonb";
         rows.into_iter()
             .map(|r| GetProductsWithSpecificAttributeRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client
+            .query_raw(Self::QUERY, slice_iter(&[&self.column_1]))
+            .await?;
+        Ok(st)
     }
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
@@ -1004,7 +1047,7 @@ impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
 }
 pub struct UpdateProductStockRow {}
 impl UpdateProductStockRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
@@ -1071,7 +1114,7 @@ pub struct CreateOrderRow {
     pub ordered_at: std::time::SystemTime,
 }
 impl CreateOrderRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             user_id: row.try_get(1)?,
@@ -1184,7 +1227,7 @@ pub struct CreateOrderItemRow {
     pub price_at_purchase: i32,
 }
 impl CreateOrderItemRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             order_id: row.try_get(1)?,
@@ -1335,7 +1378,7 @@ pub struct GetOrderDetailsRow {
     pub email: String,
 }
 impl GetOrderDetailsRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             order_id: row.try_get(0)?,
             status: row.try_get(1)?,
@@ -1415,7 +1458,7 @@ pub struct ListOrderItemsByOrderIdRow {
     pub product_name: String,
 }
 impl ListOrderItemsByOrderIdRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             quantity: row.try_get(0)?,
             price_at_purchase: row.try_get(1)?,
@@ -1444,6 +1487,15 @@ WHERE oi.order_id = $1";
         rows.into_iter()
             .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client
+            .query_raw(Self::QUERY, slice_iter(&[&self.order_id]))
+            .await?;
+        Ok(st)
     }
 }
 impl ListOrderItemsByOrderId {
@@ -1483,7 +1535,7 @@ pub struct CreateReviewRow {
     pub created_at: std::time::SystemTime,
 }
 impl CreateReviewRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             user_id: row.try_get(1)?,
@@ -1610,7 +1662,7 @@ pub struct GetProductAverageRatingRow {
     pub review_count: i64,
 }
 impl GetProductAverageRatingRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             product_id: row.try_get(0)?,
             average_rating: row.try_get(1)?,
@@ -1685,7 +1737,7 @@ pub struct GetCategorySalesRankingRow {
     pub total_orders: i64,
 }
 impl GetCategorySalesRankingRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             category_id: row.try_get(0)?,
             category_name: row.try_get(1)?,
@@ -1717,6 +1769,13 @@ ORDER BY total_sales DESC";
             .map(|r| GetCategorySalesRankingRow::from_row(&r))
             .collect()
     }
+    pub async fn query_stream(
+        &self,
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        Ok(st)
+    }
 }
 impl GetCategorySalesRanking {
     pub const fn builder() -> GetCategorySalesRankingBuilder<'static, ()> {
@@ -1738,7 +1797,7 @@ impl<'a> GetCategorySalesRankingBuilder<'a, ()> {
 }
 pub struct DeleteUserAndRelatedDataRow {}
 impl DeleteUserAndRelatedDataRow {
-    fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }

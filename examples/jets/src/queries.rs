@@ -2,11 +2,17 @@
 //! sqlc version: v1.28.0
 //! sqlc-gen-rust version: v0.1.3
 
+use deadpool_postgres::tokio_postgres::types::ToSql;
+fn slice_iter<'a>(
+    s: &'a [&(dyn ToSql + Sync)],
+) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
+    s.iter().map(|s| *s as _)
+}
 pub struct CountPilotsRow {
     pub count: i64,
 }
 impl CountPilotsRow {
-    fn from_row(
+    pub fn from_row(
         row: &deadpool_postgres::tokio_postgres::Row,
     ) -> Result<Self, deadpool_postgres::tokio_postgres::Error> {
         Ok(Self {
@@ -58,7 +64,7 @@ pub struct ListPilotsRow {
     pub name: String,
 }
 impl ListPilotsRow {
-    fn from_row(
+    pub fn from_row(
         row: &deadpool_postgres::tokio_postgres::Row,
     ) -> Result<Self, deadpool_postgres::tokio_postgres::Error> {
         Ok(Self {
@@ -78,6 +84,16 @@ impl ListPilots {
         rows.into_iter()
             .map(|r| ListPilotsRow::from_row(&r))
             .collect()
+    }
+    pub async fn query_stream(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<
+        deadpool_postgres::tokio_postgres::RowStream,
+        deadpool_postgres::tokio_postgres::Error,
+    > {
+        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        Ok(st)
     }
 }
 impl ListPilots {
@@ -100,7 +116,7 @@ impl<'a> ListPilotsBuilder<'a, ()> {
 }
 pub struct DeletePilotRow {}
 impl DeletePilotRow {
-    fn from_row(
+    pub fn from_row(
         row: &deadpool_postgres::tokio_postgres::Row,
     ) -> Result<Self, deadpool_postgres::tokio_postgres::Error> {
         Ok(Self {})
