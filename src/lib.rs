@@ -347,7 +347,9 @@ pub fn try_main() -> Result<(), Error> {
         .collect::<Vec<_>>();
     let queries_tt = quote::quote! {#(#queries_ts)*};
 
+    let init_tt = config.db_crate.init();
     let tt = quote::quote! {
+        #init_tt
         #enums_tt
         #queries_tt
     };

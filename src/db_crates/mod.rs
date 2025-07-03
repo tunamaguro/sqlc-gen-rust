@@ -13,6 +13,12 @@ pub enum SupportedDbCrate {
 pub(super) trait DbCrate {
     // Generate DB type to Rust type mapping
     fn db_type_map(&self) -> DbTypeMap;
+
+    /// Generate top `use` or `fn`
+    fn init(&self) -> proc_macro2::TokenStream {
+        proc_macro2::TokenStream::new()
+    }
+
     /// Generate enum
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream;
     /// Generate returning row and query fn
@@ -26,6 +32,14 @@ impl DbCrate for SupportedDbCrate {
             SupportedDbCrate::Sqlx(sqlx) => sqlx.db_type_map(),
         }
     }
+
+    fn init(&self) -> proc_macro2::TokenStream {
+        match self {
+            SupportedDbCrate::Postgres(postgres) => postgres.init(),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.init(),
+        }
+    }
+
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         match self {
             SupportedDbCrate::Postgres(postgres) => postgres.defined_enum(enum_type),
