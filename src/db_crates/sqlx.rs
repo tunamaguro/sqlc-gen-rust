@@ -211,7 +211,6 @@ impl DbCrate for Sqlx {
             |acc, x| quote::quote! {#acc .bind(self.#x)},
         );
         let query_fns = {
-            let query_str = &query.query_str;
             let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
 
             let lifetime_generic = if need_lifetime {
@@ -232,8 +231,8 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let val :#row_ident = sqlx::query_as(
-                                    #query_str,
+                                let val = sqlx::query_as::<_,#row_ident>(
+                                    Self::QUERY,
                                 ) #params .fetch_one(&mut *conn).await?;
 
                                 Ok(val)
@@ -246,8 +245,8 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let val:Option<#row_ident> = sqlx::query_as(
-                                    #query_str,
+                                let val = sqlx::query_as::<_,#row_ident>(
+                                    Self::QUERY,
                                 ) #params .fetch_optional(&mut *conn).await?;
 
                                 Ok(val)
@@ -265,13 +264,14 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                let vals:Vec<#row_ident> = sqlx::query_as(
-                                    #query_str,
+                                let vals = sqlx::query_as::<_,#row_ident>(
+                                    Self::QUERY,
                                 ) #params .fetch_all(&mut *conn).await?;
 
                                 Ok(vals)
                             }
                         }
+
                     }
                 }
                 Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
@@ -283,7 +283,7 @@ impl DbCrate for Sqlx {
                             async move {
                                 let mut conn = conn.acquire().await?;
                                 sqlx::query(
-                                    #query_str,
+                                    Self::QUERY,
                                 )  #params .execute(&mut *conn).await
                             }
                         }
@@ -296,6 +296,7 @@ impl DbCrate for Sqlx {
             }
         };
         let fetch_tt = {
+            let query_str = &query.query_str;
             let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
             } else {
@@ -303,6 +304,7 @@ impl DbCrate for Sqlx {
             };
             quote::quote! {
                 impl #imp_ident {
+                    pub const QUERY:&'static str = #query_str;
                     #query_fns
                 }
             }
