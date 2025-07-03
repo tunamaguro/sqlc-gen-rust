@@ -223,7 +223,7 @@ impl DbCrate for Sqlx {
                 }
             };
             // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directory
-            // 
+            //
             let query_as = quote::quote! {
                 pub fn #query_as_def->sqlx::query::QueryAs<
                 #lifetime_a,
