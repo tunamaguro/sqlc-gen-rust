@@ -37,7 +37,7 @@ sqlc-plugin for rust db crates.
 - [postgres](https://crates.io/crates/postgres)
 - [tokio-postgres](https://crates.io/crates/tokio-postgres)
 - [deadpool-postgres](https://crates.io/crates/deadpool-postgres)
-
+- [sqlx-postgres](https://docs.rs/sqlx/latest/sqlx/postgres/index.html)
 
 ## Example
 
@@ -104,6 +104,7 @@ See below to see other crates example.
 - [`postgres` generated code](./examples/e-commerce/src/postgres_query.rs)
 - [`tokio-postgres` generated code](./examples/e-commerce/src/tokio_query.rs)
 - [`deadpool-postgres` generated code](./examples/e-commerce/src/deadpool_query.rs)
+- [`sqlx-postgres` generated code](./examples/e-commerce/src/sqlx_query.rs)
 
 ## Options
 
@@ -117,6 +118,7 @@ The crate of generated code. Default is `tokio-postgres`. Available values are b
 - `postgres` 
 - `tokio-postgres`
 - `deadpool-postgres`
+- `sqlx-postgres`
 
 ### `overrides`
 
