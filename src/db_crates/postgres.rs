@@ -52,13 +52,34 @@ impl ToTokens for SliceIter {
 }
 
 impl Postgres {
-    fn client_type(&self) -> syn::Type {
+    fn generic_client_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
+        let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
         let s = match self {
-            Postgres::Sync => "&mut impl postgres::GenericClient",
-            Postgres::Tokio => "&impl tokio_postgres::GenericClient",
-            Postgres::DeadPool => "&impl deadpool_postgres::GenericClient",
+            Postgres::Sync => quote::quote! {&#l mut impl postgres::GenericClient},
+            Postgres::Tokio => quote::quote! {&#l impl tokio_postgres::GenericClient},
+            Postgres::DeadPool => quote::quote! {&#l impl deadpool_postgres::GenericClient},
         };
-        syn::parse_str(s).unwrap()
+        syn::parse2(s).unwrap()
+    }
+
+    fn raw_client_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
+        let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
+        let s = match self {
+            Postgres::Sync => quote::quote! {&#l mut postgres::Client},
+            Postgres::Tokio => quote::quote! {&#l tokio_postgres::Client},
+            Postgres::DeadPool => quote::quote! {&#l deadpool_postgres::Client},
+        };
+        syn::parse2(s).unwrap()
+    }
+
+    fn raw_tx_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
+        let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
+        let s = match self {
+            Postgres::Sync => quote::quote! {&#l mut postgres::Transaction},
+            Postgres::Tokio => quote::quote! {&#l tokio_postgres::Transaction},
+            Postgres::DeadPool => quote::quote! {&#l deadpool_postgres::Transaction},
+        };
+        syn::parse2(s).unwrap()
     }
 
     fn row_type(&self) -> syn::Type {
@@ -307,7 +328,7 @@ impl DbCrate for Postgres {
         };
 
         let client_ident = quote::format_ident!("client");
-        let client_typ = self.client_type();
+        let client_typ = self.generic_client_type(None);
         let error_typ = self.error_type();
         let async_part = self.async_part();
         let await_part = self.await_part();
@@ -393,10 +414,22 @@ impl DbCrate for Postgres {
                     }
                 }
             }
-            _ => {
-                // not supported
-                quote::quote! {}
-            }
+            Annotation::CopyFrom => match self {
+                Postgres::Sync => {
+                    quote::quote! {
+                        pub fn copy_in_client<'client>(&self,#client_ident: &'client mut postgres::Client)->Result<postgres::CopyInWriter<'client>,#error_typ>{
+                            client.copy_in(Self::QUERY)
+                        }
+
+                          pub fn copy_in_transaction<'transaction>(&self,#client_ident: &'transaction mut postgres::Transaction)->Result<postgres::CopyInWriter<'transaction>,#error_typ>{
+                            client.copy_in(Self::QUERY)
+                        }
+                    }
+                }
+                Postgres::Tokio => todo!(),
+                Postgres::DeadPool => todo!(),
+            },
+            _ => quote::quote! {},
         };
 
         let fetch_tt = {

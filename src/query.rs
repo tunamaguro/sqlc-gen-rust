@@ -16,6 +16,10 @@ pub enum QueryError {
         message: String,
         location: &'static std::panic::Location<'static>,
     },
+    UnknownAnnotation {
+        annotation: String,
+        location: &'static std::panic::Location<'static>,
+    },
     Stacked {
         source: Box<Self>,
         location: &'static std::panic::Location<'static>,
@@ -49,11 +53,20 @@ impl QueryError {
         }
     }
 
+    #[track_caller]
+    fn unknown_annotation(annotation: String) -> Self {
+        Self::UnknownAnnotation {
+            annotation,
+            location: std::panic::Location::caller(),
+        }
+    }
+
     fn location(&self) -> &'static std::panic::Location<'static> {
         match self {
             QueryError::MissingColumnType { location, .. } => location,
             QueryError::MissingParamColumn { location, .. } => location,
             QueryError::CannotMapType { location, .. } => location,
+            QueryError::UnknownAnnotation { location, .. } => location,
             QueryError::Stacked { location, .. } => location,
         }
     }
@@ -70,6 +83,9 @@ impl std::fmt::Display for QueryError {
                     f,
                     "Parameter column not found for parameter #{param_number}"
                 )
+            }
+            QueryError::UnknownAnnotation { annotation, .. } => {
+                write!(f, "Unknown annotation `{annotation}` found")
             }
             QueryError::CannotMapType { message, .. } => message.fmt(f),
             QueryError::Stacked { source, .. } => source.fmt(f),
@@ -150,7 +166,6 @@ impl RsType {
     }
 
     /// スライスの型を返す。これに`&`をつけると参照になる
-    #[allow(unused)]
     pub(crate) fn slice(&self) -> proc_macro2::TokenStream {
         if let Some(ref slice) = self.slice {
             slice.to_token_stream()
@@ -382,7 +397,6 @@ pub(crate) enum Annotation {
     BatchMany,
     BatchOne,
     CopyFrom,
-    Unknown(String),
 }
 
 impl std::fmt::Display for Annotation {
@@ -398,14 +412,13 @@ impl std::fmt::Display for Annotation {
             Annotation::BatchMany => ":batchmany",
             Annotation::BatchOne => ":batchone",
             Annotation::CopyFrom => ":copyfrom",
-            Annotation::Unknown(s) => s,
         };
         f.write_str(txt)
     }
 }
 
 impl std::str::FromStr for Annotation {
-    type Err = std::convert::Infallible;
+    type Err = QueryError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let annotation = match s {
             ":exec" => Annotation::Exec,
@@ -418,7 +431,7 @@ impl std::str::FromStr for Annotation {
             ":batchmany" => Annotation::BatchMany,
             ":batchone" => Annotation::BatchOne,
             ":copyfrom" => Annotation::CopyFrom,
-            _ => Annotation::Unknown(s.to_string()),
+            _ => return Err(QueryError::unknown_annotation(s.to_string())),
         };
         Ok(annotation)
     }
@@ -517,7 +530,7 @@ impl Query {
             .map(|((name, typ), _)| (name, typ))
             .unzip();
 
-        let annotation = query.cmd.parse::<Annotation>().unwrap();
+        let annotation = query.cmd.parse::<Annotation>().stacked()?;
         let query_name = query.name.to_string();
 
         let query_str = make_raw_string_literal(&query.text);
