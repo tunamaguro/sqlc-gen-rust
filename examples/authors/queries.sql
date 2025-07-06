@@ -17,6 +17,3 @@ RETURNING *;
 -- name: DeleteAuthor :exec
 DELETE FROM authors
 WHERE id = $1;
-
--- name: CreateAuthors :copyfrom
-INSERT INTO authors (name, bio) VALUES ($1, $2);

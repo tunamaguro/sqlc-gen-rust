@@ -2,7 +2,7 @@
 //! sqlc version: v1.28.0
 //! sqlc-gen-rust version: v0.1.4
 
-use postgres::types::ToSql;
+use tokio_postgres::types::ToSql;
 fn slice_iter<'a>(
     s: &'a [&(dyn ToSql + Sync)],
 ) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
@@ -14,7 +14,7 @@ pub struct GetAuthorRow {
     pub bio: Option<String>,
 }
 impl GetAuthorRow {
-    pub fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -28,18 +28,18 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1";
-    pub fn query_one(
+    pub async fn query_one(
         &self,
-        client: &mut impl postgres::GenericClient,
-    ) -> Result<GetAuthorRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.id])?;
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<GetAuthorRow, tokio_postgres::Error> {
+        let row = client.query_one(Self::QUERY, &[&self.id]).await?;
         GetAuthorRow::from_row(&row)
     }
-    pub fn query_opt(
+    pub async fn query_opt(
         &self,
-        client: &mut impl postgres::GenericClient,
-    ) -> Result<Option<GetAuthorRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.id])?;
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<GetAuthorRow>, tokio_postgres::Error> {
+        let row = client.query_opt(Self::QUERY, &[&self.id]).await?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
@@ -80,7 +80,7 @@ pub struct ListAuthorsRow {
     pub bio: Option<String>,
 }
 impl ListAuthorsRow {
-    pub fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -92,20 +92,21 @@ pub struct ListAuthors;
 impl ListAuthors {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 ORDER BY name";
-    pub fn query_many(
+    pub async fn query_many(
         &self,
-        client: &mut impl postgres::GenericClient,
-    ) -> Result<Vec<ListAuthorsRow>, postgres::Error> {
-        let rows = client.query(Self::QUERY, &[])?;
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Vec<ListAuthorsRow>, tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &[]).await?;
         rows.into_iter()
             .map(|r| ListAuthorsRow::from_row(&r))
             .collect()
     }
-    pub fn query_iter<'row_iter>(
+    pub async fn query_stream(
         &self,
-        client: &'row_iter mut impl postgres::GenericClient,
-    ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(Self::QUERY, slice_iter(&[]))
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
+        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        Ok(st)
     }
 }
 impl ListAuthors {
@@ -132,7 +133,7 @@ pub struct CreateAuthorRow {
     pub bio: Option<String>,
 }
 impl CreateAuthorRow {
-    pub fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {
             id: row.try_get(0)?,
             name: row.try_get(1)?,
@@ -151,18 +152,22 @@ impl<'a> CreateAuthor<'a> {
   $1, $2
 )
 RETURNING id, name, bio";
-    pub fn query_one(
+    pub async fn query_one(
         &self,
-        client: &mut impl postgres::GenericClient,
-    ) -> Result<CreateAuthorRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.name, &self.bio])?;
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<CreateAuthorRow, tokio_postgres::Error> {
+        let row = client
+            .query_one(Self::QUERY, &[&self.name, &self.bio])
+            .await?;
         CreateAuthorRow::from_row(&row)
     }
-    pub fn query_opt(
+    pub async fn query_opt(
         &self,
-        client: &mut impl postgres::GenericClient,
-    ) -> Result<Option<CreateAuthorRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.name, &self.bio])?;
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<Option<CreateAuthorRow>, tokio_postgres::Error> {
+        let row = client
+            .query_opt(Self::QUERY, &[&self.name, &self.bio])
+            .await?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
             None => Ok(None),
@@ -209,7 +214,7 @@ impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
 }
 pub struct DeleteAuthorRow {}
 impl DeleteAuthorRow {
-    pub fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
         Ok(Self {})
     }
 }
@@ -219,11 +224,11 @@ pub struct DeleteAuthor {
 impl DeleteAuthor {
     pub const QUERY: &'static str = r"DELETE FROM authors
 WHERE id = $1";
-    pub fn execute(
+    pub async fn execute(
         &self,
-        client: &mut impl postgres::GenericClient,
-    ) -> Result<u64, postgres::Error> {
-        client.execute(Self::QUERY, &[&self.id])
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<u64, tokio_postgres::Error> {
+        client.execute(Self::QUERY, &[&self.id]).await
     }
 }
 impl DeleteAuthor {
@@ -252,68 +257,5 @@ impl<'a> DeleteAuthorBuilder<'a, (i64,)> {
     pub const fn build(self) -> DeleteAuthor {
         let (id,) = self.fields;
         DeleteAuthor { id }
-    }
-}
-pub struct CreateAuthorsRow {}
-impl CreateAuthorsRow {
-    pub fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
-        Ok(Self {})
-    }
-}
-pub struct CreateAuthors<'a> {
-    name: &'a str,
-    bio: Option<&'a str>,
-}
-impl<'a> CreateAuthors<'a> {
-    pub const QUERY: &'static str = r"INSERT INTO authors (name, bio) VALUES ($1, $2)";
-    pub fn copy_in_client<'client>(
-        &self,
-        client: &'client mut postgres::Client,
-    ) -> Result<postgres::CopyInWriter<'client>, postgres::Error> {
-        client.copy_in(Self::QUERY)
-    }
-    pub fn copy_in_transaction<'transaction>(
-        &self,
-        client: &'transaction mut postgres::Transaction,
-    ) -> Result<postgres::CopyInWriter<'transaction>, postgres::Error> {
-        client.copy_in(Self::QUERY)
-    }
-}
-impl<'a> CreateAuthors<'a> {
-    pub const fn builder() -> CreateAuthorsBuilder<'a, ((), ())> {
-        CreateAuthorsBuilder {
-            fields: ((), ()),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-pub struct CreateAuthorsBuilder<'a, Fields = ((), ())> {
-    fields: Fields,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-impl<'a, Bio> CreateAuthorsBuilder<'a, ((), Bio)> {
-    pub fn name(self, name: &'a str) -> CreateAuthorsBuilder<'a, (&'a str, Bio)> {
-        let ((), bio) = self.fields;
-        let _phantom = self._phantom;
-        CreateAuthorsBuilder {
-            fields: (name, bio),
-            _phantom,
-        }
-    }
-}
-impl<'a, Name> CreateAuthorsBuilder<'a, (Name, ())> {
-    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorsBuilder<'a, (Name, Option<&'a str>)> {
-        let (name, ()) = self.fields;
-        let _phantom = self._phantom;
-        CreateAuthorsBuilder {
-            fields: (name, bio),
-            _phantom,
-        }
-    }
-}
-impl<'a> CreateAuthorsBuilder<'a, (&'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthors<'a> {
-        let (name, bio) = self.fields;
-        CreateAuthors { name, bio }
     }
 }

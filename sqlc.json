@@ -65,7 +65,7 @@
                     "out": "examples/authors/src",
                     "options": {
                         "output": "queries.rs",
-                        "db_crate": "postgres"
+                        "db_crate": "tokio-postgres"
                     }
                 }
             ]

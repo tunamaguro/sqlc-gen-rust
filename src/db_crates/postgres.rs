@@ -62,26 +62,6 @@ impl Postgres {
         syn::parse2(s).unwrap()
     }
 
-    fn raw_client_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
-        let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
-        let s = match self {
-            Postgres::Sync => quote::quote! {&#l mut postgres::Client},
-            Postgres::Tokio => quote::quote! {&#l tokio_postgres::Client},
-            Postgres::DeadPool => quote::quote! {&#l deadpool_postgres::Client},
-        };
-        syn::parse2(s).unwrap()
-    }
-
-    fn raw_tx_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
-        let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
-        let s = match self {
-            Postgres::Sync => quote::quote! {&#l mut postgres::Transaction},
-            Postgres::Tokio => quote::quote! {&#l tokio_postgres::Transaction},
-            Postgres::DeadPool => quote::quote! {&#l deadpool_postgres::Transaction},
-        };
-        syn::parse2(s).unwrap()
-    }
-
     fn row_type(&self) -> syn::Type {
         let s = match self {
             Postgres::Sync => "postgres::Row",
