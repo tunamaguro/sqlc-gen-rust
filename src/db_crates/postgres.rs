@@ -52,13 +52,14 @@ impl ToTokens for SliceIter {
 }
 
 impl Postgres {
-    fn client_type(&self) -> syn::Type {
+    fn generic_client_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
+        let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
         let s = match self {
-            Postgres::Sync => "&mut impl postgres::GenericClient",
-            Postgres::Tokio => "&impl tokio_postgres::GenericClient",
-            Postgres::DeadPool => "&impl deadpool_postgres::GenericClient",
+            Postgres::Sync => quote::quote! {&#l mut impl postgres::GenericClient},
+            Postgres::Tokio => quote::quote! {&#l impl tokio_postgres::GenericClient},
+            Postgres::DeadPool => quote::quote! {&#l impl deadpool_postgres::GenericClient},
         };
-        syn::parse_str(s).unwrap()
+        syn::parse2(s).unwrap()
     }
 
     fn row_type(&self) -> syn::Type {
@@ -307,7 +308,7 @@ impl DbCrate for Postgres {
         };
 
         let client_ident = quote::format_ident!("client");
-        let client_typ = self.client_type();
+        let client_typ = self.generic_client_type(None);
         let error_typ = self.error_type();
         let async_part = self.async_part();
         let await_part = self.await_part();
@@ -393,10 +394,7 @@ impl DbCrate for Postgres {
                     }
                 }
             }
-            _ => {
-                // not supported
-                quote::quote! {}
-            }
+            _ => quote::quote! {},
         };
 
         let fetch_tt = {

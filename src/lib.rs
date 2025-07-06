@@ -249,6 +249,7 @@ struct Config {
     output: String,
     db_crate: db_crates::SupportedDbCrate,
     overrides: Vec<OverrideType>,
+    debug: bool,
 }
 
 impl Default for Config {
@@ -257,6 +258,7 @@ impl Default for Config {
             output: "queries.rs".into(),
             db_crate: Default::default(),
             overrides: Default::default(),
+            debug: false,
         }
     }
 }
@@ -365,6 +367,19 @@ pub fn try_main() -> Result<(), Error> {
         contents: contents.into(),
     };
     response.files.push(query_file);
+
+    if config.debug {
+        let req_txt = format!("{request:#?}");
+        response.files.push(plugin::File {
+            name: "input.txt".into(),
+            contents: req_txt.into_bytes(),
+        });
+
+        response.files.push(plugin::File {
+            name: "input.bin".into(),
+            contents: buffer,
+        });
+    }
 
     let serialized_response = serialize_codegen_response(&response);
 
