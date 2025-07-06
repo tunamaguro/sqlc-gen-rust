@@ -107,7 +107,7 @@ impl StackError for QueryError {
             }
             _ => {
                 buf.push(format!(
-                    "{}:{}, at {}:{}",
+                    "{}:{} , at {}:{}",
                     layer,
                     self,
                     location.file(),
@@ -118,7 +118,10 @@ impl StackError for QueryError {
     }
 
     fn next(&self) -> Option<&dyn StackError> {
-        None
+        match self {
+            Self::Stacked { source, .. } => Some(source.as_ref()),
+            _ => None,
+        }
     }
 }
 
