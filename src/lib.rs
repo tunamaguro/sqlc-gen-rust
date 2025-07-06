@@ -170,7 +170,10 @@ impl StackError for Error {
     }
 
     fn next(&self) -> Option<&dyn StackError> {
-        None
+        match self {
+            Error::QueryError { source, .. } => Some(source),
+            _ => None,
+        }
     }
 
     fn last(&self) -> &dyn StackError
