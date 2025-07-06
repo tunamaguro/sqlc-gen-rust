@@ -414,21 +414,6 @@ impl DbCrate for Postgres {
                     }
                 }
             }
-            Annotation::CopyFrom => match self {
-                Postgres::Sync => {
-                    quote::quote! {
-                        pub fn copy_in_client<'client>(&self,#client_ident: &'client mut postgres::Client)->Result<postgres::CopyInWriter<'client>,#error_typ>{
-                            client.copy_in(Self::QUERY)
-                        }
-
-                          pub fn copy_in_transaction<'transaction>(&self,#client_ident: &'transaction mut postgres::Transaction)->Result<postgres::CopyInWriter<'transaction>,#error_typ>{
-                            client.copy_in(Self::QUERY)
-                        }
-                    }
-                }
-                Postgres::Tokio => todo!(),
-                Postgres::DeadPool => todo!(),
-            },
             _ => quote::quote! {},
         };
 
