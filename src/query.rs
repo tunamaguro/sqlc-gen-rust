@@ -477,6 +477,7 @@ pub(crate) struct Query {
     pub(crate) param_types: Vec<RsColType>,
 
     pub(crate) annotation: Annotation,
+    pub(crate) insert_table: Option<String>,
     /// ```sql
     /// -- name: GetAuthor :one
     ///          ^^^^^^^^^
@@ -537,11 +538,13 @@ impl Query {
         let query_name = query.name.to_string();
 
         let query_str = make_raw_string_literal(&query.text);
+        let insert_table = query.insert_into_table.as_ref().map(|t| t.name.clone());
 
         Ok(Self {
             param_names,
             param_types,
             annotation,
+            insert_table,
             query_name,
             query_str,
         })

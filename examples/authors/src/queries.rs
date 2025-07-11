@@ -275,7 +275,7 @@ pub struct CreateAuthors<'a> {
     bio: Option<&'a str>,
 }
 impl<'a> CreateAuthors<'a> {
-    pub const QUERY: &'static str = r"INSERT INTO authors (name, bio) VALUES ($1, $2)";
+    pub const QUERY: &'static str = "COPY authors (name,bio,) FROM STDIN (FROMAT BINARY)";
     pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.bio]
     }
