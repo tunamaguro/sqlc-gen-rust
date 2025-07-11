@@ -125,5 +125,16 @@ mod tests {
 
         assert_eq!(user.username, username);
         assert_eq!(user.email, email);
+
+        use futures::TryStreamExt;
+
+        let user_query = sqlx_query::ListUsers::builder()
+            .limit(100)
+            .offset(0)
+            .build();
+
+        let mut user_stream = user_query.query_as().fetch(&ctx.pool);
+
+        while let Some(_user) = user_stream.try_next().await.unwrap() {}
     }
 }

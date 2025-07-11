@@ -3,11 +3,6 @@
 //! sqlc-gen-rust version: v0.1.4
 
 use tokio_postgres::types::ToSql;
-fn slice_iter<'a>(
-    s: &'a [&(dyn ToSql + Sync)],
-) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
-    s.iter().map(|s| *s as _)
-}
 pub struct GetAuthorRow {
     pub id: i64,
     pub name: String,
@@ -32,18 +27,21 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetAuthorRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.id]).await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         GetAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.id]).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl GetAuthor {
@@ -105,8 +103,13 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .await?;
         Ok(st)
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl ListAuthors {
@@ -156,22 +159,21 @@ RETURNING id, name, bio";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateAuthorRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.name, &self.bio])
-            .await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         CreateAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateAuthorRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.name, &self.bio])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.name, &self.bio]
     }
 }
 impl<'a> CreateAuthor<'a> {
@@ -228,7 +230,10 @@ WHERE id = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.id]).await
+        client.execute(Self::QUERY, &self.as_slice()).await
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl DeleteAuthor {

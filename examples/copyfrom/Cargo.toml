@@ -1,5 +1,5 @@
 [package]
-name = "e-commerce"
+name = "copyfrom"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,12 +8,11 @@ postgres-types = { workspace = true }
 postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
 tokio-postgres = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true}
 
-chrono = { workspace = true }
 uuid = { workspace = true }
 serde_json = { workspace = true }
-futures = "0.3.31"
+
 [dev-dependencies]
 tokio = { workspace = true }
 test-context = { workspace = true }

@@ -3,11 +3,6 @@
 //! sqlc-gen-rust version: v0.1.4
 
 use tokio_postgres::types::ToSql;
-fn slice_iter<'a>(
-    s: &'a [&(dyn ToSql + Sync)],
-) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
-    s.iter().map(|s| *s as _)
-}
 #[derive(Debug, Clone, Copy, postgres_types::ToSql, postgres_types::FromSql)]
 #[postgres(name = "status")]
 pub enum Status {
@@ -46,8 +41,13 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .await?;
         Ok(st)
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl ListCities {
@@ -91,18 +91,21 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetCityRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.slug]).await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         GetCityRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetCityRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.slug]).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(GetCityRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.slug]
     }
 }
 impl<'a> GetCity<'a> {
@@ -161,22 +164,21 @@ impl<'a> CreateCity<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateCityRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.name, &self.slug])
-            .await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         CreateCityRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateCityRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.name, &self.slug])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(CreateCityRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.name, &self.slug]
     }
 }
 impl<'a> CreateCity<'a> {
@@ -235,7 +237,10 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.slug, &self.name]).await
+        client.execute(Self::QUERY, &self.as_slice()).await
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.slug, &self.name]
     }
 }
 impl<'a> UpdateCityName<'a> {
@@ -326,9 +331,12 @@ ORDER BY name";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
         let st = client
-            .query_raw(Self::QUERY, slice_iter(&[&self.city]))
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
             .await?;
         Ok(st)
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.city]
     }
 }
 impl<'a> ListVenues<'a> {
@@ -375,7 +383,10 @@ WHERE slug = $1 AND slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.slug]).await
+        client.execute(Self::QUERY, &self.as_slice()).await
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.slug]
     }
 }
 impl<'a> DeleteVenue<'a> {
@@ -446,22 +457,21 @@ WHERE slug = $1 AND city = $2";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetVenueRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.slug, &self.city])
-            .await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         GetVenueRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetVenueRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.slug, &self.city])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(GetVenueRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.slug, &self.city]
     }
 }
 impl<'a> GetVenue<'a> {
@@ -545,44 +555,29 @@ impl<'a> CreateVenue<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateVenueRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(
-                Self::QUERY,
-                &[
-                    &self.slug,
-                    &self.name,
-                    &self.city,
-                    &self.spotify_playlist,
-                    &self.status,
-                    &self.statuses,
-                    &self.tags,
-                ],
-            )
-            .await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         CreateVenueRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateVenueRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(
-                Self::QUERY,
-                &[
-                    &self.slug,
-                    &self.name,
-                    &self.city,
-                    &self.spotify_playlist,
-                    &self.status,
-                    &self.statuses,
-                    &self.tags,
-                ],
-            )
-            .await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(CreateVenueRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 7] {
+        [
+            &self.slug,
+            &self.name,
+            &self.city,
+            &self.spotify_playlist,
+            &self.status,
+            &self.statuses,
+            &self.tags,
+        ]
     }
 }
 impl<'a> CreateVenue<'a> {
@@ -777,22 +772,21 @@ RETURNING id";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<UpdateVenueNameRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.slug, &self.name])
-            .await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         UpdateVenueNameRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<UpdateVenueNameRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.slug, &self.name])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(UpdateVenueNameRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.slug, &self.name]
     }
 }
 impl<'a> UpdateVenueName<'a> {
@@ -866,8 +860,13 @@ ORDER BY 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .await?;
         Ok(st)
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl VenueCountByCity {
