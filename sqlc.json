@@ -99,6 +99,45 @@
                     }
                 }
             ]
+        },
+        {
+            "schema": "examples/copyfrom/schema.sql",
+            "queries": "examples/copyfrom/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/copyfrom/src",
+                    "options": {
+                        "output": "tokio_query.rs",
+                        "db_crate": "tokio-postgres"
+                    }
+                },
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/copyfrom/src",
+                    "options": {
+                        "output": "postgres_query.rs",
+                        "db_crate": "postgres"
+                    }
+                },
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/copyfrom/src",
+                    "options": {
+                        "output": "deadpool_query.rs",
+                        "db_crate": "deadpool-postgres"
+                    }
+                },
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/copyfrom/src",
+                    "options": {
+                        "output": "sqlx_query.rs",
+                        "db_crate": "sqlx-postgres"
+                    }
+                }
+            ]
         }
     ]
 }
