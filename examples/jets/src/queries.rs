@@ -3,11 +3,6 @@
 //! sqlc-gen-rust version: v0.1.4
 
 use deadpool_postgres::tokio_postgres::types::ToSql;
-fn slice_iter<'a>(
-    s: &'a [&(dyn ToSql + Sync)],
-) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
-    s.iter().map(|s| *s as _)
-}
 pub struct CountPilotsRow {
     pub count: i64,
 }
@@ -27,18 +22,21 @@ impl CountPilots {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CountPilotsRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[]).await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         CountPilotsRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CountPilotsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[]).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(CountPilotsRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl CountPilots {
@@ -92,8 +90,13 @@ impl ListPilots {
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .await?;
         Ok(st)
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl ListPilots {
@@ -131,7 +134,10 @@ impl DeletePilot {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.id]).await
+        client.execute(Self::QUERY, &self.as_slice()).await
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl DeletePilot {

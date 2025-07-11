@@ -3,11 +3,6 @@
 //! sqlc-gen-rust version: v0.1.4
 
 use postgres::types::ToSql;
-fn slice_iter<'a>(
-    s: &'a [&(dyn ToSql + Sync)],
-) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
-    s.iter().map(|s| *s as _)
-}
 #[derive(Debug, Clone, Copy, postgres_types::ToSql, postgres_types::FromSql)]
 #[postgres(name = "order_status")]
 pub enum OrderStatus {
@@ -61,34 +56,26 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateUserRow, postgres::Error> {
-        let row = client.query_one(
-            Self::QUERY,
-            &[
-                &self.username,
-                &self.email,
-                &self.hashed_password,
-                &self.full_name,
-            ],
-        )?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         CreateUserRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateUserRow>, postgres::Error> {
-        let row = client.query_opt(
-            Self::QUERY,
-            &[
-                &self.username,
-                &self.email,
-                &self.hashed_password,
-                &self.full_name,
-            ],
-        )?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(CreateUserRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 4] {
+        [
+            &self.username,
+            &self.email,
+            &self.hashed_password,
+            &self.full_name,
+        ]
     }
 }
 impl<'a> CreateUser<'a> {
@@ -204,18 +191,21 @@ WHERE email = $1 LIMIT 1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetUserByEmailRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.email])?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         GetUserByEmailRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetUserByEmailRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.email])?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(GetUserByEmailRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.email]
     }
 }
 impl<'a> GetUserByEmail<'a> {
@@ -286,7 +276,10 @@ OFFSET $2";
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(Self::QUERY, slice_iter(&[&self.limit, &self.offset]))
+        client.query_raw(Self::QUERY, self.as_slice().into_iter())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.limit, &self.offset]
     }
 }
 impl ListUsers {
@@ -372,38 +365,28 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateProductRow, postgres::Error> {
-        let row = client.query_one(
-            Self::QUERY,
-            &[
-                &self.category_id,
-                &self.name,
-                &self.description,
-                &self.price,
-                &self.stock_quantity,
-                &self.attributes,
-            ],
-        )?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         CreateProductRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateProductRow>, postgres::Error> {
-        let row = client.query_opt(
-            Self::QUERY,
-            &[
-                &self.category_id,
-                &self.name,
-                &self.description,
-                &self.price,
-                &self.stock_quantity,
-                &self.attributes,
-            ],
-        )?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(CreateProductRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 6] {
+        [
+            &self.category_id,
+            &self.name,
+            &self.description,
+            &self.price,
+            &self.stock_quantity,
+            &self.attributes,
+        ]
     }
 }
 impl<'a> CreateProduct<'a> {
@@ -675,18 +658,21 @@ WHERE
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetProductWithCategoryRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.id])?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         GetProductWithCategoryRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetProductWithCategoryRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.id])?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(GetProductWithCategoryRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl GetProductWithCategory {
@@ -795,17 +781,17 @@ OFFSET $2";
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(
-            Self::QUERY,
-            slice_iter(&[
-                &self.limit,
-                &self.offset,
-                &self.name,
-                &self.category_ids,
-                &self.min_price,
-                &self.max_price,
-            ]),
-        )
+        client.query_raw(Self::QUERY, self.as_slice().into_iter())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 6] {
+        [
+            &self.limit,
+            &self.offset,
+            &self.name,
+            &self.category_ids,
+            &self.min_price,
+            &self.max_price,
+        ]
     }
 }
 impl<'a> SearchProducts<'a> {
@@ -990,7 +976,10 @@ WHERE attributes @> $1::jsonb";
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(Self::QUERY, slice_iter(&[&self.column_1]))
+        client.query_raw(Self::QUERY, self.as_slice().into_iter())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.column_1]
     }
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
@@ -1042,7 +1031,10 @@ WHERE id = $1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<u64, postgres::Error> {
-        client.execute(Self::QUERY, &[&self.id, &self.add_quantity])
+        client.execute(Self::QUERY, &self.as_slice())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.id, &self.add_quantity]
     }
 }
 impl UpdateProductStock {
@@ -1114,24 +1106,21 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateOrderRow, postgres::Error> {
-        let row = client.query_one(
-            Self::QUERY,
-            &[&self.user_id, &self.status, &self.total_amount],
-        )?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         CreateOrderRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateOrderRow>, postgres::Error> {
-        let row = client.query_opt(
-            Self::QUERY,
-            &[&self.user_id, &self.status, &self.total_amount],
-        )?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(CreateOrderRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 3] {
+        [&self.user_id, &self.status, &self.total_amount]
     }
 }
 impl CreateOrder {
@@ -1224,34 +1213,26 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateOrderItemRow, postgres::Error> {
-        let row = client.query_one(
-            Self::QUERY,
-            &[
-                &self.order_id,
-                &self.product_id,
-                &self.quantity,
-                &self.price_at_purchase,
-            ],
-        )?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         CreateOrderItemRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateOrderItemRow>, postgres::Error> {
-        let row = client.query_opt(
-            Self::QUERY,
-            &[
-                &self.order_id,
-                &self.product_id,
-                &self.quantity,
-                &self.price_at_purchase,
-            ],
-        )?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(CreateOrderItemRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 4] {
+        [
+            &self.order_id,
+            &self.product_id,
+            &self.quantity,
+            &self.price_at_purchase,
+        ]
     }
 }
 impl CreateOrderItem {
@@ -1378,18 +1359,21 @@ WHERE o.id = $1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetOrderDetailsRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.id])?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         GetOrderDetailsRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetOrderDetailsRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.id])?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(GetOrderDetailsRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl GetOrderDetails {
@@ -1461,7 +1445,10 @@ WHERE oi.order_id = $1";
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(Self::QUERY, slice_iter(&[&self.order_id]))
+        client.query_raw(Self::QUERY, self.as_slice().into_iter())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.order_id]
     }
 }
 impl ListOrderItemsByOrderId {
@@ -1526,24 +1513,21 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateReviewRow, postgres::Error> {
-        let row = client.query_one(
-            Self::QUERY,
-            &[&self.user_id, &self.product_id, &self.rating, &self.comment],
-        )?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         CreateReviewRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateReviewRow>, postgres::Error> {
-        let row = client.query_opt(
-            Self::QUERY,
-            &[&self.user_id, &self.product_id, &self.rating, &self.comment],
-        )?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(CreateReviewRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 4] {
+        [&self.user_id, &self.product_id, &self.rating, &self.comment]
     }
 }
 impl<'a> CreateReview<'a> {
@@ -1647,18 +1631,21 @@ GROUP BY product_id";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetProductAverageRatingRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.product_id])?;
+        let row = client.query_one(Self::QUERY, &self.as_slice())?;
         GetProductAverageRatingRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetProductAverageRatingRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.product_id])?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
         match row {
             Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.product_id]
     }
 }
 impl GetProductAverageRating {
@@ -1735,7 +1722,10 @@ ORDER BY total_sales DESC";
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(Self::QUERY, slice_iter(&[]))
+        client.query_raw(Self::QUERY, self.as_slice().into_iter())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl GetCategorySalesRanking {
@@ -1771,7 +1761,10 @@ impl DeleteUserAndRelatedData {
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<u64, postgres::Error> {
-        client.execute(Self::QUERY, &[&self.id])
+        client.execute(Self::QUERY, &self.as_slice())
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl DeleteUserAndRelatedData {

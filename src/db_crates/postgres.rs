@@ -31,26 +31,6 @@ impl<'de> serde::Deserialize<'de> for Postgres {
     }
 }
 
-struct SliceIter;
-
-impl SliceIter {
-    fn ident() -> syn::Ident {
-        quote::format_ident!("slice_iter")
-    }
-}
-
-impl ToTokens for SliceIter {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(
-            quote::quote! {
-                fn slice_iter<'a>(s:&'a [&(dyn ToSql + Sync)])->impl ExactSizeIterator<Item=&'a dyn ToSql>  +'a{
-                    s.iter().map(|s| *s as _)
-                }
-            }
-        );
-    }
-}
-
 impl Postgres {
     fn generic_client_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
         let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
@@ -239,11 +219,9 @@ impl DbCrate for Postgres {
                 quote::quote! {use deadpool_postgres::tokio_postgres::types::ToSql;}
             }
         };
-        let slice_it = SliceIter;
 
         quote::quote! {
             #use_tosql
-            #slice_it
         }
     }
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
@@ -324,12 +302,12 @@ impl DbCrate for Postgres {
 
                 quote::quote! {
                     pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
-                        let row = client.query_one(Self::QUERY, &[#params]) #await_part?;
+                        let row = client.query_one(Self::QUERY, &self.as_slice()) #await_part?;
                         #row_ident::from_row(&row)
                     }
 
                     pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
-                        let row = client.query_opt(Self::QUERY, &[#params]) #await_part?;
+                        let row = client.query_opt(Self::QUERY, &self.as_slice()) #await_part?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
                             None => Ok(None)
@@ -341,11 +319,6 @@ impl DbCrate for Postgres {
                 let row_ident = row.struct_ident();
 
                 let query_it = {
-                    let params = query
-                        .param_names
-                        .iter()
-                        .fold(quote::quote! {}, |acc, x| quote::quote! {#acc &self.#x,});
-                    let slice_iter = SliceIter::ident();
                     match self {
                         Postgres::Sync => {
                             quote::quote! {
@@ -353,7 +326,7 @@ impl DbCrate for Postgres {
                                 ->Result<postgres::RowIter<'row_iter>,#error_typ>
                                 {
 
-                                    client.query_raw(Self::QUERY, #slice_iter(&[#params]))
+                                    client.query_raw(Self::QUERY, self.as_slice().into_iter())
                                 }
                             }
                         }
@@ -361,7 +334,7 @@ impl DbCrate for Postgres {
                             quote::quote! {
                                 pub async fn query_stream(&self,#client_ident: #client_typ)
                                 ->Result<tokio_postgres::RowStream,#error_typ>{
-                                    let st = client.query_raw(Self::QUERY, #slice_iter(&[#params])).await?;
+                                    let st = client.query_raw(Self::QUERY, self.as_slice().into_iter()).await?;
                                     Ok(st)
                                 }
                             }
@@ -370,7 +343,7 @@ impl DbCrate for Postgres {
                             quote::quote! {
                                  pub async fn query_stream(&self,#client_ident: #client_typ)
                                 ->Result<deadpool_postgres::tokio_postgres::RowStream,#error_typ>{
-                                    let st = client.query_raw(Self::QUERY, #slice_iter(&[#params])).await?;
+                                    let st = client.query_raw(Self::QUERY, self.as_slice().into_iter()).await?;
                                     Ok(st)
                                 }
                             }
@@ -390,7 +363,7 @@ impl DbCrate for Postgres {
             Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
                 quote::quote! {
                     pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
-                        client.execute(Self::QUERY, &[#params]) #await_part
+                        client.execute(Self::QUERY, &self.as_slice()) #await_part
                     }
                 }
             }
@@ -404,10 +377,17 @@ impl DbCrate for Postgres {
             } else {
                 quote::quote! {#struct_ident}
             };
+
+            let param_num = proc_macro2::Literal::usize_unsuffixed(query.param_names.len());
+
             quote::quote! {
                 impl #imp_ident {
                     pub const QUERY:&'static str = #query_str;
                     #query_fns
+
+                    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); #param_num] {
+                        [ #params ]
+                    }
                 }
             }
         };

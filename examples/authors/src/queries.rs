@@ -3,11 +3,6 @@
 //! sqlc-gen-rust version: v0.1.4
 
 use tokio_postgres::types::ToSql;
-fn slice_iter<'a>(
-    s: &'a [&(dyn ToSql + Sync)],
-) -> impl ExactSizeIterator<Item = &'a dyn ToSql> + 'a {
-    s.iter().map(|s| *s as _)
-}
 pub struct GetAuthorRow {
     pub id: i64,
     pub name: String,
@@ -32,18 +27,21 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetAuthorRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &[&self.id]).await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         GetAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &[&self.id]).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl GetAuthor {
@@ -105,8 +103,13 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client.query_raw(Self::QUERY, slice_iter(&[])).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .await?;
         Ok(st)
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+        []
     }
 }
 impl ListAuthors {
@@ -156,22 +159,21 @@ RETURNING id, name, bio";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateAuthorRow, tokio_postgres::Error> {
-        let row = client
-            .query_one(Self::QUERY, &[&self.name, &self.bio])
-            .await?;
+        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
         CreateAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateAuthorRow>, tokio_postgres::Error> {
-        let row = client
-            .query_opt(Self::QUERY, &[&self.name, &self.bio])
-            .await?;
+        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.name, &self.bio]
     }
 }
 impl<'a> CreateAuthor<'a> {
@@ -228,7 +230,10 @@ WHERE id = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &[&self.id]).await
+        client.execute(Self::QUERY, &self.as_slice()).await
+    }
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+        [&self.id]
     }
 }
 impl DeleteAuthor {
@@ -257,5 +262,59 @@ impl<'a> DeleteAuthorBuilder<'a, (i64,)> {
     pub const fn build(self) -> DeleteAuthor {
         let (id,) = self.fields;
         DeleteAuthor { id }
+    }
+}
+pub struct CreateAuthorsRow {}
+impl CreateAuthorsRow {
+    pub fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
+        Ok(Self {})
+    }
+}
+pub struct CreateAuthors<'a> {
+    name: &'a str,
+    bio: Option<&'a str>,
+}
+impl<'a> CreateAuthors<'a> {
+    pub const QUERY: &'static str = r"INSERT INTO authors (name, bio) VALUES ($1, $2)";
+    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+        [&self.name, &self.bio]
+    }
+}
+impl<'a> CreateAuthors<'a> {
+    pub const fn builder() -> CreateAuthorsBuilder<'a, ((), ())> {
+        CreateAuthorsBuilder {
+            fields: ((), ()),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct CreateAuthorsBuilder<'a, Fields = ((), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a, Bio> CreateAuthorsBuilder<'a, ((), Bio)> {
+    pub fn name(self, name: &'a str) -> CreateAuthorsBuilder<'a, (&'a str, Bio)> {
+        let ((), bio) = self.fields;
+        let _phantom = self._phantom;
+        CreateAuthorsBuilder {
+            fields: (name, bio),
+            _phantom,
+        }
+    }
+}
+impl<'a, Name> CreateAuthorsBuilder<'a, (Name, ())> {
+    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorsBuilder<'a, (Name, Option<&'a str>)> {
+        let (name, ()) = self.fields;
+        let _phantom = self._phantom;
+        CreateAuthorsBuilder {
+            fields: (name, bio),
+            _phantom,
+        }
+    }
+}
+impl<'a> CreateAuthorsBuilder<'a, (&'a str, Option<&'a str>)> {
+    pub const fn build(self) -> CreateAuthors<'a> {
+        let (name, bio) = self.fields;
+        CreateAuthors { name, bio }
     }
 }
