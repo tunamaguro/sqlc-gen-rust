@@ -125,21 +125,6 @@ impl Postgres {
             #from_tt
         }
     }
-
-    fn query_str(&self, query: &Query) -> proc_macro2::TokenStream {
-        match query.annotation {
-            Annotation::CopyFrom => {}
-            _ => return query.query_str.clone(),
-        }
-        let params = query
-            .param_names
-            .iter()
-            .fold(String::new(), |acc, x| format!("{acc}{x},"));
-        let table = query.insert_table.as_deref().unwrap_or("table");
-
-        let q = format!("COPY {table} ({params}) FROM STDIN (FROMAT BINARY)");
-        proc_macro2::Literal::string(&q).into_token_stream()
-    }
 }
 
 impl DbCrate for Postgres {
@@ -386,7 +371,7 @@ impl DbCrate for Postgres {
         };
 
         let fetch_tt = {
-            let query_str = self.query_str(query);
+            let query_str = query.query_str();
             let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime> #struct_ident<#lifetime>}
             } else {

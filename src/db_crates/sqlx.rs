@@ -319,7 +319,7 @@ impl DbCrate for Sqlx {
             }
         };
         let fetch_tt = {
-            let query_str = &query.query_str;
+            let query_str = query.query_str();
             let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
             } else {

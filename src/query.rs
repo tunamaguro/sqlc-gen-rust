@@ -492,7 +492,7 @@ pub(crate) struct Query {
     /// WHERE id = $1 LIMIT 1;
     /// ^^^^^^^^^^^^^^^^^^^^^^
     /// ```
-    pub(crate) query_str: proc_macro2::TokenStream,
+    query_str: String,
 }
 
 impl Query {
@@ -537,7 +537,7 @@ impl Query {
         let annotation = query.cmd.parse::<Annotation>().stacked()?;
         let query_name = query.name.to_string();
 
-        let query_str = make_raw_string_literal(&query.text);
+        let query_str = query.text.clone();
         let insert_table = query.insert_into_table.as_ref().map(|t| t.name.clone());
 
         Ok(Self {
@@ -548,6 +548,24 @@ impl Query {
             query_name,
             query_str,
         })
+    }
+
+    pub(crate) fn query_str(&self) -> proc_macro2::TokenStream {
+        match self.annotation {
+            Annotation::CopyFrom => {
+                let params = self
+                    .param_names
+                    .iter()
+                    .map(|x| x.to_string())
+                    .reduce(|acc, x| format!("{acc},{x}"))
+                    .unwrap_or_default();
+                let table = self.insert_table.as_deref().unwrap_or("table");
+
+                let q = format!("COPY {table} ({params}) FROM STDIN (FORMAT BINARY)");
+                make_raw_string_literal(&q)
+            }
+            _ => make_raw_string_literal(&self.query_str),
+        }
     }
 }
 
