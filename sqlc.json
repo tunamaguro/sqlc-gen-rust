@@ -49,6 +49,14 @@
                             {
                                 "db_type": "timestamptz",
                                 "rs_type": "chrono::DateTime<chrono::Utc>"
+                            },
+                            {
+                                "column": "users.created_at",
+                                "rs_type": "chrono::NaiveDateTime"
+                            },
+                            {
+                                "column": "products.created_at",
+                                "rs_type": "sqlx::postgres::types::PgTimeTz"
                             }
                         ]
                     }
