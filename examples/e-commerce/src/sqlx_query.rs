@@ -86,7 +86,7 @@ pub struct CreateUserRow {
     pub email: String,
     pub hashed_password: String,
     pub full_name: Option<String>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Local>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateUser<'a> {
@@ -231,7 +231,7 @@ pub struct GetUserByEmailRow {
     pub email: String,
     pub hashed_password: String,
     pub full_name: Option<String>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Local>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetUserByEmail<'a> {
@@ -311,7 +311,7 @@ pub struct ListUsersRow {
     pub username: String,
     pub email: String,
     pub full_name: Option<String>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Local>,
 }
 pub struct ListUsers {
     limit: i32,

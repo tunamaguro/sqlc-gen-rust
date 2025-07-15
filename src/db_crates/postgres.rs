@@ -192,7 +192,7 @@ impl DbCrate for Postgres {
             let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
 
             for pg_type in pg_types {
-                map.insert_type(pg_type, RsType::new(owned_type.clone(), None, true));
+                map.insert_db_type(pg_type, RsType::new(owned_type.clone(), None, true));
             }
         }
 
@@ -202,7 +202,7 @@ impl DbCrate for Postgres {
                 .map(|s| syn::parse_str::<syn::Type>(s).expect("Failed to parse slice type"));
 
             for pg_type in pg_types {
-                map.insert_type(
+                map.insert_db_type(
                     pg_type,
                     RsType::new(owned_type.clone(), slice_type.clone(), false),
                 );

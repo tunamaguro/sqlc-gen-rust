@@ -237,7 +237,9 @@ pub(crate) fn field_ident(ident: &str) -> syn::Ident {
 #[serde(default)]
 struct OverrideType {
     /// Override db type
-    db_type: String,
+    db_type: Option<String>,
+    /// Override column name
+    column: Option<String>,
     /// Override Rust type
     rs_type: String,
     /// Rust type's slice if have
@@ -301,10 +303,38 @@ pub fn try_main() -> Result<(), Error> {
             .map(|s| syn::parse_str::<syn::Type>(&s))
             .transpose()
             .map_err(|e| Error::any(e.into()))?;
-        db_type.insert_type(
-            &override_type.db_type,
-            RsType::new(owned_type, slice_type, override_type.copy_cheap),
-        );
+
+        match (&override_type.db_type, &override_type.column) {
+            (None, Some(column)) => {
+                db_type.insert_column_type(
+                    column,
+                    RsType::new(
+                        owned_type.clone(),
+                        slice_type.clone(),
+                        override_type.copy_cheap,
+                    ),
+                );
+            }
+            (Some(db_type_name), None) => {
+                db_type.insert_db_type(
+                    db_type_name,
+                    RsType::new(
+                        owned_type.clone(),
+                        slice_type.clone(),
+                        override_type.copy_cheap,
+                    ),
+                );
+            }
+
+            (Some(_), Some(_)) => {
+                let message = "Cannot override both db_type and column name at the same time.";
+                return Err(Error::any(message.into()));
+            }
+            (None, None) => {
+                let message = "Must override either db_type or column name.";
+                return Err(Error::any(message.into()));
+            }
+        }
     }
 
     let defined_enums = request
@@ -314,7 +344,7 @@ pub fn try_main() -> Result<(), Error> {
         .unwrap_or_default();
 
     for e in &defined_enums {
-        db_type.insert_type(
+        db_type.insert_db_type(
             &e.name,
             RsType::new(
                 syn::TypePath {
