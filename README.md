@@ -1,8 +1,10 @@
 # sqlc-gen-rust
 
-sqlc-plugin for rust db crates.
+sqlc plugin for Rust database crates.
 
 ## Usage
+
+Add the following to your `sqlc.json` configuration file to use this plugin.
 
 ```json
 {
@@ -99,7 +101,7 @@ let author = GetAuthor::builder()
     .await?;
 ```
 
-See below to see other crates example.
+See below for examples with other supported crates.
 
 - [`postgres` generated code](./examples/e-commerce/src/postgres_query.rs)
 - [`tokio-postgres` generated code](./examples/e-commerce/src/tokio_query.rs)
@@ -109,11 +111,11 @@ See below to see other crates example.
 ## Options
 
 > [!NOTE]
-> This plugin supports json option only. yaml is not supported.
+> This plugin supports JSON only. YAML is not supported.
 
 ### `db_crate`
 
-The crate of generated code. Default is `tokio-postgres`. Available values are below.
+The crate used in the generated code. Default is `tokio-postgres`. Available values are below.
 
 - `postgres` 
 - `tokio-postgres`
@@ -122,7 +124,14 @@ The crate of generated code. Default is `tokio-postgres`. Available values are b
 
 ### `overrides`
 
-Add or override DB and Rust type mappings. See example blow.
+Customize Rust type mapping per column or database type. Each entry **must include exactly one** of the following: `column` or `db_type`.
+
+- `column`: Override a specific table column (e.g. `users.metadata`)
+- `db_type`: Override all columns of a given database type (e.g. `pg_catalog.varchar`)
+
+When both are specified, it will result in an error. Furthermore, entries with a `column` key are always prioritized over `db_type` overrides.
+
+The following is an example configuration:
 
 ```json
 {
@@ -135,12 +144,16 @@ Add or override DB and Rust type mappings. See example blow.
                     "options": {
                         "overrides": [
                             {
-                                "db_type":"pg_catalog.varchar", // Database type
-                                "rs_type": "String", // Rust type
-                                "rs_slice": "str", // Optional. Default is None. If set, the argument of the generated code uses `&str` instead of `&String`.
-                                "copy_cheap": false // Optional. Default is false. If true, the argument of the generated code uses `i32` instead of `&i32`.
+                                "db_type":"pg_catalog.varchar", 
+                                "rs_type": "String", // Required. The target Rust type.
+                                "rs_slice": "str", // Optional. If set, the argument of the generated code uses `&str` instead of `&String`.
+                                "copy_cheap": false // Optional. If true, the argument of the generated code uses `i32` instead of `&i32`.
+                            },
+                            {
+                                "column": "users.metadata",
+                                "rs_type": "serde_json::Value"
                             }
-                            // other overrides..
+                            // other overrides...
                         ]
                     }
                 }
