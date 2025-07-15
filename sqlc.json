@@ -52,7 +52,7 @@
                             },
                             {
                                 "column": "users.created_at",
-                                "rs_type": "sqlx::postgres::types::PgTimeTz"
+                                "rs_type": "chrono::DateTime<chrono::Local>"
                             }
                         ]
                     }

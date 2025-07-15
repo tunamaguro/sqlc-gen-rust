@@ -86,7 +86,7 @@ pub struct CreateUserRow {
     pub email: String,
     pub hashed_password: String,
     pub full_name: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: chrono::DateTime<chrono::Local>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateUser<'a> {
@@ -231,7 +231,7 @@ pub struct GetUserByEmailRow {
     pub email: String,
     pub hashed_password: String,
     pub full_name: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: chrono::DateTime<chrono::Local>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetUserByEmail<'a> {
@@ -311,7 +311,7 @@ pub struct ListUsersRow {
     pub username: String,
     pub email: String,
     pub full_name: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: chrono::DateTime<chrono::Local>,
 }
 pub struct ListUsers {
     limit: i32,
@@ -395,7 +395,7 @@ pub struct CreateProductRow {
     pub price: i32,
     pub stock_quantity: i32,
     pub attributes: Option<serde_json::Value>,
-    pub created_at: sqlx::postgres::types::PgTimeTz,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateProduct<'a> {
@@ -683,7 +683,7 @@ pub struct GetProductWithCategoryRow {
     pub price: i32,
     pub stock_quantity: i32,
     pub attributes: Option<serde_json::Value>,
-    pub created_at: sqlx::postgres::types::PgTimeTz,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub category_name: String,
     pub category_slug: String,
 }
@@ -781,7 +781,7 @@ pub struct SearchProductsRow {
     pub price: i32,
     pub stock_quantity: i32,
     pub attributes: Option<serde_json::Value>,
-    pub created_at: sqlx::postgres::types::PgTimeTz,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub average_rating: f64,
 }
@@ -988,7 +988,7 @@ pub struct GetProductsWithSpecificAttributeRow {
     pub price: i32,
     pub stock_quantity: i32,
     pub attributes: Option<serde_json::Value>,
-    pub created_at: sqlx::postgres::types::PgTimeTz,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetProductsWithSpecificAttribute<'a> {
