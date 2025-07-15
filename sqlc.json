@@ -52,10 +52,6 @@
                             },
                             {
                                 "column": "users.created_at",
-                                "rs_type": "chrono::NaiveDateTime"
-                            },
-                            {
-                                "column": "products.created_at",
                                 "rs_type": "sqlx::postgres::types::PgTimeTz"
                             }
                         ]
