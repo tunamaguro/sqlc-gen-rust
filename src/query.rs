@@ -206,19 +206,7 @@ impl RsColType {
         db_type: &DbTypeMap,
         column: &plugin::Column,
     ) -> Result<Self, QueryError> {
-        let db_col_type = column
-            .r#type
-            .as_ref()
-            .map(make_column_type)
-            .ok_or_else(|| QueryError::missing_column_type(make_column_name(column)))?;
-
-        let rs_type = db_type
-            .get(&db_col_type)
-            .ok_or_else(|| {
-                let col_name = make_column_name(column);
-                QueryError::cannot_map_type(db_col_type, col_name)
-            })
-            .stacked()?;
+        let rs_type = db_type.get_column_type(column).stacked()?;
         let dim = usize::try_from(column.array_dims).unwrap_or_default();
         let optional = !column.not_null;
 
@@ -292,6 +280,8 @@ impl RsColType {
 pub(crate) struct DbTypeMap {
     /// db_type to rust type
     typ_map: std::collections::BTreeMap<String, RsType>,
+    /// column name to rust type
+    column_map: std::collections::BTreeMap<String, RsType>,
 }
 
 impl DbTypeMap {
@@ -299,8 +289,32 @@ impl DbTypeMap {
         self.typ_map.get(db_type).cloned()
     }
 
-    pub(crate) fn insert_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+    fn get_column_type(&self, column: &plugin::Column) -> Result<RsType, QueryError> {
+        let db_col_name = make_column_name(column);
+        if let Some(rs_type) = self.column_map.get(&db_col_name) {
+            return Ok(rs_type.clone());
+        };
+
+        let db_col_type = column
+            .r#type
+            .as_ref()
+            .map(make_column_type)
+            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
+
+        self.get(&db_col_type)
+            .ok_or_else(|| QueryError::cannot_map_type(db_col_type, db_col_name))
+    }
+
+    pub(crate) fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
         self.typ_map.insert(db_type.to_string(), rs_type)
+    }
+
+    pub(crate) fn insert_column_type(
+        &mut self,
+        column_name: &str,
+        rs_type: RsType,
+    ) -> Option<RsType> {
+        self.column_map.insert(column_name.to_string(), rs_type)
     }
 }
 
