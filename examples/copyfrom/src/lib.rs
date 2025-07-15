@@ -11,7 +11,7 @@ mod tokio_query;
 mod tests {
     use super::*;
     use test_context::test_context;
-    use test_utils::{DeadPoolContext, PgSyncTestContext, PgTokioTestContext};
+    use test_utils::{DeadPoolContext, PgSyncTestContext, PgTokioTestContext, SqlxPgContext};
 
     #[test_context(PgSyncTestContext)]
     #[test]
@@ -150,6 +150,48 @@ mod tests {
             .await
             .unwrap();
 
+        assert_eq!(row.name, "Bar");
+        assert_eq!(row.bio, Some("Bar's bio".to_string()));
+    }
+
+    #[test_context(SqlxPgContext)]
+    #[tokio::test]
+    async fn test_sqlx_postgres(ctx: &mut SqlxPgContext) {
+        use sqlx_query::{CreateAuthors, GetAuthor};
+        let pool = &ctx.pool;
+
+        sqlx::raw_sql(include_str!("../schema.sql"))
+            .execute(pool)
+            .await
+            .unwrap();
+
+        let mut sink = CreateAuthors::copy_in(pool).await.unwrap();
+        let author1 = CreateAuthors::builder().id(0).name("Foo").bio(None).build();
+        author1.write(&mut sink).await.unwrap();
+
+        let author2 = CreateAuthors::builder()
+            .id(1)
+            .name("Bar")
+            .bio(Some("Bar's bio"))
+            .build();
+        author2.write(&mut sink).await.unwrap();
+        sink.finish().await.unwrap();
+
+        let row = GetAuthor::builder()
+            .id(0)
+            .build()
+            .query_one(pool)
+            .await
+            .unwrap();
+        assert_eq!(row.name, "Foo");
+        assert!(row.bio.is_none());
+
+        let row = GetAuthor::builder()
+            .id(1)
+            .build()
+            .query_one(pool)
+            .await
+            .unwrap();
         assert_eq!(row.name, "Bar");
         assert_eq!(row.bio, Some("Bar's bio".to_string()));
     }

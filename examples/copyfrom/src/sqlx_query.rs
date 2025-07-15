@@ -2,6 +2,69 @@
 //! sqlc version: v1.28.0
 //! sqlc-gen-rust version: v0.1.4
 
+pub struct CopyDataSink<C: std::ops::DerefMut<Target = sqlx::PgConnection>> {
+    encode_buf: sqlx::postgres::PgArgumentBuffer,
+    data_buf: Vec<u8>,
+    copy_in: sqlx::postgres::PgCopyIn<C>,
+}
+impl<C: std::ops::DerefMut<Target = sqlx::PgConnection>> CopyDataSink<C> {
+    const BUFFER_SIZE: usize = 4096;
+    fn new(copy_in: sqlx::postgres::PgCopyIn<C>) -> Self {
+        let mut data_buf = Vec::with_capacity(Self::BUFFER_SIZE);
+        const COPY_SIGNATURE: &[u8] = &[
+            b'P', b'G', b'C', b'O', b'P', b'Y', b'\n', 0xFF, b'\r', b'\n', 0x00,
+        ];
+        assert_eq!(COPY_SIGNATURE.len(), 11);
+        data_buf.extend_from_slice(COPY_SIGNATURE);
+        data_buf.extend(0_i32.to_be_bytes());
+        data_buf.extend(0_i32.to_be_bytes());
+        CopyDataSink {
+            encode_buf: Default::default(),
+            data_buf,
+            copy_in,
+        }
+    }
+    async fn send(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let _copy_in = self.copy_in.send(self.data_buf.as_slice()).await?;
+        self.data_buf.clear();
+        Ok(())
+    }
+    /// Complete copy process and return number of rows affected.
+    pub async fn finish(mut self) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
+        const COPY_TRAILER: &[u8] = &(-1_i16).to_be_bytes();
+        self.data_buf.extend(COPY_TRAILER);
+        self.send().await?;
+        self.copy_in.finish().await.map_err(|e| e.into())
+    }
+    fn insert_row(&mut self) {
+        let num_col = self.copy_in.num_columns() as i16;
+        self.data_buf.extend(num_col.to_be_bytes());
+    }
+    async fn add<'q, T>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+    where
+        T: sqlx::Encode<'q, sqlx::Postgres> + sqlx::Type<sqlx::Postgres>,
+    {
+        let is_null = value.encode_by_ref(&mut self.encode_buf)?;
+        match is_null {
+            sqlx::encode::IsNull::Yes => {
+                self.data_buf.extend((-1_i32).to_be_bytes());
+            }
+            sqlx::encode::IsNull::No => {
+                self.data_buf
+                    .extend((self.encode_buf.len() as i32).to_be_bytes());
+                self.data_buf.extend_from_slice(self.encode_buf.as_slice());
+            }
+        }
+        self.encode_buf.clear();
+        if self.data_buf.len() > Self::BUFFER_SIZE {
+            self.send().await?;
+        }
+        Ok(())
+    }
+}
 #[derive(sqlx::FromRow)]
 pub struct GetAuthorRow {
     pub id: i64,
@@ -100,6 +163,25 @@ impl<'a> CreateAuthors<'a> {
             .bind(self.id)
             .bind(self.name)
             .bind(self.bio)
+    }
+    pub async fn copy_in<PgCopy>(
+        conn: &PgCopy,
+    ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<sqlx::Postgres>>, sqlx::Error>
+    where
+        PgCopy: sqlx::postgres::PgPoolCopyExt,
+    {
+        let copy_in = conn.copy_in_raw(Self::QUERY).await?;
+        Ok(CopyDataSink::new(copy_in))
+    }
+    pub async fn write<C: std::ops::DerefMut<Target = sqlx::PgConnection>>(
+        &self,
+        sink: &mut CopyDataSink<C>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        sink.insert_row();
+        sink.add(&self.id).await?;
+        sink.add(&self.name).await?;
+        sink.add(&self.bio).await?;
+        Ok(())
     }
 }
 impl<'a> CreateAuthors<'a> {
