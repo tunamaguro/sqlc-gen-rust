@@ -4,6 +4,117 @@ use crate::{
     value_ident,
 };
 
+struct CopyDataSink;
+
+impl CopyDataSink {
+    fn ident() -> syn::Ident {
+        quote::format_ident!("CopyDataSink")
+    }
+
+    fn box_error() -> syn::Type {
+        syn::parse_quote! {
+            Box<dyn std::error::Error + Send + Sync>
+        }
+    }
+
+    fn generic_constraint() -> syn::Type {
+        syn::parse_quote! {
+            std::ops::DerefMut<Target = sqlx::PgConnection>
+        }
+    }
+
+    fn struct_tokens() -> proc_macro2::TokenStream {
+        let ident = Self::ident();
+        let constraint = Self::generic_constraint();
+        quote::quote! {
+           pub struct #ident<C: #constraint> {
+                encode_buf: sqlx::postgres::PgArgumentBuffer,
+                data_buf: Vec<u8>,
+                copy_in: sqlx::postgres::PgCopyIn<C>,
+            }
+        }
+    }
+
+    fn impl_fn() -> proc_macro2::TokenStream {
+        let ident = Self::ident();
+        let constraint = Self::generic_constraint();
+        let error_type = Self::box_error();
+        quote::quote! {
+                impl<C: #constraint> #ident<C> {
+                    const BUFFER_SIZE: usize = 4096;
+
+                    fn new(copy_in: sqlx::postgres::PgCopyIn<C>) -> Self {
+                        let mut data_buf = Vec::with_capacity(Self::BUFFER_SIZE);
+                        const COPY_SIGNATURE: &[u8] = &[
+                            b'P', b'G', b'C', b'O', b'P', b'Y', b'\n',
+                            0xFF,
+                            b'\r', b'\n',
+                            0x00,
+                        ];
+
+                        assert_eq!(COPY_SIGNATURE.len(), 11);
+                        data_buf.extend_from_slice(COPY_SIGNATURE);
+                        data_buf.extend(0_i32.to_be_bytes());
+                        data_buf.extend(0_i32.to_be_bytes());
+
+                        CopyDataSink {
+                            encode_buf: Default::default(),
+                            data_buf,
+                            copy_in,
+                        }
+                    }
+
+                    async fn send(&mut self) -> Result<(), #error_type> {
+                        let _copy_in = self.copy_in.send(self.data_buf.as_slice()).await?;
+
+                        self.data_buf.clear();
+                        Ok(())
+                    }
+
+                    /// Complete copy process and return number of rows affected.
+                    pub async fn finish(mut self) -> Result<u64, #error_type> {
+                        const COPY_TRAILER: &[u8] = &(-1_i16).to_be_bytes();
+
+                        self.data_buf.extend(COPY_TRAILER);
+                        self.send().await?;
+                        self.copy_in.finish().await.map_err(|e| e.into())
+                    }
+
+                    fn insert_row(&mut self) {
+                        let num_col = self.copy_in.num_columns() as i16;
+                        self.data_buf.extend(num_col.to_be_bytes());
+                    }
+
+                    async fn add<'q, T>(&mut self, value: &T) -> Result<(), #error_type>
+                    where
+                        T: sqlx::Encode<'q, sqlx::Postgres> + sqlx::Type<sqlx::Postgres>,
+                    {
+                        let is_null = value.encode_by_ref(&mut self.encode_buf)?;
+
+                        match is_null {
+                            sqlx::encode::IsNull::Yes => {
+                                self.data_buf.extend((-1_i32).to_be_bytes());
+                            }
+                            sqlx::encode::IsNull::No => {
+                                self.data_buf
+                                    .extend((self.encode_buf.len() as i32).to_be_bytes());
+                                self.data_buf.extend_from_slice(self.encode_buf.as_slice());
+                            }
+                        }
+
+                        self.encode_buf.clear();
+
+                        if self.data_buf.len() > Self::BUFFER_SIZE {
+                            self.send().await?;
+                        }
+
+                        Ok(())
+                    }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) enum Sqlx {
     #[default]
@@ -142,6 +253,20 @@ impl DbCrate for Sqlx {
             }
         }
         map
+    }
+
+    fn init(&self) -> proc_macro2::TokenStream {
+        let copy_data_sync = {
+            let struct_tt = CopyDataSink::struct_tokens();
+            let impl_fn = CopyDataSink::impl_fn();
+            quote::quote! {
+                #struct_tt
+                #impl_fn
+            }
+        };
+        quote::quote! {
+            #copy_data_sync
+        }
     }
 
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
@@ -304,6 +429,32 @@ impl DbCrate for Sqlx {
                                     Self::QUERY,
                                 )  #params .execute(&mut *conn).await
                             }
+                        }
+                    }
+                }
+                Annotation::CopyFrom => {
+                    let add_row = query.param_names.iter().map(|x| {
+                        quote::quote! {sink.add(&self.#x).await?;}
+                    });
+                    let sink_ident = CopyDataSink::ident();
+                    let sink_error = CopyDataSink::box_error();
+                    let constraint = CopyDataSink::generic_constraint();
+
+                    quote::quote! {
+                        pub async fn copy_in<PgCopy>(
+                            conn: &PgCopy,
+                        ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<sqlx::Postgres>>, sqlx::Error>
+                        where
+                            PgCopy: sqlx::postgres::PgPoolCopyExt,
+                        {
+                            let copy_in = conn.copy_in_raw(Self::QUERY).await?;
+                            Ok(CopyDataSink::new(copy_in))
+                        }
+
+                        pub async fn write<C: #constraint>(&self, sink: &mut #sink_ident<C>) -> Result<(), #sink_error> {
+                            sink.insert_row();
+                            #(#add_row)*
+                            Ok(())
                         }
                     }
                 }
