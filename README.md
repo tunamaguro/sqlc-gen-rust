@@ -57,48 +57,76 @@ CREATE TABLE authors (
 ### Query
 
 ```sql
--- queries.sql
 -- name: GetAuthor :one
 SELECT * FROM authors
 WHERE id = $1 LIMIT 1;
 
+-- name: ListAuthors :many
+SELECT * FROM authors
+ORDER BY name;
+
 -- name: CreateAuthor :one
-INSERT INTO authors (name, bio)
-VALUES ($1, $2)
+INSERT INTO authors (
+          name, bio
+) VALUES (
+  $1, $2
+)
 RETURNING *;
+
+-- name: DeleteAuthor :exec
+DELETE FROM authors
+WHERE id = $1;
 ```
 
-### Generated code
+### Using generated code
 
 ```rust
-pub struct GetAuthorRow {
-    pub id: i64,
-    pub name: String,
-    pub bio: Option<String>,
-}
+mod queries;
 
-pub struct GetAuthor {
-    id: i64,
-}
+use queries::{CreateAuthor, DeleteAuthor, ListAuthors};
 
-impl GetAuthor {
-    pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
-WHERE id = $1 LIMIT 1";
-    
-    pub async fn query_one(
-        &self,
-        client: &impl tokio_postgres::GenericClient,
-    ) -> Result<GetAuthorRow, tokio_postgres::Error> {
-        // ...
-    }
-}
+#[tokio::main]
+async fn main() {
+    let (client, conn) = tokio_postgres::connect(
+        &std::env::var("DATABASE_URL").unwrap(),
+        tokio_postgres::NoTls,
+    )
+    .await
+    .unwrap();
+    tokio::spawn(async move {
+        if let Err(e) = conn.await {
+            panic!("connection error: {e}");
+        }
+    });
 
-// Builder API
-let author = GetAuthor::builder()
-    .id(1)
-    .build()
-    .query_one(&client)
-    .await?;
+    // list authors
+    let authors = ListAuthors.query_many(&client).await.unwrap();
+    assert_eq!(authors.len(), 0);
+    // let author_stream = ListAuthors.query_stream(&client).await.unwrap(); // stream of rows
+
+    // crate and get an author (INSERT ... RETURNING ...)
+    let author = {
+        let binding = CreateAuthor::builder()
+            .name("John")
+            .bio(Some("Foo"))
+            .build();
+
+        // let binding = CreateAuthor::builder().name("John").build(); // missing field won't compile
+
+        binding.query_one(&client).await.unwrap()
+        //  binding.query_opt(&client).await.unwrap() // this returns Option<T>
+    };
+    assert_eq!(author.id, 0);
+
+    // delete author
+    let affected_row = DeleteAuthor::builder()
+        .id(0)
+        .build()
+        .execute(&client)
+        .await
+        .unwrap();
+    assert_eq!(affected_row, 1);
+}
 ```
 
 See below for examples with other supported crates.
