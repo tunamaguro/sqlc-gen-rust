@@ -402,7 +402,7 @@ impl ReturningRows {
 
 /// sqlc annotation
 /// See https://docs.sqlc.dev/en/stable/reference/query-annotations.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Annotation {
     Exec,
     ExecResult,
