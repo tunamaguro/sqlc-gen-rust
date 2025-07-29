@@ -60,13 +60,13 @@
             ]
         },
         {
-            "schema": "examples/authors/postgres/schema.sql",
-            "queries": "examples/authors/postgres/queries.sql",
+            "schema": "examples/authors/tokio-postgres/schema.sql",
+            "queries": "examples/authors/tokio-postgres/queries.sql",
             "engine": "postgresql",
             "codegen": [
                 {
                     "plugin": "sqlc-gen-rust",
-                    "out": "examples/authors/postgres/src",
+                    "out": "examples/authors/tokio-postgres/src",
                     "options": {
                         "output": "queries.rs",
                         "db_crate": "tokio-postgres"
@@ -75,13 +75,58 @@
             ]
         },
         {
-            "schema": "examples/authors/mysql/schema.sql",
-            "queries": "examples/authors/mysql/queries.sql",
+            "schema": "examples/authors/tokio-postgres/schema.sql",
+            "queries": "examples/authors/tokio-postgres/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/authors/deadpool-postgres/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "deadpool-postgres"
+                    }
+                }
+            ]
+        },
+        {
+            "schema": "examples/authors/tokio-postgres/schema.sql",
+            "queries": "examples/authors/tokio-postgres/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/authors/postgres/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "postgres"
+                    }
+                }
+            ]
+        },
+        {
+            "schema": "examples/authors/tokio-postgres/schema.sql",
+            "queries": "examples/authors/tokio-postgres/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/authors/sqlx-postgres/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "sqlx-postgres"
+                    }
+                }
+            ]
+        },
+        {
+            "schema": "examples/authors/sqlx-mysql/schema.sql",
+            "queries": "examples/authors/sqlx-mysql/queries.sql",
             "engine": "mysql",
             "codegen": [
                 {
                     "plugin": "sqlc-gen-rust",
-                    "out": "examples/authors/mysql/src",
+                    "out": "examples/authors/sqlx-mysql/src",
                     "options": {
                         "output": "queries.rs",
                         "db_crate": "sqlx-mysql"
@@ -90,13 +135,13 @@
             ]
         },
         {
-            "schema": "examples/authors/sqlite/schema.sql",
-            "queries": "examples/authors/sqlite/queries.sql",
+            "schema": "examples/authors/sqlx-sqlite/schema.sql",
+            "queries": "examples/authors/sqlx-sqlite/queries.sql",
             "engine": "sqlite",
             "codegen": [
                 {
                     "plugin": "sqlc-gen-rust",
-                    "out": "examples/authors/sqlite/src",
+                    "out": "examples/authors/sqlx-sqlite/src",
                     "options": {
                         "output": "queries.rs",
                         "db_crate": "sqlx-sqlite"
