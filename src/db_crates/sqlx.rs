@@ -1,8 +1,82 @@
 use super::DbCrate;
 use crate::{
-    query::{Annotation, DbEnum, DbTypeMap, DbTypeMapper, Query, ReturningRows, RsType},
+    query::{
+        Annotation, DbEnum, DbTypeMap, DbTypeMapper, Query, QueryError, ReturningRows, RsType,
+        make_column_type,
+    },
     value_ident,
 };
+
+#[derive(Default)]
+pub struct MySqlTypeMap {
+    /// db_type to rust type
+    type_map: std::collections::BTreeMap<String, RsType>,
+    /// column name to rust type
+    column_map: std::collections::BTreeMap<String, RsType>,
+}
+
+impl DbTypeMapper for MySqlTypeMap {
+    fn get_column_type(
+        &self,
+        column: &crate::plugin::Column,
+    ) -> Result<RsType, crate::query::QueryError> {
+        let db_col_name = crate::query::make_column_name(column);
+        if let Some(rs_type) = self.column_map.get(&db_col_name) {
+            return Ok(rs_type.clone());
+        };
+
+        let col_type = column
+            .r#type
+            .as_ref()
+            .map(make_column_type)
+            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
+
+        if let Some(rs_type) = self.type_map.get(&col_type) {
+            return Ok(rs_type.clone());
+        };
+
+        match col_type.as_str() {
+            "tinyint" => match (column.length, column.unsigned) {
+                (1, _) => Ok(RsType::new(syn::parse_str("bool").unwrap(), None, true)),
+                (_, true) => Ok(RsType::new(syn::parse_str("u8").unwrap(), None, true)),
+                (_, false) => Ok(RsType::new(syn::parse_str("i8").unwrap(), None, true)),
+            },
+            "smallint" => {
+                if column.unsigned {
+                    Ok(RsType::new(syn::parse_str("u16").unwrap(), None, true))
+                } else {
+                    Ok(RsType::new(syn::parse_str("i16").unwrap(), None, true))
+                }
+            }
+            "int" | "integer" | "mediumint" => {
+                if column.unsigned {
+                    Ok(RsType::new(syn::parse_str("u32").unwrap(), None, true))
+                } else {
+                    Ok(RsType::new(syn::parse_str("i32").unwrap(), None, true))
+                }
+            }
+            "bigint" => {
+                if column.unsigned {
+                    Ok(RsType::new(syn::parse_str("u64").unwrap(), None, true))
+                } else {
+                    Ok(RsType::new(syn::parse_str("i64").unwrap(), None, true))
+                }
+            }
+            _ => Err(QueryError::cannot_map_type(
+                db_col_name,
+                col_type.to_string(),
+            )),
+        }
+    }
+
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+        self.type_map.insert(db_type.to_string(), rs_type)
+    }
+
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType> {
+        self.column_map.insert(column_name.to_string(), rs_type)
+    }
+}
 
 struct CopyDataSink;
 
@@ -183,7 +257,17 @@ impl Sqlx {
                 COPY_CHEAP
             }
             Sqlx::MySql => {
-                const COPY_CHEAP: &[(&str, &[&str])] = &[("i8", &["tinyint"])];
+                const COPY_CHEAP: &[(&str, &[&str])] = &[
+                    ("bool", &["bool", "boolean"]),
+                    // int type is handle in `get_column_type`
+                    ("int16", &["year"]),
+                    ("f32", &["float"]),
+                    ("f64", &["double", "double precision", "real"]),
+                    (
+                        "sqlx::mysql::types::MySqlTime",
+                        &["date", "timestamp", "datetime", "time"],
+                    ),
+                ];
                 COPY_CHEAP
             }
         }
@@ -250,18 +334,34 @@ impl Sqlx {
             Sqlx::MySql => {
                 /// https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/mysql_type.go
                 /// https://docs.rs/sqlx/0.8.6/sqlx/mysql/types/index.html
-                const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[(
-                    "String",
-                    Some("str"),
-                    &[
-                        "varchar",
-                        "text",
-                        "char",
-                        "tinytext",
-                        "mediumtext",
-                        "longtext",
-                    ],
-                )];
+                const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[
+                    (
+                        "String",
+                        Some("str"),
+                        &[
+                            "varchar",
+                            "text",
+                            "char",
+                            "tinytext",
+                            "mediumtext",
+                            "longtext",
+                        ],
+                    ),
+                    (
+                        "Vec<u8>",
+                        Some("[u8]"),
+                        &[
+                            "blob",
+                            "binary",
+                            "varbinary",
+                            "tinyblob",
+                            "mediumblob",
+                            "longblob",
+                        ],
+                    ),
+                    ("serde_json::Value", None, &["json"]),
+                    ("String", Some("str"), &["decimal", "dec", "fixed", "enum"]),
+                ];
                 DEFAULT_TYPE
             }
         }
@@ -275,7 +375,10 @@ impl DbCrate for Sqlx {
 
         let default_types = self.default_types();
 
-        let mut map = DbTypeMap::default();
+        let mut map: Box<dyn DbTypeMapper> = match self {
+            Sqlx::Postgres => Box::new(DbTypeMap::default()),
+            Sqlx::MySql => Box::new(MySqlTypeMap::default()),
+        };
 
         for (owned_type, pg_types) in copy_cheap {
             let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
@@ -297,7 +400,7 @@ impl DbCrate for Sqlx {
                 );
             }
         }
-        Box::new(map)
+        map
     }
 
     fn init(&self) -> proc_macro2::TokenStream {

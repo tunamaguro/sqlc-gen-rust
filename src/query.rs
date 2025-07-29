@@ -28,7 +28,7 @@ pub enum QueryError {
 
 impl QueryError {
     #[track_caller]
-    fn missing_column_type(column_name: String) -> Self {
+    pub(crate) fn missing_column_type(column_name: String) -> Self {
         Self::MissingColumnType {
             column_name,
             location: std::panic::Location::caller(),
@@ -36,7 +36,7 @@ impl QueryError {
     }
 
     #[track_caller]
-    fn missing_param_column(param_number: i32) -> Self {
+    pub(crate) fn missing_param_column(param_number: i32) -> Self {
         Self::MissingParamColumn {
             param_number,
             location: std::panic::Location::caller(),
@@ -44,7 +44,7 @@ impl QueryError {
     }
 
     #[track_caller]
-    fn cannot_map_type(col_name: String, typ_name: String) -> Self {
+    pub(crate) fn cannot_map_type(col_name: String, typ_name: String) -> Self {
         Self::CannotMapType {
             message: format!(
                 "Cannot map type `{col_name}` of table `{typ_name}` to a Rust type. Consider add entry to overrides."
@@ -54,7 +54,7 @@ impl QueryError {
     }
 
     #[track_caller]
-    fn unknown_annotation(annotation: String) -> Self {
+    pub(crate) fn unknown_annotation(annotation: String) -> Self {
         Self::UnknownAnnotation {
             annotation,
             location: std::panic::Location::caller(),
@@ -185,7 +185,7 @@ pub(crate) struct RsColType {
     /// col is optional
     optional: bool,
 }
-fn make_column_type(db_type: &plugin::Identifier) -> String {
+pub(crate) fn make_column_type(db_type: &plugin::Identifier) -> String {
     if !db_type.schema.is_empty() {
         format!("{}.{}", db_type.schema, db_type.name)
     } else {
@@ -193,7 +193,7 @@ fn make_column_type(db_type: &plugin::Identifier) -> String {
     }
 }
 
-fn make_column_name(column: &plugin::Column) -> String {
+pub(crate) fn make_column_name(column: &plugin::Column) -> String {
     if let Some(table) = &column.table {
         format!("{}.{}", table.name, column.name)
     } else {
