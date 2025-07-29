@@ -11,5 +11,9 @@ services:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: password
       POSTGRES_DB: app
-volumes:
-  postgres_data:
+  mysql:
+    image: mysql:9.4
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: app
+      

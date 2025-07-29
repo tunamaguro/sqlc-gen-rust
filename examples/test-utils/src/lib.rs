@@ -1,27 +1,18 @@
 use test_context::{AsyncTestContext, TestContext};
 
-pub struct PgTokioTestContext {
-    db_name: String,
-    pub client: tokio_postgres::Client,
-}
-
 pub struct PgSyncTestContext {
     db_name: String,
     pub client: postgres::Client,
 }
 
-pub struct DeadPoolContext {
-    db_name: String,
-    pub pool: deadpool_postgres::Pool,
-}
-
-pub struct SqlxPgContext {
-    db_name: String,
-    pub pool: sqlx::PgPool,
+fn postgres_url() -> String {
+    std::env::var("POSTGRES_DATABASE_URL")
+        .or(std::env::var("DATABASE_URL"))
+        .unwrap()
 }
 
 fn postgres_config() -> postgres::Config {
-    let database_url = std::env::var("DATABASE_URL").unwrap();
+    let database_url = postgres_url();
     let postgres_url = url::Url::parse(&database_url).unwrap();
     let db_name = {
         let path = postgres_url.path().trim_start_matches('/');
@@ -37,32 +28,6 @@ fn postgres_config() -> postgres::Config {
     let password = postgres_url.password().unwrap_or("");
 
     let mut config = postgres::Config::default();
-    config.dbname(db_name);
-    config.host(&host);
-    config.port(port);
-    config.user(user);
-    config.password(password);
-
-    config
-}
-
-fn tokio_postgres_config() -> tokio_postgres::Config {
-    let database_url = std::env::var("DATABASE_URL").unwrap();
-    let postgres_url = url::Url::parse(&database_url).unwrap();
-    let db_name = {
-        let path = postgres_url.path().trim_start_matches('/');
-        if path.is_empty() { "postgres" } else { path }
-    };
-    let host = postgres_url
-        .host()
-        .map(|h| h.to_string())
-        .unwrap_or("localhost".into());
-    let port = postgres_url.port().unwrap_or(5432);
-
-    let user = postgres_url.username();
-    let password = postgres_url.password().unwrap_or("");
-
-    let mut config = tokio_postgres::Config::default();
     config.dbname(db_name);
     config.host(&host);
     config.port(port);
@@ -107,6 +72,38 @@ impl TestContext for PgSyncTestContext {
             .batch_execute(&format!("DROP DATABASE {}", self.db_name))
             .unwrap();
     }
+}
+
+pub struct PgTokioTestContext {
+    db_name: String,
+    pub client: tokio_postgres::Client,
+}
+
+fn tokio_postgres_config() -> tokio_postgres::Config {
+    let database_url = postgres_url();
+
+    let postgres_url = url::Url::parse(&database_url).unwrap();
+    let db_name = {
+        let path = postgres_url.path().trim_start_matches('/');
+        if path.is_empty() { "postgres" } else { path }
+    };
+    let host = postgres_url
+        .host()
+        .map(|h| h.to_string())
+        .unwrap_or("localhost".into());
+    let port = postgres_url.port().unwrap_or(5432);
+
+    let user = postgres_url.username();
+    let password = postgres_url.password().unwrap_or("");
+
+    let mut config = tokio_postgres::Config::default();
+    config.dbname(db_name);
+    config.host(&host);
+    config.port(port);
+    config.user(user);
+    config.password(password);
+
+    config
 }
 
 impl AsyncTestContext for PgTokioTestContext {
@@ -157,6 +154,11 @@ impl AsyncTestContext for PgTokioTestContext {
         let stmt = format!("DROP DATABASE {};", self.db_name);
         admin_client.batch_execute(&stmt).await.unwrap();
     }
+}
+
+pub struct DeadPoolContext {
+    db_name: String,
+    pub pool: deadpool_postgres::Pool,
 }
 
 impl AsyncTestContext for DeadPoolContext {
@@ -215,6 +217,10 @@ impl AsyncTestContext for DeadPoolContext {
         admin_client.batch_execute(&stmt).await.unwrap();
     }
 }
+pub struct SqlxPgContext {
+    db_name: String,
+    pub pool: sqlx::PgPool,
+}
 
 impl AsyncTestContext for SqlxPgContext {
     async fn setup() -> Self {
@@ -233,7 +239,7 @@ impl AsyncTestContext for SqlxPgContext {
         let stmt = format!("CREATE DATABASE {test_db_name};");
         admin_client.batch_execute(&stmt).await.unwrap();
 
-        let database_url = std::env::var("DATABASE_URL").unwrap();
+        let database_url = postgres_url();
         let mut postgres_url = url::Url::parse(&database_url).unwrap();
         postgres_url.set_path(&format!("/{test_db_name}"));
 
@@ -258,6 +264,80 @@ impl AsyncTestContext for SqlxPgContext {
         });
         let stmt = format!("DROP DATABASE {};", self.db_name);
         admin_client.batch_execute(&stmt).await.unwrap();
+    }
+}
+
+pub struct SqlxMysqlContext {
+    db_name: String,
+    pub pool: sqlx::MySqlPool,
+}
+
+fn mysql_url() -> String {
+    std::env::var("MYSQL_DATABASE_URL")
+        .or(std::env::var("DATABASE_URL"))
+        .unwrap()
+}
+
+fn mysql_config() -> (String, u16, String, String, String) {
+    let database_url = mysql_url();
+    let mysql_url = url::Url::parse(&database_url).unwrap();
+    let db_name = {
+        let path = mysql_url.path().trim_start_matches('/');
+        if path.is_empty() { "mysql" } else { path }
+    };
+    let host = mysql_url
+        .host()
+        .map(|h| h.to_string())
+        .unwrap_or("localhost".into());
+    let port = mysql_url.port().unwrap_or(3306);
+
+    let user = mysql_url.username().to_string();
+    let password = mysql_url.password().unwrap_or("").to_string();
+
+    (db_name.to_string(), port, host, user, password)
+}
+
+impl AsyncTestContext for SqlxMysqlContext {
+    async fn setup() -> Self {
+        let (_, port, host, user, password) = mysql_config();
+
+        // Admin接続でテストDBを作成
+        let admin_url = format!("mysql://{user}:{password}@{host}:{port}/mysql");
+        let admin_pool = sqlx::MySqlPool::connect(&admin_url).await.unwrap();
+
+        let test_db_name = generate_tmp_db();
+
+        sqlx::query(&format!("CREATE DATABASE `{test_db_name}`"))
+            .execute(&admin_pool)
+            .await
+            .unwrap();
+
+        admin_pool.close().await;
+
+        // テスト用接続
+        let test_url = format!("mysql://{user}:{password}@{host}:{port}/{test_db_name}");
+        let pool = sqlx::MySqlPool::connect(&test_url).await.unwrap();
+
+        Self {
+            pool,
+            db_name: test_db_name,
+        }
+    }
+
+    async fn teardown(self) {
+        self.pool.close().await;
+
+        let (_, port, host, user, password) = mysql_config();
+
+        let admin_url = format!("mysql://{user}:{password}@{host}:{port}/mysql");
+        let admin_pool = sqlx::MySqlPool::connect(&admin_url).await.unwrap();
+
+        sqlx::query(&format!("DROP DATABASE `{}`", self.db_name))
+            .execute(&admin_pool)
+            .await
+            .unwrap();
+
+        admin_pool.close().await;
     }
 }
 
