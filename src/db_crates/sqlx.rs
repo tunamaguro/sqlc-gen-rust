@@ -366,6 +366,13 @@ impl Sqlx {
             }
         }
     }
+
+    fn database_ident(&self) -> syn::Type {
+        match self {
+            Sqlx::Postgres => syn::parse_quote! {sqlx::Postgres},
+            Sqlx::MySql => syn::parse_quote! {sqlx::MySql},
+        }
+    }
 }
 
 impl DbCrate for Sqlx {
@@ -404,16 +411,21 @@ impl DbCrate for Sqlx {
     }
 
     fn init(&self) -> proc_macro2::TokenStream {
-        let copy_data_sync = {
-            let struct_tt = CopyDataSink::struct_tokens();
-            let impl_fn = CopyDataSink::impl_fn();
-            quote::quote! {
-                #struct_tt
-                #impl_fn
+        match self {
+            Sqlx::Postgres => {
+                let copy_data_sync = {
+                    let struct_tt = CopyDataSink::struct_tokens();
+                    let impl_fn = CopyDataSink::impl_fn();
+                    quote::quote! {
+                        #struct_tt
+                        #impl_fn
+                    }
+                };
+                quote::quote! {
+                    #copy_data_sync
+                }
             }
-        };
-        quote::quote! {
-            #copy_data_sync
+            Sqlx::MySql => quote::quote! {},
         }
     }
 
@@ -484,6 +496,7 @@ impl DbCrate for Sqlx {
             |acc, x| quote::quote! {#acc .bind(self.#x)},
         );
         let query_fns = {
+            let database_ident = self.database_ident();
             let row_ident = row.struct_ident();
 
             let query_as_def = if need_lifetime {
@@ -499,9 +512,9 @@ impl DbCrate for Sqlx {
             let query_as = quote::quote! {
                 pub fn #query_as_def->sqlx::query::QueryAs<
                 #lifetime_a,
-                sqlx::Postgres,
+                #database_ident,
                 #row_ident,
-                <sqlx::Postgres as sqlx::Database>::Arguments<#lifetime_a>,
+                <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
                 >{
                     sqlx::query_as::<_,#row_ident>(
                                     Self::QUERY,
@@ -523,7 +536,7 @@ impl DbCrate for Sqlx {
                     quote::quote! {
                         pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -535,7 +548,7 @@ impl DbCrate for Sqlx {
 
                         pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -552,7 +565,7 @@ impl DbCrate for Sqlx {
                     quote::quote! {
                         pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -567,8 +580,8 @@ impl DbCrate for Sqlx {
                 (_, Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows) => {
                     quote::quote! {
                         pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
-                        ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        ->impl Future<Output=Result<<#database_ident as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -590,7 +603,7 @@ impl DbCrate for Sqlx {
                     quote::quote! {
                         pub async fn copy_in<PgCopy>(
                             conn: &PgCopy,
-                        ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<sqlx::Postgres>>, sqlx::Error>
+                        ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<#database_ident>>, sqlx::Error>
                         where
                             PgCopy: sqlx::postgres::PgPoolCopyExt,
                         {
