@@ -74,7 +74,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "authors"
+name = "authors-sqlx-mysql"
 version = "0.1.0"
 dependencies = [
  "deadpool-postgres",
@@ -90,7 +90,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "authors-mysql"
+name = "authors-sqlx-sqlite"
+version = "0.1.0"
+dependencies = [
+ "deadpool-postgres",
+ "postgres",
+ "postgres-types",
+ "serde_json",
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
+]
+
+[[package]]
+name = "authors-tokio-postgres"
 version = "0.1.0"
 dependencies = [
  "deadpool-postgres",
@@ -1675,22 +1691,6 @@ dependencies = [
  "serde",
  "serde_json",
  "syn",
-]
-
-[[package]]
-name = "sqlite"
-version = "0.1.0"
-dependencies = [
- "deadpool-postgres",
- "postgres",
- "postgres-types",
- "serde_json",
- "sqlx",
- "test-context",
- "test-utils",
- "tokio",
- "tokio-postgres",
- "uuid",
 ]
 
 [[package]]

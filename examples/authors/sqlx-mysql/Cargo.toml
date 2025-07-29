@@ -1,5 +1,5 @@
 [package]
-name = "authors"
+name = "authors-sqlx-mysql"
 version = "0.1.0"
 edition = "2024"
 
