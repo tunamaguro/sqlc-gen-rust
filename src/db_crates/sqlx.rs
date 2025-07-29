@@ -194,6 +194,7 @@ pub(crate) enum Sqlx {
     #[default]
     Postgres,
     MySql,
+    Sqlite,
 }
 
 impl<'de> serde::Deserialize<'de> for Sqlx {
@@ -205,6 +206,7 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
         match s.trim() {
             "sqlx-postgres" => Ok(Self::Postgres),
             "sqlx-mysql" => Ok(Self::MySql),
+            "sqlx-sqlite" => Ok(Self::Sqlite),
             _ => Err(serde::de::Error::custom(format!(
                 "`{s}` is unsupported crate."
             ))),
@@ -267,6 +269,28 @@ impl Sqlx {
                         "sqlx::mysql::types::MySqlTime",
                         &["date", "timestamp", "datetime", "time"],
                     ),
+                ];
+                COPY_CHEAP
+            }
+            Sqlx::Sqlite => {
+                const COPY_CHEAP: &[(&str, &[&str])] = &[
+                    ("bool", &["bool", "boolean"]),
+                    (
+                        "i64",
+                        &[
+                            "int",
+                            "integer",
+                            "tinyint",
+                            "smallint",
+                            "mediumint",
+                            "bigint",
+                            "unsignedbigint",
+                            "int2",
+                            "int4",
+                            "int8",
+                        ],
+                    ),
+                    ("f64", &["real", "double", "doubleprecision", "float"]),
                 ];
                 COPY_CHEAP
             }
@@ -364,6 +388,15 @@ impl Sqlx {
                 ];
                 DEFAULT_TYPE
             }
+            Sqlx::Sqlite => {
+                /// https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/sqlite_type.go
+                /// https://docs.rs/sqlx/latest/sqlx/sqlite/types/index.html
+                const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[
+                    ("String", Some("str"), &["text"]),
+                    ("Vec<u8>", Some("[u8]"), &["blob"]),
+                ];
+                DEFAULT_TYPE
+            }
         }
     }
 
@@ -371,6 +404,7 @@ impl Sqlx {
         match self {
             Sqlx::Postgres => syn::parse_quote! {sqlx::Postgres},
             Sqlx::MySql => syn::parse_quote! {sqlx::MySql},
+            Sqlx::Sqlite => syn::parse_quote! {sqlx::Sqlite},
         }
     }
 }
@@ -385,6 +419,7 @@ impl DbCrate for Sqlx {
         let mut map: Box<dyn DbTypeMapper> = match self {
             Sqlx::Postgres => Box::new(DbTypeMap::default()),
             Sqlx::MySql => Box::new(MySqlTypeMap::default()),
+            Sqlx::Sqlite => Box::new(DbTypeMap::default()),
         };
 
         for (owned_type, pg_types) in copy_cheap {
@@ -425,7 +460,7 @@ impl DbCrate for Sqlx {
                     #copy_data_sync
                 }
             }
-            Sqlx::MySql => quote::quote! {},
+            _ => quote::quote! {},
         }
     }
 
