@@ -90,6 +90,21 @@
             ]
         },
         {
+            "schema": "examples/authors/sqlite/schema.sql",
+            "queries": "examples/authors/sqlite/queries.sql",
+            "engine": "sqlite",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/authors/sqlite/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "sqlx-sqlite"
+                    }
+                }
+            ]
+        },
+        {
             "schema": "examples/jets/schema.sql",
             "queries": "examples/jets/queries.sql",
             "engine": "postgresql",

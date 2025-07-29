@@ -48,6 +48,7 @@ postgres-types = { version = "0.2.9", features = [
 sqlx = { version = "0.8", features = [
     "postgres",
     "mysql",
+    "sqlite",
     "runtime-tokio",
     "uuid",
     "chrono",
