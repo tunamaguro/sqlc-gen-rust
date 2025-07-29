@@ -341,6 +341,17 @@ impl AsyncTestContext for SqlxMysqlContext {
     }
 }
 
+pub struct SqlxSqliteContext {
+    pub pool: sqlx::SqlitePool,
+}
+
+impl AsyncTestContext for SqlxSqliteContext {
+    async fn setup() -> Self {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        Self { pool }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
