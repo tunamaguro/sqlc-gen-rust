@@ -40,6 +40,8 @@ Add the following to your `sqlc.json` configuration file to use this plugin.
 - [tokio-postgres](https://crates.io/crates/tokio-postgres)
 - [deadpool-postgres](https://crates.io/crates/deadpool-postgres)
 - [sqlx-postgres](https://docs.rs/sqlx/latest/sqlx/postgres/index.html)
+- [sqlx-mysql](https://docs.rs/sqlx/latest/sqlx/mysql/index.html)
+- [sqlx-sqlite](https://docs.rs/sqlx/latest/sqlx/sqlite/index.html)
 
 ## Example
 
@@ -131,10 +133,12 @@ async fn main() {
 
 See below for examples with other supported crates.
 
-- [`postgres` generated code](./examples/e-commerce/src/postgres_query.rs)
-- [`tokio-postgres` generated code](./examples/e-commerce/src/tokio_query.rs)
-- [`deadpool-postgres` generated code](./examples/e-commerce/src/deadpool_query.rs)
-- [`sqlx-postgres` generated code](./examples/e-commerce/src/sqlx_query.rs)
+- [`postgres` generated code](./examples/authors/postgres/src/lib.rs)
+- [`tokio-postgres` generated code](./examples/authors/tokio-postgres/src/lib.rs)
+- [`deadpool-postgres` generated code](./examples/authors/deadpool-postgres/src/lib.rs)
+- [`sqlx-postgres` generated code](./examples/authors/sqlx-postgres/src/lib.rs)
+- [`sqlx-mysql` generated code](./examples/authors/sqlx-mysql/src/lib.rs)
+- [`sqlx-sqlite` generated code](./examples/authors/sqlx-sqlite/src/lib.rs)
 
 ## Options
 
@@ -149,6 +153,8 @@ The crate used in the generated code. Default is `tokio-postgres`. Available val
 - `tokio-postgres`
 - `deadpool-postgres`
 - `sqlx-postgres`
+- `sqlx-mysql`
+- `sqlx-sqlite`
 
 ### `overrides`
 

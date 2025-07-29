@@ -5,23 +5,23 @@ mod queries;
 mod tests {
     use super::*;
     use test_context::test_context;
-    use test_utils::PgSyncTestContext;
+    use test_utils::PgTokioTestContext;
 
-    // this function used but rust compiler generate dead_code warning
-    #[allow(dead_code)]
-    fn migrate_db(client: &mut impl postgres::GenericClient) {
+    async fn migrate_db(client: &tokio_postgres::Client) {
         client
-            .batch_execute(include_str!("../../tokio-postgres/schema.sql"))
+            .batch_execute(include_str!("../schema.sql"))
+            .await
             .unwrap();
     }
 
     /// port from https://github.com/sqlc-dev/sqlc/blob/v1.29.0/examples/authors/postgresql/db_test.go
-    #[test_context(PgSyncTestContext)]
-    fn test_authors(ctx: &mut PgSyncTestContext) {
-        let client = &mut ctx.client;
-        migrate_db(client);
+    #[test_context(PgTokioTestContext)]
+    #[tokio::test]
+    async fn test_authors(ctx: &mut PgTokioTestContext) {
+        let client = &ctx.client;
+        migrate_db(client).await;
 
-        let authors = queries::ListAuthors.query_many(client).unwrap();
+        let authors = queries::ListAuthors.query_many(client).await.unwrap();
         assert_eq!(authors.len(), 0);
 
         let inserted_author = queries::CreateAuthor::builder()
@@ -31,12 +31,14 @@ mod tests {
             ))
             .build()
             .query_one(client)
+            .await
             .unwrap();
 
         let _fetched_author = queries::GetAuthor::builder()
             .id(inserted_author.id)
             .build()
             .query_one(client)
+            .await
             .unwrap();
     }
 }
