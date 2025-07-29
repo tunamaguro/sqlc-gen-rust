@@ -2,7 +2,7 @@ use quote::ToTokens;
 
 use super::DbCrate;
 use crate::{
-    query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
+    query::{Annotation, DbEnum, DbTypeMap, DbTypeMapper, Query, ReturningRows, RsType},
     value_ident,
 };
 
@@ -135,7 +135,7 @@ impl DbCrate for Postgres {
     /// - https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605
     /// - https://docs.rs/postgres-types/0.2.9/postgres_types/trait.ToSql.html#types
     /// - https://www.postgresql.jp/document/17/html/datatype.html
-    fn db_type_map(&self) -> crate::query::DbTypeMap {
+    fn db_type_map(&self) -> Box<dyn DbTypeMapper> {
         let copy_cheap = [
             ("i32", vec!["serial", "serial4", "pg_catalog.serial4"]),
             ("i64", vec!["bigserial", "serial8", "pg_catalog.serial8"]),
@@ -208,7 +208,7 @@ impl DbCrate for Postgres {
                 );
             }
         }
-        map
+        Box::new(map)
     }
 
     fn init(&self) -> proc_macro2::TokenStream {

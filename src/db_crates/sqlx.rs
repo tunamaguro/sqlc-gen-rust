@@ -1,8 +1,82 @@
 use super::DbCrate;
 use crate::{
-    query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
+    query::{
+        Annotation, DbEnum, DbTypeMap, DbTypeMapper, Query, QueryError, ReturningRows, RsType,
+        make_column_type,
+    },
     value_ident,
 };
+
+#[derive(Default)]
+pub struct MySqlTypeMap {
+    /// db_type to rust type
+    type_map: std::collections::BTreeMap<String, RsType>,
+    /// column name to rust type
+    column_map: std::collections::BTreeMap<String, RsType>,
+}
+
+impl DbTypeMapper for MySqlTypeMap {
+    fn get_column_type(
+        &self,
+        column: &crate::plugin::Column,
+    ) -> Result<RsType, crate::query::QueryError> {
+        let db_col_name = crate::query::make_column_name(column);
+        if let Some(rs_type) = self.column_map.get(&db_col_name) {
+            return Ok(rs_type.clone());
+        };
+
+        let col_type = column
+            .r#type
+            .as_ref()
+            .map(make_column_type)
+            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
+
+        if let Some(rs_type) = self.type_map.get(&col_type) {
+            return Ok(rs_type.clone());
+        };
+
+        match col_type.as_str() {
+            "tinyint" => match (column.length, column.unsigned) {
+                (1, _) => Ok(RsType::new(syn::parse_str("bool").unwrap(), None, true)),
+                (_, true) => Ok(RsType::new(syn::parse_str("u8").unwrap(), None, true)),
+                (_, false) => Ok(RsType::new(syn::parse_str("i8").unwrap(), None, true)),
+            },
+            "smallint" => {
+                if column.unsigned {
+                    Ok(RsType::new(syn::parse_str("u16").unwrap(), None, true))
+                } else {
+                    Ok(RsType::new(syn::parse_str("i16").unwrap(), None, true))
+                }
+            }
+            "int" | "integer" | "mediumint" => {
+                if column.unsigned {
+                    Ok(RsType::new(syn::parse_str("u32").unwrap(), None, true))
+                } else {
+                    Ok(RsType::new(syn::parse_str("i32").unwrap(), None, true))
+                }
+            }
+            "bigint" => {
+                if column.unsigned {
+                    Ok(RsType::new(syn::parse_str("u64").unwrap(), None, true))
+                } else {
+                    Ok(RsType::new(syn::parse_str("i64").unwrap(), None, true))
+                }
+            }
+            _ => Err(QueryError::cannot_map_type(
+                db_col_name,
+                col_type.to_string(),
+            )),
+        }
+    }
+
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+        self.type_map.insert(db_type.to_string(), rs_type)
+    }
+
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType> {
+        self.column_map.insert(column_name.to_string(), rs_type)
+    }
+}
 
 struct CopyDataSink;
 
@@ -119,6 +193,7 @@ impl CopyDataSink {
 pub(crate) enum Sqlx {
     #[default]
     Postgres,
+    MySql,
 }
 
 impl<'de> serde::Deserialize<'de> for Sqlx {
@@ -129,6 +204,7 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
         let s = String::deserialize(deserializer)?;
         match s.trim() {
             "sqlx-postgres" => Ok(Self::Postgres),
+            "sqlx-mysql" => Ok(Self::MySql),
             _ => Err(serde::de::Error::custom(format!(
                 "`{s}` is unsupported crate."
             ))),
@@ -158,94 +234,173 @@ impl Sqlx {
 
         row_tt
     }
+
+    fn copy_cheap_types(&self) -> &[(&str, &[&str])] {
+        match self {
+            Sqlx::Postgres => {
+                const COPY_CHEAP: &[(&str, &[&str])] = &[
+                    ("i32", &["serial", "serial4", "pg_catalog.serial4"]),
+                    ("i64", &["bigserial", "serial8", "pg_catalog.serial8"]),
+                    ("i16", &["smallserial", "serial2", "pg_catalog.serial2"]),
+                    ("i32", &["integer", "int", "int4", "pg_catalog.int4"]),
+                    ("i64", &["bigint", "int8", "pg_catalog.int8"]),
+                    ("i16", &["smallint", "int2", "pg_catalog.int2"]),
+                    (
+                        "f64",
+                        &["float", "double precision", "float8", "pg_catalog.float8"],
+                    ),
+                    ("f32", &["real", "float4", "pg_catalog.float4"]),
+                    ("bool", &["boolean", "bool", "pg_catalog.bool"]),
+                    ("u32", &["oid", "pg_catalog.oid"]),
+                    ("uuid::Uuid", &["uuid"]),
+                ];
+                COPY_CHEAP
+            }
+            Sqlx::MySql => {
+                const COPY_CHEAP: &[(&str, &[&str])] = &[
+                    ("bool", &["bool", "boolean"]),
+                    // int type is handle in `get_column_type`
+                    ("int16", &["year"]),
+                    ("f32", &["float"]),
+                    ("f64", &["double", "double precision", "real"]),
+                    (
+                        "sqlx::mysql::types::MySqlTime",
+                        &["date", "timestamp", "datetime", "time"],
+                    ),
+                ];
+                COPY_CHEAP
+            }
+        }
+    }
+
+    fn default_types(&self) -> &[(&str, Option<&str>, &[&'static str])] {
+        match self {
+            Sqlx::Postgres => {
+                /// See below
+                /// - https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605
+                /// - https://docs.rs/sqlx/latest/sqlx/postgres/types/index.html
+                const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[
+                    (
+                        "String",
+                        Some("str"),
+                        &[
+                            "text",
+                            "pg_catalog.varchar",
+                            "pg_catalog.bpchar",
+                            "string",
+                            "citext",
+                            "name",
+                        ],
+                    ),
+                    (
+                        "Vec<u8>",
+                        Some("[u8]"),
+                        &["bytea", "blob", "pg_catalog.bytea"],
+                    ),
+                    (
+                        "sqlx::postgres::types::PgInterval",
+                        None,
+                        &["interval", "pg_catalog.interval"],
+                    ),
+                    // TODO: Add PgRange<T>
+                    // https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L355-L461
+                    ("sqlx::postgres::types::PgMoney", None, &["money"]),
+                    ("sqlx::postgres::types::PgLTree", None, &["ltree"]),
+                    ("sqlx::postgres::types::PgLQuery", None, &["lquery"]),
+                    // `citext` is not added because `String` is usually sufficient.
+                    ("sqlx::postgres::types::PgCube", None, &["cube"]),
+                    ("sqlx::postgres::types::PgPoint", None, &["point"]),
+                    ("sqlx::postgres::types::PgLine", None, &["line"]),
+                    ("sqlx::postgres::types::PgLSeg", None, &["lseg"]),
+                    ("sqlx::postgres::types::PgBox", None, &["box"]),
+                    ("sqlx::postgres::types::PgPath", None, &["path"]),
+                    ("sqlx::postgres::types::PgPolygon", None, &["polygon"]),
+                    ("sqlx::postgres::types::PgCircle", None, &["circle"]),
+                    ("sqlx::postgres::types::PgHstore", None, &["hstore"]),
+                    (
+                        "sqlx::postgres::types::PgTimeTz",
+                        None,
+                        &["pg_catalog.timetz"],
+                    ),
+                    ("std::net::IpAddr", None, &["inet"]),
+                    (
+                        "serde_json::Value",
+                        None,
+                        &["json", "pg_catalog.json", "jsonb", "pg_catalog.jsonb"],
+                    ),
+                ];
+                DEFAULT_TYPE
+            }
+            Sqlx::MySql => {
+                /// https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/mysql_type.go
+                /// https://docs.rs/sqlx/0.8.6/sqlx/mysql/types/index.html
+                const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[
+                    (
+                        "String",
+                        Some("str"),
+                        &[
+                            "varchar",
+                            "text",
+                            "char",
+                            "tinytext",
+                            "mediumtext",
+                            "longtext",
+                        ],
+                    ),
+                    (
+                        "Vec<u8>",
+                        Some("[u8]"),
+                        &[
+                            "blob",
+                            "binary",
+                            "varbinary",
+                            "tinyblob",
+                            "mediumblob",
+                            "longblob",
+                        ],
+                    ),
+                    ("serde_json::Value", None, &["json"]),
+                    ("String", Some("str"), &["decimal", "dec", "fixed", "enum"]),
+                ];
+                DEFAULT_TYPE
+            }
+        }
+    }
+
+    fn database_ident(&self) -> syn::Type {
+        match self {
+            Sqlx::Postgres => syn::parse_quote! {sqlx::Postgres},
+            Sqlx::MySql => syn::parse_quote! {sqlx::MySql},
+        }
+    }
 }
 
 impl DbCrate for Sqlx {
     /// Creates a new `DbTypeMap` with default types for PostgreSQL.
-    ///
-    /// See below
-    /// - https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605
-    /// - https://docs.rs/sqlx/latest/sqlx/postgres/types/index.html
-    fn db_type_map(&self) -> crate::query::DbTypeMap {
-        let copy_cheap = [
-            ("i32", vec!["serial", "serial4", "pg_catalog.serial4"]),
-            ("i64", vec!["bigserial", "serial8", "pg_catalog.serial8"]),
-            ("i16", vec!["smallserial", "serial2", "pg_catalog.serial2"]),
-            ("i32", vec!["integer", "int", "int4", "pg_catalog.int4"]),
-            ("i64", vec!["bigint", "int8", "pg_catalog.int8"]),
-            ("i16", vec!["smallint", "int2", "pg_catalog.int2"]),
-            (
-                "f64",
-                vec!["float", "double precision", "float8", "pg_catalog.float8"],
-            ),
-            ("f32", vec!["real", "float4", "pg_catalog.float4"]),
-            ("bool", vec!["boolean", "bool", "pg_catalog.bool"]),
-            ("u32", vec!["oid", "pg_catalog.oid"]),
-            ("uuid::Uuid", vec!["uuid"]),
-        ];
+    fn db_type_map(&self) -> Box<dyn DbTypeMapper> {
+        let copy_cheap = self.copy_cheap_types();
 
-        let default_types = [
-            (
-                ("String", Some("str")),
-                vec![
-                    "text",
-                    "pg_catalog.varchar",
-                    "pg_catalog.bpchar",
-                    "string",
-                    "citext",
-                    "name",
-                ],
-            ),
-            (
-                ("Vec<u8>", Some("[u8]")),
-                vec!["bytea", "blob", "pg_catalog.bytea"],
-            ),
-            (
-                ("sqlx::postgres::types::PgInterval", None),
-                vec!["interval", "pg_catalog.interval"],
-            ),
-            // TODO: Add PgRange<T>
-            // https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L355-L461
-            (("sqlx::postgres::types::PgMoney", None), vec!["money"]),
-            (("sqlx::postgres::types::PgLTree", None), vec!["ltree"]),
-            (("sqlx::postgres::types::PgLQuery", None), vec!["lquery"]),
-            // `citext` is not added because `String` is usually sufficient.
-            (("sqlx::postgres::types::PgCube", None), vec!["cube"]),
-            (("sqlx::postgres::types::PgPoint", None), vec!["point"]),
-            (("sqlx::postgres::types::PgLine", None), vec!["line"]),
-            (("sqlx::postgres::types::PgLSeg", None), vec!["lseg"]),
-            (("sqlx::postgres::types::PgBox", None), vec!["box"]),
-            (("sqlx::postgres::types::PgPath", None), vec!["path"]),
-            (("sqlx::postgres::types::PgPolygon", None), vec!["polygon"]),
-            (("sqlx::postgres::types::PgCircle", None), vec!["circle"]),
-            (("sqlx::postgres::types::PgHstore", None), vec!["hstore"]),
-            (
-                ("sqlx::postgres::types::PgTimeTz", None),
-                vec!["pg_catalog.timetz"],
-            ),
-            (("std::net::IpAddr", None), vec!["inet"]),
-            (
-                ("serde_json::Value", None),
-                vec!["json", "pg_catalog.json", "jsonb", "pg_catalog.jsonb"],
-            ),
-        ];
+        let default_types = self.default_types();
 
-        let mut map = DbTypeMap::default();
+        let mut map: Box<dyn DbTypeMapper> = match self {
+            Sqlx::Postgres => Box::new(DbTypeMap::default()),
+            Sqlx::MySql => Box::new(MySqlTypeMap::default()),
+        };
 
         for (owned_type, pg_types) in copy_cheap {
             let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
 
-            for pg_type in pg_types {
+            for pg_type in pg_types.iter() {
                 map.insert_db_type(pg_type, RsType::new(owned_type.clone(), None, true));
             }
         }
 
-        for ((owned_type, slice_type), pg_types) in default_types {
+        for (owned_type, slice_type, pg_types) in default_types {
             let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
             let slice_type = slice_type
                 .map(|s| syn::parse_str::<syn::Type>(s).expect("Failed to parse slice type"));
 
-            for pg_type in pg_types {
+            for pg_type in pg_types.iter() {
                 map.insert_db_type(
                     pg_type,
                     RsType::new(owned_type.clone(), slice_type.clone(), false),
@@ -256,16 +411,21 @@ impl DbCrate for Sqlx {
     }
 
     fn init(&self) -> proc_macro2::TokenStream {
-        let copy_data_sync = {
-            let struct_tt = CopyDataSink::struct_tokens();
-            let impl_fn = CopyDataSink::impl_fn();
-            quote::quote! {
-                #struct_tt
-                #impl_fn
+        match self {
+            Sqlx::Postgres => {
+                let copy_data_sync = {
+                    let struct_tt = CopyDataSink::struct_tokens();
+                    let impl_fn = CopyDataSink::impl_fn();
+                    quote::quote! {
+                        #struct_tt
+                        #impl_fn
+                    }
+                };
+                quote::quote! {
+                    #copy_data_sync
+                }
             }
-        };
-        quote::quote! {
-            #copy_data_sync
+            Sqlx::MySql => quote::quote! {},
         }
     }
 
@@ -336,6 +496,7 @@ impl DbCrate for Sqlx {
             |acc, x| quote::quote! {#acc .bind(self.#x)},
         );
         let query_fns = {
+            let database_ident = self.database_ident();
             let row_ident = row.struct_ident();
 
             let query_as_def = if need_lifetime {
@@ -347,14 +508,13 @@ impl DbCrate for Sqlx {
                      query_as<#lifetime_a>(&#lifetime_a self)
                 }
             };
-            // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directory
-            //
+            // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
             let query_as = quote::quote! {
                 pub fn #query_as_def->sqlx::query::QueryAs<
                 #lifetime_a,
-                sqlx::Postgres,
+                #database_ident,
                 #row_ident,
-                <sqlx::Postgres as sqlx::Database>::Arguments<#lifetime_a>,
+                <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
                 >{
                     sqlx::query_as::<_,#row_ident>(
                                     Self::QUERY,
@@ -370,13 +530,13 @@ impl DbCrate for Sqlx {
                 quote::quote! {#lifetime_a, #lifetime_b }
             };
 
-            let fn_tt = match query.annotation {
-                Annotation::One => {
+            let fn_tt = match (self, query.annotation) {
+                (_, Annotation::One) => {
                     // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
                     quote::quote! {
                         pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -388,7 +548,7 @@ impl DbCrate for Sqlx {
 
                         pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -399,13 +559,13 @@ impl DbCrate for Sqlx {
                         }
                     }
                 }
-                Annotation::Many => {
+                (_, Annotation::Many) => {
                     let row_ident = row.struct_ident();
 
                     quote::quote! {
                         pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
                         ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -417,11 +577,11 @@ impl DbCrate for Sqlx {
 
                     }
                 }
-                Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
+                (_, Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows) => {
                     quote::quote! {
                         pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
-                        ->impl Future<Output=Result<<sqlx::Postgres as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = sqlx::Postgres> + Send + #lifetime_a,
+                        ->impl Future<Output=Result<<#database_ident as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
+                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
@@ -432,7 +592,7 @@ impl DbCrate for Sqlx {
                         }
                     }
                 }
-                Annotation::CopyFrom => {
+                (Sqlx::Postgres, Annotation::CopyFrom) => {
                     let add_row = query.param_names.iter().map(|x| {
                         quote::quote! {sink.add(&self.#x).await?;}
                     });
@@ -443,7 +603,7 @@ impl DbCrate for Sqlx {
                     quote::quote! {
                         pub async fn copy_in<PgCopy>(
                             conn: &PgCopy,
-                        ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<sqlx::Postgres>>, sqlx::Error>
+                        ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<#database_ident>>, sqlx::Error>
                         where
                             PgCopy: sqlx::postgres::PgPoolCopyExt,
                         {

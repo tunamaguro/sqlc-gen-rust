@@ -6,7 +6,15 @@ authors = ["tunamaguro"]
 license = "MIT OR Apache-2.0"
 
 [workspace]
-members = ["examples/*"]
+members = [
+    "examples/authors/*",
+    "examples/booktest",
+    "examples/copyfrom",
+    "examples/e-commerce",
+    "examples/jets",
+    "examples/ondeck",
+    "examples/test-utils",
+]
 
 [profile.release]
 lto = true
@@ -39,6 +47,7 @@ postgres-types = { version = "0.2.9", features = [
 ] }
 sqlx = { version = "0.8", features = [
     "postgres",
+    "mysql",
     "runtime-tokio",
     "uuid",
     "chrono",

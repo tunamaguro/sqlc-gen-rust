@@ -361,12 +361,12 @@ pub fn try_main() -> Result<(), Error> {
     let returning_rows = request
         .queries
         .iter()
-        .map(|q| ReturningRows::from_query(&db_type, q))
+        .map(|q| ReturningRows::from_query(db_type.as_ref(), q))
         .collect::<Result<Vec<_>, _>>()?;
     let queries = request
         .queries
         .iter()
-        .map(|q| Query::from_query(&db_type, q))
+        .map(|q| Query::from_query(db_type.as_ref(), q))
         .collect::<Result<Vec<_>, _>>()?;
 
     let enums_ts = defined_enums
