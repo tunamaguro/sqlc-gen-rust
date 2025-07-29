@@ -1,6 +1,6 @@
 use super::DbCrate;
 use crate::{
-    query::{Annotation, DbEnum, DbTypeMap, Query, ReturningRows, RsType},
+    query::{Annotation, DbEnum, DbTypeMap, DbTypeMapper, Query, ReturningRows, RsType},
     value_ident,
 };
 
@@ -183,22 +183,7 @@ impl Sqlx {
                 COPY_CHEAP
             }
             Sqlx::MySql => {
-                const COPY_CHEAP: &[(&str, &[&str])] = &[
-                    ("i32", &["serial", "serial4", "pg_catalog.serial4"]),
-                    ("i64", &["bigserial", "serial8", "pg_catalog.serial8"]),
-                    ("i16", &["smallserial", "serial2", "pg_catalog.serial2"]),
-                    ("i32", &["integer", "int", "int4", "pg_catalog.int4"]),
-                    ("i64", &["bigint", "int8", "pg_catalog.int8"]),
-                    ("i16", &["smallint", "int2", "pg_catalog.int2"]),
-                    (
-                        "f64",
-                        &["float", "double precision", "float8", "pg_catalog.float8"],
-                    ),
-                    ("f32", &["real", "float4", "pg_catalog.float4"]),
-                    ("bool", &["boolean", "bool", "pg_catalog.bool"]),
-                    ("u32", &["oid", "pg_catalog.oid"]),
-                    ("uuid::Uuid", &["uuid"]),
-                ];
+                const COPY_CHEAP: &[(&str, &[&str])] = &[("i8", &["tinyint"])];
                 COPY_CHEAP
             }
         }
@@ -262,14 +247,30 @@ impl Sqlx {
                 ];
                 DEFAULT_TYPE
             }
-            Sqlx::MySql => todo!(),
+            Sqlx::MySql => {
+                /// https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/mysql_type.go
+                /// https://docs.rs/sqlx/0.8.6/sqlx/mysql/types/index.html
+                const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[(
+                    "String",
+                    Some("str"),
+                    &[
+                        "varchar",
+                        "text",
+                        "char",
+                        "tinytext",
+                        "mediumtext",
+                        "longtext",
+                    ],
+                )];
+                DEFAULT_TYPE
+            }
         }
     }
 }
 
 impl DbCrate for Sqlx {
     /// Creates a new `DbTypeMap` with default types for PostgreSQL.
-    fn db_type_map(&self) -> crate::query::DbTypeMap {
+    fn db_type_map(&self) -> Box<dyn DbTypeMapper> {
         let copy_cheap = self.copy_cheap_types();
 
         let default_types = self.default_types();
@@ -296,7 +297,7 @@ impl DbCrate for Sqlx {
                 );
             }
         }
-        map
+        Box::new(map)
     }
 
     fn init(&self) -> proc_macro2::TokenStream {

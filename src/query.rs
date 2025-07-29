@@ -203,7 +203,7 @@ fn make_column_name(column: &plugin::Column) -> String {
 
 impl RsColType {
     pub(crate) fn new_with_type(
-        db_type: &DbTypeMap,
+        db_type: &dyn DbTypeMapper,
         column: &plugin::Column,
     ) -> Result<Self, QueryError> {
         let rs_type = db_type.get_column_type(column).stacked()?;
@@ -284,11 +284,13 @@ pub(crate) struct DbTypeMap {
     column_map: std::collections::BTreeMap<String, RsType>,
 }
 
-impl DbTypeMap {
-    fn get(&self, db_type: &str) -> Option<RsType> {
-        self.typ_map.get(db_type).cloned()
-    }
+pub(crate) trait DbTypeMapper {
+    fn get_column_type(&self, column: &plugin::Column) -> Result<RsType, QueryError>;
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType>;
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType>;
+}
 
+impl DbTypeMapper for DbTypeMap {
     fn get_column_type(&self, column: &plugin::Column) -> Result<RsType, QueryError> {
         let db_col_name = make_column_name(column);
         if let Some(rs_type) = self.column_map.get(&db_col_name) {
@@ -305,16 +307,18 @@ impl DbTypeMap {
             .ok_or_else(|| QueryError::cannot_map_type(db_col_type, db_col_name))
     }
 
-    pub(crate) fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
         self.typ_map.insert(db_type.to_string(), rs_type)
     }
 
-    pub(crate) fn insert_column_type(
-        &mut self,
-        column_name: &str,
-        rs_type: RsType,
-    ) -> Option<RsType> {
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType> {
         self.column_map.insert(column_name.to_string(), rs_type)
+    }
+}
+
+impl DbTypeMap {
+    fn get(&self, db_type: &str) -> Option<RsType> {
+        self.typ_map.get(db_type).cloned()
     }
 }
 
@@ -374,7 +378,7 @@ pub(crate) struct ReturningRows {
 
 impl ReturningRows {
     pub(crate) fn from_query(
-        db_type: &DbTypeMap,
+        db_type: &dyn DbTypeMapper,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
         let column_names = generate_column_names(&query.columns)
@@ -511,7 +515,7 @@ pub(crate) struct Query {
 
 impl Query {
     pub(crate) fn from_query(
-        db_type: &DbTypeMap,
+        db_type: &dyn DbTypeMapper,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
         let (param_idx, columns): (Vec<_>, Vec<_>) = query
