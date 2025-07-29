@@ -89,6 +89,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      mysql:
+        image: mysql:9.4
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: app
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -117,6 +129,7 @@ jobs:
           just generate-release
       - name: Run test
         env:
-          DATABASE_URL: postgres://root:password@localhost:5432/app
+          POSTGRES_DATABASE_URL: postgres://root:password@localhost:5432/app
+          MYSQL_DATABASE_URL: mysql://root:password@localhost:3306/app
         run: |
           just test
