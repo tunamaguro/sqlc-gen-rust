@@ -292,7 +292,11 @@ pub fn try_main() -> Result<(), Error> {
     stdin.read_to_end(&mut buffer)?;
 
     let request = deserialize_codegen_request(&buffer)?;
-    let config = Config::from_option(&request.plugin_options)?;
+    let config = if request.plugin_options.is_empty() {
+        Config::default()
+    } else {
+        Config::from_option(&request.plugin_options)?
+    };
 
     let mut db_type = config.db_crate.db_type_map();
     for override_type in config.overrides {
