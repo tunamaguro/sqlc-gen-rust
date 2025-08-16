@@ -95,13 +95,17 @@ ORDER BY name";
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListAuthorsRow>, tokio_postgres::Error> {
         let rows = client.query(Self::QUERY, &[]).await?;
-        rows.into_iter().map(|r| ListAuthorsRow::from_row(&r)).collect()
+        rows.into_iter()
+            .map(|r| ListAuthorsRow::from_row(&r))
+            .collect()
     }
     pub async fn query_stream(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client.query_raw(Self::QUERY, self.as_slice().into_iter()).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .await?;
         Ok(st)
     }
     pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
@@ -195,10 +199,7 @@ impl<'a, Bio> CreateAuthorBuilder<'a, ((), Bio)> {
     }
 }
 impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
-    pub fn bio(
-        self,
-        bio: Option<&'a str>,
-    ) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
+    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
         let (name, ()) = self.fields;
         let _phantom = self._phantom;
         CreateAuthorBuilder {

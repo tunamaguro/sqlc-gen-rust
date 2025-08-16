@@ -151,14 +151,16 @@ impl<'a> CreateAuthor<'a> {
         CreateAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateAuthorRow>(Self::QUERY).bind(self.name).bind(self.bio)
+        sqlx::query_as::<_, CreateAuthorRow>(Self::QUERY)
+            .bind(self.name)
+            .bind(self.bio)
     }
     pub fn execute<'b, A>(
         &'a self,
         conn: A,
-    ) -> impl Future<
-        Output = Result<<sqlx::Sqlite as sqlx::Database>::QueryResult, sqlx::Error>,
-    > + Send + 'a
+    ) -> impl Future<Output = Result<<sqlx::Sqlite as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
     where
         A: sqlx::Acquire<'b, Database = sqlx::Sqlite> + Send + 'a,
     {
@@ -195,10 +197,7 @@ impl<'a, Bio> CreateAuthorBuilder<'a, ((), Bio)> {
     }
 }
 impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
-    pub fn bio(
-        self,
-        bio: Option<&'a str>,
-    ) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
+    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
         let (name, ()) = self.fields;
         let _phantom = self._phantom;
         CreateAuthorBuilder {
@@ -234,15 +233,18 @@ WHERE id = ?";
     pub fn execute<'a, 'b, A>(
         &'a self,
         conn: A,
-    ) -> impl Future<
-        Output = Result<<sqlx::Sqlite as sqlx::Database>::QueryResult, sqlx::Error>,
-    > + Send + 'a
+    ) -> impl Future<Output = Result<<sqlx::Sqlite as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
     where
         A: sqlx::Acquire<'b, Database = sqlx::Sqlite> + Send + 'a,
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY).bind(self.id).execute(&mut *conn).await
+            sqlx::query(Self::QUERY)
+                .bind(self.id)
+                .execute(&mut *conn)
+                .await
         }
     }
 }
