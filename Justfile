@@ -48,6 +48,7 @@ generate:
     sqlc generate -f _sqlc_dev.json
 
     rm _sqlc_dev.json
+    just f
 
 # build plugin and generate sqlc
 generate-release:

@@ -71,14 +71,7 @@
                         "output": "queries.rs",
                         "db_crate": "tokio-postgres"
                     }
-                }
-            ]
-        },
-        {
-            "schema": "examples/authors/tokio-postgres/schema.sql",
-            "queries": "examples/authors/tokio-postgres/queries.sql",
-            "engine": "postgresql",
-            "codegen": [
+                },
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/authors/deadpool-postgres/src",
@@ -86,14 +79,7 @@
                         "output": "queries.rs",
                         "db_crate": "deadpool-postgres"
                     }
-                }
-            ]
-        },
-        {
-            "schema": "examples/authors/tokio-postgres/schema.sql",
-            "queries": "examples/authors/tokio-postgres/queries.sql",
-            "engine": "postgresql",
-            "codegen": [
+                },
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/authors/postgres/src",
@@ -101,14 +87,7 @@
                         "output": "queries.rs",
                         "db_crate": "postgres"
                     }
-                }
-            ]
-        },
-        {
-            "schema": "examples/authors/tokio-postgres/schema.sql",
-            "queries": "examples/authors/tokio-postgres/queries.sql",
-            "engine": "postgresql",
-            "codegen": [
+                },
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/authors/sqlx-postgres/src",
