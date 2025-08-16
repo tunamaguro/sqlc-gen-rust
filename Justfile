@@ -62,7 +62,6 @@ generate-release:
     sqlc generate -f _sqlc_dev.json
 
     rm _sqlc_dev.json
-    just f
 
 build-release:
     #!/usr/bin/env bash
