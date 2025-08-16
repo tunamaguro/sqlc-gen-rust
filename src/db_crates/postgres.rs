@@ -137,12 +137,13 @@ impl DbCrate for Postgres {
     /// - https://www.postgresql.jp/document/17/html/datatype.html
     fn db_type_map(&self) -> Box<dyn DbTypeMapper> {
         let copy_cheap = [
+            ("i8", vec!["char"]),
+            ("i16", vec!["smallint", "int2", "pg_catalog.int2"]),
             ("i32", vec!["serial", "serial4", "pg_catalog.serial4"]),
             ("i64", vec!["bigserial", "serial8", "pg_catalog.serial8"]),
             ("i16", vec!["smallserial", "serial2", "pg_catalog.serial2"]),
             ("i32", vec!["integer", "int", "int4", "pg_catalog.int4"]),
             ("i64", vec!["bigint", "int8", "pg_catalog.int8"]),
-            ("i16", vec!["smallint", "int2", "pg_catalog.int2"]),
             (
                 "f64",
                 vec!["float", "double precision", "float8", "pg_catalog.float8"],
@@ -169,7 +170,10 @@ impl DbCrate for Postgres {
                 ("Vec<u8>", Some("[u8]")),
                 vec!["bytea", "blob", "pg_catalog.bytea"],
             ),
-            (("HashMap<String, Option<String>>", None), vec!["hstore"]),
+            (
+                ("std::collections::HashMap<String, Option<String>>", None),
+                vec!["hstore"],
+            ),
             (
                 ("std::time::SystemTime", None),
                 vec![

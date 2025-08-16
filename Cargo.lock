@@ -54,6 +54,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
+name = "array-init"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d62b7694a562cdf5a74227903507c56ab2cc8bdd1f781ed5cb4cf9c9f810bfc"
+
+[[package]]
 name = "async-trait"
 version = "0.1.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -920,6 +926,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnet"
+version = "2.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
+
+[[package]]
 name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1311,7 +1323,9 @@ version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613283563cd90e1dfc3518d548caee47e0e725455ed619881f5cf21f36de4b48"
 dependencies = [
+ "array-init",
  "bytes",
+ "chrono",
  "fallible-iterator",
  "postgres-derive",
  "postgres-protocol",
@@ -1774,6 +1788,7 @@ dependencies = [
  "hashbrown",
  "hashlink",
  "indexmap",
+ "ipnet",
  "log",
  "memchr",
  "once_cell",
@@ -1893,6 +1908,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "home",
+ "ipnet",
  "itoa",
  "log",
  "md-5",
@@ -2186,6 +2202,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9d12581f227e93f094d3af2ae690a574abb8a2b9b7a96e7cfe9647b2b617678"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "type-mapping-sqlx-postgres"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "deadpool-postgres",
+ "postgres",
+ "postgres-types",
+ "serde_json",
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
+]
+
+[[package]]
+name = "type-mapping-tokio-postgres"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "deadpool-postgres",
+ "postgres",
+ "postgres-types",
+ "serde_json",
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
 ]
 
 [[package]]

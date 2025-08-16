@@ -71,14 +71,7 @@
                         "output": "queries.rs",
                         "db_crate": "tokio-postgres"
                     }
-                }
-            ]
-        },
-        {
-            "schema": "examples/authors/tokio-postgres/schema.sql",
-            "queries": "examples/authors/tokio-postgres/queries.sql",
-            "engine": "postgresql",
-            "codegen": [
+                },
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/authors/deadpool-postgres/src",
@@ -86,14 +79,7 @@
                         "output": "queries.rs",
                         "db_crate": "deadpool-postgres"
                     }
-                }
-            ]
-        },
-        {
-            "schema": "examples/authors/tokio-postgres/schema.sql",
-            "queries": "examples/authors/tokio-postgres/queries.sql",
-            "engine": "postgresql",
-            "codegen": [
+                },
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/authors/postgres/src",
@@ -101,14 +87,7 @@
                         "output": "queries.rs",
                         "db_crate": "postgres"
                     }
-                }
-            ]
-        },
-        {
-            "schema": "examples/authors/tokio-postgres/schema.sql",
-            "queries": "examples/authors/tokio-postgres/queries.sql",
-            "engine": "postgresql",
-            "codegen": [
+                },
                 {
                     "plugin": "sqlc-gen-rust",
                     "out": "examples/authors/sqlx-postgres/src",
@@ -214,6 +193,74 @@
                     "options": {
                         "output": "sqlx_query.rs",
                         "db_crate": "sqlx-postgres"
+                    }
+                }
+            ]
+        },
+        {
+            "schema": "examples/type-mapping/tokio-postgres/schema.sql",
+            "queries": "examples/type-mapping/tokio-postgres/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/type-mapping/tokio-postgres/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "tokio-postgres",
+                        "overrides": [
+                            {
+                                "db_type": "date",
+                                "rs_type": "chrono::NaiveDate"
+                            },
+                            {
+                                "db_type": "pg_catalog.time",
+                                "rs_type": "chrono::NaiveTime"
+                            },
+                            {
+                                "db_type": "complex",
+                                "rs_type": "crate::Complex",
+                                "copy_cheap": true
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "schema": "examples/type-mapping/sqlx-postgres/schema.sql",
+            "queries": "examples/type-mapping/sqlx-postgres/queries.sql",
+            "engine": "postgresql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/type-mapping/sqlx-postgres/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "sqlx-postgres",
+                        "overrides": [
+                            {
+                                "db_type": "timestamptz",
+                                "rs_type": "chrono::DateTime<chrono::Utc>"
+                            },
+                            {
+                                "db_type": "pg_catalog.timestamp",
+                                "rs_type": "chrono::NaiveDateTime"
+                            },
+                            {
+                                "db_type": "date",
+                                "rs_type": "chrono::NaiveDate"
+                            },
+                            {
+                                "db_type": "pg_catalog.time",
+                                "rs_type": "chrono::NaiveTime"
+                            },
+                            {
+                                "db_type": "complex",
+                                "rs_type": "crate::Complex",
+                                "copy_cheap": true
+                            }
+                        ]
                     }
                 }
             ]

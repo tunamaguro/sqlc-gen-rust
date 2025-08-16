@@ -241,19 +241,20 @@ impl Sqlx {
         match self {
             Sqlx::Postgres => {
                 const COPY_CHEAP: &[(&str, &[&str])] = &[
+                    ("i8", &["char"]),
+                    ("i16", &["smallint", "int2", "pg_catalog.int2"]),
                     ("i32", &["serial", "serial4", "pg_catalog.serial4"]),
                     ("i64", &["bigserial", "serial8", "pg_catalog.serial8"]),
                     ("i16", &["smallserial", "serial2", "pg_catalog.serial2"]),
                     ("i32", &["integer", "int", "int4", "pg_catalog.int4"]),
                     ("i64", &["bigint", "int8", "pg_catalog.int8"]),
-                    ("i16", &["smallint", "int2", "pg_catalog.int2"]),
                     (
                         "f64",
                         &["float", "double precision", "float8", "pg_catalog.float8"],
                     ),
                     ("f32", &["real", "float4", "pg_catalog.float4"]),
                     ("bool", &["boolean", "bool", "pg_catalog.bool"]),
-                    ("u32", &["oid", "pg_catalog.oid"]),
+                    ("sqlx::postgres::types::Oid", &["oid", "pg_catalog.oid"]),
                     ("uuid::Uuid", &["uuid"]),
                 ];
                 COPY_CHEAP
