@@ -1,6 +1,6 @@
 [package]
 name = "sqlc-gen-rust"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 authors = ["tunamaguro"]
 license = "MIT OR Apache-2.0"
@@ -58,11 +58,11 @@ sqlx = { version = "0.8", features = [
     "ipnet"
 ] }
 
-tokio = { version = "1.46", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 
 chrono = { version = "0.4.41" }
-uuid = { version = "1.17.0" }
-serde_json = { version = "1.0.140" }
+uuid = { version = "1.18" }
+serde_json = { version = "1.0" }
 
 test-context = "0.4.1"
 test-utils = { path = "./examples/test-utils" }
