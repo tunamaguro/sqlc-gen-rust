@@ -156,7 +156,7 @@ mod tests {
 
     #[test_context(SqlxPgContext)]
     #[tokio::test]
-    async fn test_sqlx_postgres(ctx: &mut SqlxPgContext) {
+    async fn test_sqlx_postgres_pool(ctx: &mut SqlxPgContext) {
         use sqlx_query::{CreateAuthors, GetAuthor};
         let pool = &ctx.pool;
 
@@ -176,6 +176,52 @@ mod tests {
             .build();
         author2.write(&mut sink).await.unwrap();
         sink.finish().await.unwrap();
+
+        let row = GetAuthor::builder()
+            .id(0)
+            .build()
+            .query_one(pool)
+            .await
+            .unwrap();
+        assert_eq!(row.name, "Foo");
+        assert!(row.bio.is_none());
+
+        let row = GetAuthor::builder()
+            .id(1)
+            .build()
+            .query_one(pool)
+            .await
+            .unwrap();
+        assert_eq!(row.name, "Bar");
+        assert_eq!(row.bio, Some("Bar's bio".to_string()));
+    }
+
+    #[test_context(SqlxPgContext)]
+    #[tokio::test]
+    async fn test_sqlx_postgres_tx(ctx: &mut SqlxPgContext) {
+        use sqlx_query::{CreateAuthors, GetAuthor};
+        let pool = &ctx.pool;
+
+        sqlx::raw_sql(include_str!("../schema.sql"))
+            .execute(pool)
+            .await
+            .unwrap();
+
+        let mut tx = pool.begin().await.unwrap();
+        let mut sink = CreateAuthors::copy_in_tx(&mut tx).await.unwrap();
+
+        let author1 = CreateAuthors::builder().id(0).name("Foo").bio(None).build();
+        author1.write(&mut sink).await.unwrap();
+
+        let author2 = CreateAuthors::builder()
+            .id(1)
+            .name("Bar")
+            .bio(Some("Bar's bio"))
+            .build();
+        author2.write(&mut sink).await.unwrap();
+        sink.finish().await.unwrap();
+
+        tx.commit().await.unwrap();
 
         let row = GetAuthor::builder()
             .id(0)

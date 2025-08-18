@@ -173,6 +173,12 @@ impl<'a> CreateAuthors<'a> {
         let copy_in = conn.copy_in_raw(Self::QUERY).await?;
         Ok(CopyDataSink::new(copy_in))
     }
+    pub async fn copy_in_tx(
+        conn: &mut sqlx::postgres::PgConnection,
+    ) -> Result<CopyDataSink<&mut sqlx::postgres::PgConnection>, sqlx::Error> {
+        let copy_in = conn.copy_in_raw(Self::QUERY).await?;
+        Ok(CopyDataSink::new(copy_in))
+    }
     pub async fn write<C: std::ops::DerefMut<Target = sqlx::PgConnection>>(
         &self,
         sink: &mut CopyDataSink<C>,
