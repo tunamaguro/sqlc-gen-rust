@@ -646,6 +646,12 @@ impl DbCrate for Sqlx {
                             let copy_in = conn.copy_in_raw(Self::QUERY).await?;
                             Ok(CopyDataSink::new(copy_in))
                         }
+                        pub async fn copy_in_tx(
+                            conn: &mut sqlx::postgres::PgConnection,
+                        ) -> Result<CopyDataSink<&mut sqlx::postgres::PgConnection>, sqlx::Error> {
+                            let copy_in = conn.copy_in_raw(Self::QUERY).await?;
+                            Ok(CopyDataSink::new(copy_in))
+                        }
 
                         pub async fn write<C: #constraint>(&self, sink: &mut #sink_ident<C>) -> Result<(), #sink_error> {
                             sink.insert_row();
