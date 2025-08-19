@@ -29,6 +29,7 @@ impl DbTypeMapper for MySqlTypeMap {
             .r#type
             .as_ref()
             .map(make_column_type)
+            .map(|s| s.to_lowercase())
             .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
 
         if let Some(rs_type) = self.type_map.get(&col_type) {
@@ -67,6 +68,65 @@ impl DbTypeMapper for MySqlTypeMap {
                 col_type.to_string(),
             )),
         }
+    }
+
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
+        self.type_map.insert(db_type.to_string(), rs_type)
+    }
+
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType> {
+        self.column_map.insert(column_name.to_string(), rs_type)
+    }
+}
+
+#[derive(Default)]
+pub struct SqliteTypeMap {
+    /// db_type to rust type
+    type_map: std::collections::BTreeMap<String, RsType>,
+    /// column name to rust type
+    column_map: std::collections::BTreeMap<String, RsType>,
+}
+
+impl DbTypeMapper for SqliteTypeMap {
+    fn get_column_type(&self, column: &crate::plugin::Column) -> Result<RsType, QueryError> {
+        let db_col_name = crate::query::make_column_name(column);
+        if let Some(rs_type) = self.column_map.get(&db_col_name) {
+            return Ok(rs_type.clone());
+        };
+
+        let col_type = column
+            .r#type
+            .as_ref()
+            .map(make_column_type)
+            .map(|s| s.to_lowercase())
+            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
+
+        if let Some(rs_type) = self.type_map.get(&col_type) {
+            return Ok(rs_type.clone());
+        };
+
+        if col_type.starts_with("character")
+            || col_type.starts_with("varchar")
+            || col_type.starts_with("varyingcharacter")
+            || col_type.starts_with("nchar")
+            || col_type.starts_with("nativecharacter")
+            || col_type.starts_with("nvarchar")
+        {
+            return Ok(RsType::new(
+                syn::parse_quote!(String),
+                Some(syn::parse_quote!(str)),
+                false,
+            ));
+        }
+
+        if col_type.starts_with("decimal") {
+            return Ok(RsType::new(syn::parse_quote!(f64), None, true));
+        }
+
+        Err(QueryError::cannot_map_type(
+            db_col_name,
+            col_type.to_string(),
+        ))
     }
 
     fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
@@ -288,7 +348,10 @@ impl Sqlx {
                             "int8",
                         ],
                     ),
-                    ("f64", &["real", "double", "doubleprecision", "float"]),
+                    (
+                        "f64",
+                        &["real", "double", "doubleprecision", "float", "numeric"],
+                    ),
                 ];
                 COPY_CHEAP
             }
@@ -390,7 +453,7 @@ impl Sqlx {
                 /// https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/sqlite_type.go
                 /// https://docs.rs/sqlx/latest/sqlx/sqlite/types/index.html
                 const DEFAULT_TYPE: &[(&str, Option<&str>, &[&str])] = &[
-                    ("String", Some("str"), &["text"]),
+                    ("String", Some("str"), &["text", "clob"]),
                     ("Vec<u8>", Some("[u8]"), &["blob"]),
                 ];
                 DEFAULT_TYPE
@@ -417,7 +480,7 @@ impl DbCrate for Sqlx {
         let mut map: Box<dyn DbTypeMapper> = match self {
             Sqlx::Postgres => Box::new(DbTypeMap::default()),
             Sqlx::MySql => Box::new(MySqlTypeMap::default()),
-            Sqlx::Sqlite => Box::new(DbTypeMap::default()),
+            Sqlx::Sqlite => Box::new(SqliteTypeMap::default()),
         };
 
         for (owned_type, pg_types) in copy_cheap {

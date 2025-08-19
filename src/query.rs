@@ -301,6 +301,7 @@ impl DbTypeMapper for DbTypeMap {
             .r#type
             .as_ref()
             .map(make_column_type)
+            .map(|s| s.to_lowercase())
             .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
 
         self.get(&db_col_type)
