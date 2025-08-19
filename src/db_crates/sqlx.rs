@@ -266,10 +266,7 @@ impl Sqlx {
                     ("int16", &["year"]),
                     ("f32", &["float"]),
                     ("f64", &["double", "double precision", "real"]),
-                    (
-                        "sqlx::mysql::types::MySqlTime",
-                        &["date", "timestamp", "datetime", "time"],
-                    ),
+                    ("sqlx::mysql::types::MySqlTime", &["time"]),
                 ];
                 COPY_CHEAP
             }
