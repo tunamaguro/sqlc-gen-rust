@@ -2226,6 +2226,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "type-mapping-sqlx-mysql"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "type-mapping-sqlx-postgres"
 version = "0.1.0"
 dependencies = [
@@ -2240,6 +2253,18 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "uuid",
+]
+
+[[package]]
+name = "type-mapping-sqlx-sqlite"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
 ]
 
 [[package]]

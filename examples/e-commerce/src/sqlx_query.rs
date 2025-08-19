@@ -81,12 +81,19 @@ pub enum OrderStatus {
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateUserRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "username")]
     pub username: String,
+    #[sqlx(rename = "email")]
     pub email: String,
+    #[sqlx(rename = "hashed_password")]
     pub hashed_password: String,
+    #[sqlx(rename = "full_name")]
     pub full_name: Option<String>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Local>,
+    #[sqlx(rename = "updated_at")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateUser<'a> {
@@ -226,12 +233,19 @@ impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct GetUserByEmailRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "username")]
     pub username: String,
+    #[sqlx(rename = "email")]
     pub email: String,
+    #[sqlx(rename = "hashed_password")]
     pub hashed_password: String,
+    #[sqlx(rename = "full_name")]
     pub full_name: Option<String>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Local>,
+    #[sqlx(rename = "updated_at")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetUserByEmail<'a> {
@@ -307,10 +321,15 @@ impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct ListUsersRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "username")]
     pub username: String,
+    #[sqlx(rename = "email")]
     pub email: String,
+    #[sqlx(rename = "full_name")]
     pub full_name: Option<String>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Local>,
 }
 pub struct ListUsers {
@@ -388,14 +407,23 @@ impl<'a> ListUsersBuilder<'a, (i32, i32)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateProductRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "category_id")]
     pub category_id: i32,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "description")]
     pub description: Option<String>,
+    #[sqlx(rename = "price")]
     pub price: i32,
+    #[sqlx(rename = "stock_quantity")]
     pub stock_quantity: i32,
+    #[sqlx(rename = "attributes")]
     pub attributes: Option<serde_json::Value>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "updated_at")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateProduct<'a> {
@@ -677,14 +705,23 @@ impl<'a>
 }
 #[derive(sqlx::FromRow)]
 pub struct GetProductWithCategoryRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "description")]
     pub description: Option<String>,
+    #[sqlx(rename = "price")]
     pub price: i32,
+    #[sqlx(rename = "stock_quantity")]
     pub stock_quantity: i32,
+    #[sqlx(rename = "attributes")]
     pub attributes: Option<serde_json::Value>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "category_name")]
     pub category_name: String,
+    #[sqlx(rename = "category_slug")]
     pub category_slug: String,
 }
 pub struct GetProductWithCategory {
@@ -774,15 +811,25 @@ impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct SearchProductsRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "category_id")]
     pub category_id: i32,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "description")]
     pub description: Option<String>,
+    #[sqlx(rename = "price")]
     pub price: i32,
+    #[sqlx(rename = "stock_quantity")]
     pub stock_quantity: i32,
+    #[sqlx(rename = "attributes")]
     pub attributes: Option<serde_json::Value>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "updated_at")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "average_rating")]
     pub average_rating: f64,
 }
 pub struct SearchProducts<'a> {
@@ -981,14 +1028,23 @@ impl<'a>
 }
 #[derive(sqlx::FromRow)]
 pub struct GetProductsWithSpecificAttributeRow {
+    #[sqlx(rename = "id")]
     pub id: uuid::Uuid,
+    #[sqlx(rename = "category_id")]
     pub category_id: i32,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "description")]
     pub description: Option<String>,
+    #[sqlx(rename = "price")]
     pub price: i32,
+    #[sqlx(rename = "stock_quantity")]
     pub stock_quantity: i32,
+    #[sqlx(rename = "attributes")]
     pub attributes: Option<serde_json::Value>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "updated_at")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetProductsWithSpecificAttribute<'a> {
@@ -1133,10 +1189,15 @@ impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateOrderRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "user_id")]
     pub user_id: uuid::Uuid,
+    #[sqlx(rename = "status")]
     pub status: OrderStatus,
+    #[sqlx(rename = "total_amount")]
     pub total_amount: i32,
+    #[sqlx(rename = "ordered_at")]
     pub ordered_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateOrder {
@@ -1248,10 +1309,15 @@ impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateOrderItemRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "order_id")]
     pub order_id: i64,
+    #[sqlx(rename = "product_id")]
     pub product_id: uuid::Uuid,
+    #[sqlx(rename = "quantity")]
     pub quantity: i32,
+    #[sqlx(rename = "price_at_purchase")]
     pub price_at_purchase: i32,
 }
 pub struct CreateOrderItem {
@@ -1390,12 +1456,19 @@ impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct GetOrderDetailsRow {
+    #[sqlx(rename = "order_id")]
     pub order_id: i64,
+    #[sqlx(rename = "status")]
     pub status: OrderStatus,
+    #[sqlx(rename = "total_amount")]
     pub total_amount: i32,
+    #[sqlx(rename = "ordered_at")]
     pub ordered_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "user_id")]
     pub user_id: uuid::Uuid,
+    #[sqlx(rename = "username")]
     pub username: String,
+    #[sqlx(rename = "email")]
     pub email: String,
 }
 pub struct GetOrderDetails {
@@ -1480,9 +1553,13 @@ impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct ListOrderItemsByOrderIdRow {
+    #[sqlx(rename = "quantity")]
     pub quantity: i32,
+    #[sqlx(rename = "price_at_purchase")]
     pub price_at_purchase: i32,
+    #[sqlx(rename = "product_id")]
     pub product_id: uuid::Uuid,
+    #[sqlx(rename = "product_name")]
     pub product_name: String,
 }
 pub struct ListOrderItemsByOrderId {
@@ -1551,11 +1628,17 @@ impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateReviewRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "user_id")]
     pub user_id: uuid::Uuid,
+    #[sqlx(rename = "product_id")]
     pub product_id: uuid::Uuid,
+    #[sqlx(rename = "rating")]
     pub rating: i32,
+    #[sqlx(rename = "comment")]
     pub comment: Option<String>,
+    #[sqlx(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateReview<'a> {
@@ -1683,8 +1766,11 @@ impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)>
 }
 #[derive(sqlx::FromRow)]
 pub struct GetProductAverageRatingRow {
+    #[sqlx(rename = "product_id")]
     pub product_id: uuid::Uuid,
+    #[sqlx(rename = "average_rating")]
     pub average_rating: f64,
+    #[sqlx(rename = "review_count")]
     pub review_count: i64,
 }
 pub struct GetProductAverageRating {
@@ -1768,9 +1854,13 @@ impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct GetCategorySalesRankingRow {
+    #[sqlx(rename = "category_id")]
     pub category_id: i32,
+    #[sqlx(rename = "category_name")]
     pub category_name: String,
+    #[sqlx(rename = "total_sales")]
     pub total_sales: i64,
+    #[sqlx(rename = "total_orders")]
     pub total_orders: i64,
 }
 pub struct GetCategorySalesRanking;

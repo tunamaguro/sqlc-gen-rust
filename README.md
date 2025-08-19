@@ -43,6 +43,11 @@ Add the following to your `sqlc.json` configuration file to use this plugin.
 - [sqlx-mysql](https://docs.rs/sqlx/latest/sqlx/mysql/index.html)
 - [sqlx-sqlite](https://docs.rs/sqlx/latest/sqlx/sqlite/index.html)
 
+> [!NOTE]
+> When using `sqlx-sqlite`: SQLite uses dynamic typing. Columns with **NUMERIC affinity** may store values as **INTEGER** when they can be represented exactly as integers. 
+> For example, `13.0` may be stored as `13`. The generated code always reads NUMERIC as `f64` (`REAL`), so decoding can fail with a type mismatch when SQLite returns an integer. See the [SQLite type affinity docs](https://www.sqlite.org/datatype3.html) and the [`sqlx` type mapping docs](https://docs.rs/sqlx/latest/sqlx/sqlite/types/index.html) for details.
+
+
 ## Example
 
 ### Schema

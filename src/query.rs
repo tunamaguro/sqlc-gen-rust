@@ -301,6 +301,7 @@ impl DbTypeMapper for DbTypeMap {
             .r#type
             .as_ref()
             .map(make_column_type)
+            .map(|s| s.to_lowercase())
             .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
 
         self.get(&db_col_type)
@@ -371,7 +372,10 @@ pub(crate) fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
 }
 
 pub(crate) struct ReturningRows {
+    /// normalized field name
     pub(crate) column_names: Vec<syn::Ident>,
+    /// original field name
+    pub(crate) column_names_original: Vec<syn::LitStr>,
     pub(crate) column_types: Vec<RsColType>,
     pub(crate) query_name: String,
 }
@@ -381,10 +385,16 @@ impl ReturningRows {
         db_type: &dyn DbTypeMapper,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
-        let column_names = generate_column_names(&query.columns)
-            .into_iter()
-            .map(|s| field_ident(&s))
-            .collect::<Vec<_>>();
+        let (column_names_original, column_names): (Vec<_>, Vec<_>) =
+            generate_column_names(&query.columns)
+                .into_iter()
+                .map(|s| {
+                    (
+                        syn::LitStr::new(&s, proc_macro2::Span::call_site()),
+                        field_ident(&s),
+                    )
+                })
+                .unzip();
         let mut column_types = vec![];
         for column in &query.columns {
             let rs_type = RsColType::new_with_type(db_type, column).stacked()?;
@@ -394,6 +404,7 @@ impl ReturningRows {
 
         Ok(Self {
             column_names,
+            column_names_original,
             column_types,
             query_name: query.name.to_string(),
         })
