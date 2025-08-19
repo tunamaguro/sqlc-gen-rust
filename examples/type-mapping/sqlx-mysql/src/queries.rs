@@ -14,12 +14,12 @@ pub struct GetMappingRow {
     pub double_val: f64,
     pub text_val: String,
     pub blob_val: Vec<u8>,
+    pub timestamp_val: chrono::DateTime<chrono::Utc>,
     pub datetime_val: chrono::NaiveDateTime,
     pub date_val: chrono::NaiveDate,
-    pub time_val: chrono::NaiveTime,
+    pub time_val: sqlx::mysql::types::MySqlTime,
     pub json_val: serde_json::Value,
 }
-
 pub struct GetMapping;
 impl GetMapping {
     pub const QUERY: &'static str = r"SELECT
@@ -33,26 +33,69 @@ impl GetMapping {
     double_val,
     text_val,
     blob_val,
+    timestamp_val,
     datetime_val,
     date_val,
     time_val,
     json_val
 FROM mapping";
-
-    pub fn query<'a>() -> sqlx::query::QueryAs<'a, sqlx::MySql, GetMappingRow, <sqlx::MySql as sqlx::Database>::Arguments<'a>> {
+    pub fn query_as<'a>(
+        &'a self,
+    ) -> sqlx::query::QueryAs<
+        'a,
+        sqlx::MySql,
+        GetMappingRow,
+        <sqlx::MySql as sqlx::Database>::Arguments<'a>,
+    > {
         sqlx::query_as::<_, GetMappingRow>(Self::QUERY)
     }
-
-    pub async fn query_one<'e, A>(conn: A) -> Result<GetMappingRow, sqlx::Error>
+    pub fn query_one<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<GetMappingRow, sqlx::Error>> + Send + 'a
     where
-        A: sqlx::Acquire<'e, Database = sqlx::MySql>,
+        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
     {
-        let mut conn = conn.acquire().await?;
-        let row = Self::query().fetch_one(&mut *conn).await?;
-        Ok(row)
+        async move {
+            let mut conn = conn.acquire().await?;
+            let val = self.query_as().fetch_one(&mut *conn).await?;
+            Ok(val)
+        }
+    }
+    pub fn query_opt<'a, 'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Option<GetMappingRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            let val = self.query_as().fetch_optional(&mut *conn).await?;
+            Ok(val)
+        }
     }
 }
-
+impl GetMapping {
+    pub const fn builder() -> GetMappingBuilder<'static, ()> {
+        GetMappingBuilder {
+            fields: (),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct GetMappingBuilder<'a, Fields = ()> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> GetMappingBuilder<'a, ()> {
+    pub const fn build(self) -> GetMapping {
+        let () = self.fields;
+        GetMapping {}
+    }
+}
+#[derive(sqlx::FromRow)]
+pub struct InsertMappingRow {}
 pub struct InsertMapping<'a> {
     bool_val: bool,
     tinyint_val: i8,
@@ -64,29 +107,12 @@ pub struct InsertMapping<'a> {
     double_val: f64,
     text_val: &'a str,
     blob_val: &'a [u8],
+    timestamp_val: &'a chrono::DateTime<chrono::Utc>,
     datetime_val: &'a chrono::NaiveDateTime,
     date_val: &'a chrono::NaiveDate,
-    time_val: &'a chrono::NaiveTime,
+    time_val: sqlx::mysql::types::MySqlTime,
     json_val: &'a serde_json::Value,
 }
-
-pub struct InsertMappingBuilder<'a> {
-    bool_val: Option<bool>,
-    tinyint_val: Option<i8>,
-    smallint_val: Option<i16>,
-    int_val: Option<i32>,
-    int_nullable_val: Option<Option<i32>>,
-    bigint_val: Option<i64>,
-    float_val: Option<f32>,
-    double_val: Option<f64>,
-    text_val: Option<&'a str>,
-    blob_val: Option<&'a [u8]>,
-    datetime_val: Option<&'a chrono::NaiveDateTime>,
-    date_val: Option<&'a chrono::NaiveDate>,
-    time_val: Option<&'a chrono::NaiveTime>,
-    json_val: Option<&'a serde_json::Value>,
-}
-
 impl<'a> InsertMapping<'a> {
     pub const QUERY: &'static str = r"INSERT INTO mapping (
     bool_val,
@@ -99,35 +125,23 @@ impl<'a> InsertMapping<'a> {
     double_val,
     text_val,
     blob_val,
+    timestamp_val,
     datetime_val,
     date_val,
     time_val,
     json_val
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )";
-
-    pub fn builder() -> InsertMappingBuilder<'a> {
-        InsertMappingBuilder {
-            bool_val: None,
-            tinyint_val: None,
-            smallint_val: None,
-            int_val: None,
-            int_nullable_val: None,
-            bigint_val: None,
-            float_val: None,
-            double_val: None,
-            text_val: None,
-            blob_val: None,
-            datetime_val: None,
-            date_val: None,
-            time_val: None,
-            json_val: None,
-        }
-    }
-
-    fn query(&'a self) -> sqlx::query::Query<'a, sqlx::MySql, <sqlx::MySql as sqlx::Database>::Arguments<'a>> {
-        sqlx::query(Self::QUERY)
+    pub fn query_as(
+        &'a self,
+    ) -> sqlx::query::QueryAs<
+        'a,
+        sqlx::MySql,
+        InsertMappingRow,
+        <sqlx::MySql as sqlx::Database>::Arguments<'a>,
+    > {
+        sqlx::query_as::<_, InsertMappingRow>(Self::QUERY)
             .bind(self.bool_val)
             .bind(self.tinyint_val)
             .bind(self.smallint_val)
@@ -138,54 +152,1631 @@ impl<'a> InsertMapping<'a> {
             .bind(self.double_val)
             .bind(self.text_val)
             .bind(self.blob_val)
+            .bind(self.timestamp_val)
             .bind(self.datetime_val)
             .bind(self.date_val)
             .bind(self.time_val)
             .bind(self.json_val)
     }
-
-    pub async fn execute<'e, A>(&'a self, conn: A) -> Result<sqlx::mysql::MySqlQueryResult, sqlx::Error>
+    pub fn execute<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
     where
-        A: sqlx::Acquire<'e, Database = sqlx::MySql>,
+        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
     {
-        let mut conn = conn.acquire().await?;
-        let res = self.query().execute(&mut *conn).await?;
-        Ok(res)
+        async move {
+            let mut conn = conn.acquire().await?;
+            sqlx::query(Self::QUERY)
+                .bind(self.bool_val)
+                .bind(self.tinyint_val)
+                .bind(self.smallint_val)
+                .bind(self.int_val)
+                .bind(self.int_nullable_val)
+                .bind(self.bigint_val)
+                .bind(self.float_val)
+                .bind(self.double_val)
+                .bind(self.text_val)
+                .bind(self.blob_val)
+                .bind(self.timestamp_val)
+                .bind(self.datetime_val)
+                .bind(self.date_val)
+                .bind(self.time_val)
+                .bind(self.json_val)
+                .execute(&mut *conn)
+                .await
+        }
     }
 }
-
-impl<'a> InsertMappingBuilder<'a> {
-    pub fn bool_val(mut self, v: bool) -> Self { self.bool_val = Some(v); self }
-    pub fn tinyint_val(mut self, v: i8) -> Self { self.tinyint_val = Some(v); self }
-    pub fn smallint_val(mut self, v: i16) -> Self { self.smallint_val = Some(v); self }
-    pub fn int_val(mut self, v: i32) -> Self { self.int_val = Some(v); self }
-    pub fn int_nullable_val(mut self, v: Option<i32>) -> Self { self.int_nullable_val = Some(v); self }
-    pub fn bigint_val(mut self, v: i64) -> Self { self.bigint_val = Some(v); self }
-    pub fn float_val(mut self, v: f32) -> Self { self.float_val = Some(v); self }
-    pub fn double_val(mut self, v: f64) -> Self { self.double_val = Some(v); self }
-    pub fn text_val(mut self, v: &'a str) -> Self { self.text_val = Some(v); self }
-    pub fn blob_val(mut self, v: &'a [u8]) -> Self { self.blob_val = Some(v); self }
-    pub fn datetime_val(mut self, v: &'a chrono::NaiveDateTime) -> Self { self.datetime_val = Some(v); self }
-    pub fn date_val(mut self, v: &'a chrono::NaiveDate) -> Self { self.date_val = Some(v); self }
-    pub fn time_val(mut self, v: &'a chrono::NaiveTime) -> Self { self.time_val = Some(v); self }
-    pub fn json_val(mut self, v: &'a serde_json::Value) -> Self { self.json_val = Some(v); self }
-
-    pub fn build(self) -> InsertMapping<'a> {
+impl<'a> InsertMapping<'a> {
+    pub const fn builder()
+    -> InsertMappingBuilder<'a, ((), (), (), (), (), (), (), (), (), (), (), (), (), (), ())> {
+        InsertMappingBuilder {
+            fields: ((), (), (), (), (), (), (), (), (), (), (), (), (), (), ()),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct InsertMappingBuilder<
+    'a,
+    Fields = ((), (), (), (), (), (), (), (), (), (), (), (), (), (), ()),
+> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<
+    'a,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            (),
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn bool_val(
+        self,
+        bool_val: bool,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            bool,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            (),
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            (),
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn tinyint_val(
+        self,
+        tinyint_val: i8,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            i8,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            (),
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            (),
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn smallint_val(
+        self,
+        smallint_val: i16,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            i16,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            (),
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            (),
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn int_val(
+        self,
+        int_val: i32,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            i32,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            (),
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            (),
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn int_nullable_val(
+        self,
+        int_nullable_val: Option<i32>,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            Option<i32>,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            (),
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            (),
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn bigint_val(
+        self,
+        bigint_val: i64,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            i64,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            (),
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            (),
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn float_val(
+        self,
+        float_val: f32,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            f32,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            (),
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            (),
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn double_val(
+        self,
+        double_val: f64,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            f64,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            (),
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            (),
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn text_val(
+        self,
+        text_val: &'a str,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            &'a str,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            (),
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            (),
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn blob_val(
+        self,
+        blob_val: &'a [u8],
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            &'a [u8],
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            (),
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            (),
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn timestamp_val(
+        self,
+        timestamp_val: &'a chrono::DateTime<chrono::Utc>,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            &'a chrono::DateTime<chrono::Utc>,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            (),
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DateVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            (),
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn datetime_val(
+        self,
+        datetime_val: &'a chrono::NaiveDateTime,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            &'a chrono::NaiveDateTime,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            (),
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    TimeVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            (),
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
+    pub fn date_val(
+        self,
+        date_val: &'a chrono::NaiveDate,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            &'a chrono::NaiveDate,
+            TimeVal,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            (),
+            time_val,
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    JsonVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            (),
+            JsonVal,
+        ),
+    >
+{
+    pub fn time_val(
+        self,
+        time_val: sqlx::mysql::types::MySqlTime,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            sqlx::mysql::types::MySqlTime,
+            JsonVal,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            (),
+            json_val,
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<
+    'a,
+    BoolVal,
+    TinyintVal,
+    SmallintVal,
+    IntVal,
+    IntNullableVal,
+    BigintVal,
+    FloatVal,
+    DoubleVal,
+    TextVal,
+    BlobVal,
+    TimestampVal,
+    DatetimeVal,
+    DateVal,
+    TimeVal,
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            (),
+        ),
+    >
+{
+    pub fn json_val(
+        self,
+        json_val: &'a serde_json::Value,
+    ) -> InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            &'a serde_json::Value,
+        ),
+    > {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            (),
+        ) = self.fields;
+        let _phantom = self._phantom;
+        InsertMappingBuilder {
+            fields: (
+                bool_val,
+                tinyint_val,
+                smallint_val,
+                int_val,
+                int_nullable_val,
+                bigint_val,
+                float_val,
+                double_val,
+                text_val,
+                blob_val,
+                timestamp_val,
+                datetime_val,
+                date_val,
+                time_val,
+                json_val,
+            ),
+            _phantom,
+        }
+    }
+}
+impl<'a>
+    InsertMappingBuilder<
+        'a,
+        (
+            bool,
+            i8,
+            i16,
+            i32,
+            Option<i32>,
+            i64,
+            f32,
+            f64,
+            &'a str,
+            &'a [u8],
+            &'a chrono::DateTime<chrono::Utc>,
+            &'a chrono::NaiveDateTime,
+            &'a chrono::NaiveDate,
+            sqlx::mysql::types::MySqlTime,
+            &'a serde_json::Value,
+        ),
+    >
+{
+    pub const fn build(self) -> InsertMapping<'a> {
+        let (
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
+        ) = self.fields;
         InsertMapping {
-            bool_val: self.bool_val.expect("bool_val not set"),
-            tinyint_val: self.tinyint_val.expect("tinyint_val not set"),
-            smallint_val: self.smallint_val.expect("smallint_val not set"),
-            int_val: self.int_val.expect("int_val not set"),
-            int_nullable_val: self.int_nullable_val.expect("int_nullable_val not set"),
-            bigint_val: self.bigint_val.expect("bigint_val not set"),
-            float_val: self.float_val.expect("float_val not set"),
-            double_val: self.double_val.expect("double_val not set"),
-            text_val: self.text_val.expect("text_val not set"),
-            blob_val: self.blob_val.expect("blob_val not set"),
-            datetime_val: self.datetime_val.expect("datetime_val not set"),
-            date_val: self.date_val.expect("date_val not set"),
-            time_val: self.time_val.expect("time_val not set"),
-            json_val: self.json_val.expect("json_val not set"),
+            bool_val,
+            tinyint_val,
+            smallint_val,
+            int_val,
+            int_nullable_val,
+            bigint_val,
+            float_val,
+            double_val,
+            text_val,
+            blob_val,
+            timestamp_val,
+            datetime_val,
+            date_val,
+            time_val,
+            json_val,
         }
     }
 }

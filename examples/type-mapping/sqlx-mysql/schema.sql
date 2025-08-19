@@ -9,6 +9,7 @@ CREATE TABLE mapping (
     double_val DOUBLE NOT NULL,
     text_val TEXT NOT NULL,
     blob_val BLOB NOT NULL,
+    timestamp_val TIMESTAMP NOT NULL,
     datetime_val DATETIME NOT NULL,
     date_val DATE NOT NULL,
     time_val TIME NOT NULL,

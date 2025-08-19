@@ -4,6 +4,7 @@ mod queries;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone as _;
     use std::str::FromStr as _;
     use test_context::test_context;
     use test_utils::SqlxMysqlContext;
@@ -22,9 +23,10 @@ mod tests {
         migrate_db(pool).await;
 
         let blob_val = vec![1, 2, 3, 4, 5];
+        let timestamp_val = chrono::Utc.with_ymd_and_hms(2025, 1, 23, 4, 5, 6).unwrap();
         let datetime_val = chrono::NaiveDateTime::from_str("2025-01-23T04:05:06").unwrap();
         let date_val = chrono::NaiveDate::from_ymd_opt(2025, 1, 23).unwrap();
-        let time_val = chrono::NaiveTime::from_hms_opt(1, 23, 45).unwrap();
+        let time_val = sqlx::mysql::types::MySqlTime::ZERO;
         let json_val = serde_json::json!({ "type": "json" });
 
         let q = queries::InsertMapping::builder()
@@ -38,9 +40,10 @@ mod tests {
             .double_val(7.0)
             .text_val("8")
             .blob_val(&blob_val)
+            .timestamp_val(&timestamp_val)
             .datetime_val(&datetime_val)
             .date_val(&date_val)
-            .time_val(&time_val)
+            .time_val(time_val)
             .json_val(&json_val)
             .build();
 

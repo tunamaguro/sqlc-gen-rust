@@ -10,6 +10,7 @@ SELECT
     double_val,
     text_val,
     blob_val,
+    timestamp_val,
     datetime_val,
     date_val,
     time_val,
@@ -28,10 +29,11 @@ INSERT INTO mapping (
     double_val,
     text_val,
     blob_val,
+    timestamp_val,
     datetime_val,
     date_val,
     time_val,
     json_val
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
