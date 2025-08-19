@@ -279,10 +279,14 @@ impl Sqlx {
         let fields = row
             .column_names
             .iter()
+            .zip(row.column_names_original.iter())
             .zip(row.column_types.iter())
-            .map(|(col, rs_type)| {
+            .map(|((col, original_col_name), rs_type)| {
                 let col_t = rs_type.to_row_tokens();
-                quote::quote! {pub #col:#col_t}
+                quote::quote! {
+                    #[sqlx(rename = #original_col_name)]
+                    pub #col:#col_t
+                }
             })
             .collect::<Vec<_>>();
 
@@ -333,6 +337,8 @@ impl Sqlx {
             Sqlx::Sqlite => {
                 const COPY_CHEAP: &[(&str, &[&str])] = &[
                     ("bool", &["bool", "boolean"]),
+                    ("i16", &["int2"]),
+                    ("i32", &["int4"]),
                     (
                         "i64",
                         &[
@@ -343,8 +349,6 @@ impl Sqlx {
                             "mediumint",
                             "bigint",
                             "unsignedbigint",
-                            "int2",
-                            "int4",
                             "int8",
                         ],
                     ),
