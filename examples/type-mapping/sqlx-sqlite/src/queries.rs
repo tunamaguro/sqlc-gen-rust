@@ -17,11 +17,11 @@ pub struct GetMappingRow {
     #[sqlx(rename = "integer_val")]
     pub integer_val: i64,
     #[sqlx(rename = "tinyint_val")]
-    pub tinyint_val: i64,
+    pub tinyint_val: i8,
     #[sqlx(rename = "smallint_val")]
-    pub smallint_val: i64,
+    pub smallint_val: i16,
     #[sqlx(rename = "mediumint_val")]
-    pub mediumint_val: i64,
+    pub mediumint_val: i32,
     #[sqlx(rename = "bigint_val")]
     pub bigint_val: i64,
     #[sqlx(rename = "unsigned_big_int_val")]
@@ -166,9 +166,9 @@ pub struct InsertMapping<'a> {
     aff_blob_val: &'a [u8],
     int_val: i64,
     integer_val: i64,
-    tinyint_val: i64,
-    smallint_val: i64,
-    mediumint_val: i64,
+    tinyint_val: i8,
+    smallint_val: i16,
+    mediumint_val: i32,
     bigint_val: i64,
     unsigned_big_int_val: i64,
     int_2_val: i16,
@@ -1619,7 +1619,7 @@ impl<
 {
     pub fn tinyint_val(
         self,
-        tinyint_val: i64,
+        tinyint_val: i8,
     ) -> InsertMappingBuilder<
         'a,
         (
@@ -1629,7 +1629,7 @@ impl<
             AffBlobVal,
             IntVal,
             IntegerVal,
-            i64,
+            i8,
             SmallintVal,
             MediumintVal,
             BigintVal,
@@ -1800,7 +1800,7 @@ impl<
 {
     pub fn smallint_val(
         self,
-        smallint_val: i64,
+        smallint_val: i16,
     ) -> InsertMappingBuilder<
         'a,
         (
@@ -1811,7 +1811,7 @@ impl<
             IntVal,
             IntegerVal,
             TinyintVal,
-            i64,
+            i16,
             MediumintVal,
             BigintVal,
             UnsignedBigIntVal,
@@ -1981,7 +1981,7 @@ impl<
 {
     pub fn mediumint_val(
         self,
-        mediumint_val: i64,
+        mediumint_val: i32,
     ) -> InsertMappingBuilder<
         'a,
         (
@@ -1993,7 +1993,7 @@ impl<
             IntegerVal,
             TinyintVal,
             SmallintVal,
-            i64,
+            i32,
             BigintVal,
             UnsignedBigIntVal,
             Int2Val,
@@ -6082,9 +6082,9 @@ impl<'a>
             &'a [u8],
             i64,
             i64,
-            i64,
-            i64,
-            i64,
+            i8,
+            i16,
+            i32,
             i64,
             i64,
             i16,

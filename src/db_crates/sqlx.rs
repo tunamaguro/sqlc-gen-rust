@@ -105,13 +105,13 @@ impl DbTypeMapper for SqliteTypeMap {
             return Ok(rs_type.clone());
         };
 
-        if col_type.starts_with("character")
-            || col_type.starts_with("varchar")
-            || col_type.starts_with("varyingcharacter")
-            || col_type.starts_with("nchar")
-            || col_type.starts_with("nativecharacter")
-            || col_type.starts_with("nvarchar")
-        {
+        // Rust type determine by affinity
+        // See https://www.sqlite.org/datatype3.html
+        if col_type.contains("int") {
+            return Ok(RsType::new(syn::parse_quote!(i64), None, true));
+        }
+
+        if col_type.contains("char") || col_type.contains("clob") || col_type.contains("text") {
             return Ok(RsType::new(
                 syn::parse_quote!(String),
                 Some(syn::parse_quote!(str)),
@@ -119,14 +119,22 @@ impl DbTypeMapper for SqliteTypeMap {
             ));
         }
 
-        if col_type.starts_with("decimal") {
+        if col_type.contains("blob") || col_type.is_empty() {
+            return Ok(RsType::new(
+                syn::parse_quote!(Vec<u8>),
+                Some(syn::parse_quote!([u8])),
+                false,
+            ));
+        }
+
+        if col_type.contains("real") || col_type.contains("floa") || col_type.contains("doub") {
             return Ok(RsType::new(syn::parse_quote!(f64), None, true));
         }
 
-        Err(QueryError::cannot_map_type(
-            db_col_name,
-            col_type.to_string(),
-        ))
+        self.type_map
+            .get("numeric")
+            .cloned()
+            .ok_or_else(|| QueryError::cannot_map_type(db_col_name, col_type))
     }
 
     fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
@@ -337,25 +345,13 @@ impl Sqlx {
             Sqlx::Sqlite => {
                 const COPY_CHEAP: &[(&str, &[&str])] = &[
                     ("bool", &["bool", "boolean"]),
-                    ("i16", &["int2"]),
-                    ("i32", &["int4"]),
-                    (
-                        "i64",
-                        &[
-                            "int",
-                            "integer",
-                            "tinyint",
-                            "smallint",
-                            "mediumint",
-                            "bigint",
-                            "unsignedbigint",
-                            "int8",
-                        ],
-                    ),
-                    (
-                        "f64",
-                        &["real", "double", "doubleprecision", "float", "numeric"],
-                    ),
+                    ("i8", &["tinyint"]),
+                    ("i16", &["smallint", "int2"]),
+                    ("i32", &["mediumint", "int4"]),
+                    ("i64", &["int", "integer", "bigint", "int8"]),
+                    ("f64", &["real", "double", "doubleprecision", "float"]),
+                    // NUMERIC affinity
+                    ("f64", &["numeric"]),
                 ];
                 COPY_CHEAP
             }
