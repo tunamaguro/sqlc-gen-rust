@@ -264,6 +264,36 @@
                     }
                 }
             ]
+        },
+        {
+            "schema": "examples/type-mapping/sqlx-mysql/schema.sql",
+            "queries": "examples/type-mapping/sqlx-mysql/queries.sql",
+            "engine": "mysql",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/type-mapping/sqlx-mysql/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "sqlx-mysql"
+                    }
+                }
+            ]
+        },
+        {
+            "schema": "examples/type-mapping/sqlx-sqlite/schema.sql",
+            "queries": "examples/type-mapping/sqlx-sqlite/queries.sql",
+            "engine": "sqlite",
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/type-mapping/sqlx-sqlite/src",
+                    "options": {
+                        "output": "queries.rs",
+                        "db_crate": "sqlx-sqlite"
+                    }
+                }
+            ]
         }
     ]
 }
