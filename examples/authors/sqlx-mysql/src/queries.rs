@@ -4,8 +4,11 @@
 
 #[derive(sqlx::FromRow)]
 pub struct GetAuthorRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "bio")]
     pub bio: Option<String>,
 }
 pub struct GetAuthor {
@@ -81,8 +84,11 @@ impl<'a> GetAuthorBuilder<'a, (i64,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct ListAuthorsRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "bio")]
     pub bio: Option<String>,
 }
 pub struct ListAuthors;

@@ -4,20 +4,35 @@
 
 #[derive(sqlx::FromRow)]
 pub struct GetMappingRow {
+    #[sqlx(rename = "bool_val")]
     pub bool_val: bool,
+    #[sqlx(rename = "tinyint_val")]
     pub tinyint_val: i8,
+    #[sqlx(rename = "smallint_val")]
     pub smallint_val: i16,
+    #[sqlx(rename = "int_val")]
     pub int_val: i32,
+    #[sqlx(rename = "int_nullable_val")]
     pub int_nullable_val: Option<i32>,
+    #[sqlx(rename = "bigint_val")]
     pub bigint_val: i64,
+    #[sqlx(rename = "float_val")]
     pub float_val: f32,
+    #[sqlx(rename = "double_val")]
     pub double_val: f64,
+    #[sqlx(rename = "text_val")]
     pub text_val: String,
+    #[sqlx(rename = "blob_val")]
     pub blob_val: Vec<u8>,
+    #[sqlx(rename = "timestamp_val")]
     pub timestamp_val: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "datetime_val")]
     pub datetime_val: chrono::NaiveDateTime,
+    #[sqlx(rename = "date_val")]
     pub date_val: chrono::NaiveDate,
+    #[sqlx(rename = "time_val")]
     pub time_val: sqlx::mysql::types::MySqlTime,
+    #[sqlx(rename = "json_val")]
     pub json_val: serde_json::Value,
 }
 pub struct GetMapping;

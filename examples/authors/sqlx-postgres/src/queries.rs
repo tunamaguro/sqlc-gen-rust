@@ -67,8 +67,11 @@ impl<C: std::ops::DerefMut<Target = sqlx::PgConnection>> CopyDataSink<C> {
 }
 #[derive(sqlx::FromRow)]
 pub struct GetAuthorRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "bio")]
     pub bio: Option<String>,
 }
 pub struct GetAuthor {
@@ -144,8 +147,11 @@ impl<'a> GetAuthorBuilder<'a, (i64,)> {
 }
 #[derive(sqlx::FromRow)]
 pub struct ListAuthorsRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "bio")]
     pub bio: Option<String>,
 }
 pub struct ListAuthors;
@@ -196,8 +202,11 @@ impl<'a> ListAuthorsBuilder<'a, ()> {
 }
 #[derive(sqlx::FromRow)]
 pub struct CreateAuthorRow {
+    #[sqlx(rename = "id")]
     pub id: i64,
+    #[sqlx(rename = "name")]
     pub name: String,
+    #[sqlx(rename = "bio")]
     pub bio: Option<String>,
 }
 pub struct CreateAuthor<'a> {

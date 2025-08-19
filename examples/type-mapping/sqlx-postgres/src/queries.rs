@@ -77,40 +77,75 @@ pub enum Mood {
 }
 #[derive(sqlx::FromRow)]
 pub struct GetMappingRow {
+    #[sqlx(rename = "bool_val")]
     pub bool_val: bool,
+    #[sqlx(rename = "bool_array_val")]
     pub bool_array_val: Vec<bool>,
+    #[sqlx(rename = "char_val")]
     pub char_val: i8,
+    #[sqlx(rename = "smallint_val")]
     pub smallint_val: i16,
+    #[sqlx(rename = "int_val")]
     pub int_val: i32,
+    #[sqlx(rename = "int_nullable_val")]
     pub int_nullable_val: Option<i32>,
+    #[sqlx(rename = "oid_val")]
     pub oid_val: sqlx::postgres::types::Oid,
+    #[sqlx(rename = "bigint_val")]
     pub bigint_val: i64,
+    #[sqlx(rename = "real_val")]
     pub real_val: f32,
+    #[sqlx(rename = "double_val")]
     pub double_val: f64,
+    #[sqlx(rename = "text_val")]
     pub text_val: String,
+    #[sqlx(rename = "text_nullable_val")]
     pub text_nullable_val: Option<String>,
+    #[sqlx(rename = "bytea_val")]
     pub bytea_val: Vec<u8>,
+    #[sqlx(rename = "hstore_val")]
     pub hstore_val: sqlx::postgres::types::PgHstore,
+    #[sqlx(rename = "timestamp_val")]
     pub timestamp_val: chrono::NaiveDateTime,
+    #[sqlx(rename = "timestamptz_val")]
     pub timestamptz_val: chrono::DateTime<chrono::Utc>,
+    #[sqlx(rename = "date_val")]
     pub date_val: chrono::NaiveDate,
+    #[sqlx(rename = "time_val")]
     pub time_val: chrono::NaiveTime,
+    #[sqlx(rename = "inet_val")]
     pub inet_val: std::net::IpAddr,
+    #[sqlx(rename = "json_val")]
     pub json_val: serde_json::Value,
+    #[sqlx(rename = "jsonb_val")]
     pub jsonb_val: serde_json::Value,
+    #[sqlx(rename = "uuid_val")]
     pub uuid_val: uuid::Uuid,
+    #[sqlx(rename = "enum_val")]
     pub enum_val: Mood,
+    #[sqlx(rename = "composite_val")]
     pub composite_val: crate::Complex,
+    #[sqlx(rename = "money_val")]
     pub money_val: sqlx::postgres::types::PgMoney,
+    #[sqlx(rename = "ltree_val")]
     pub ltree_val: sqlx::postgres::types::PgLTree,
+    #[sqlx(rename = "lquery_val")]
     pub lquery_val: sqlx::postgres::types::PgLQuery,
+    #[sqlx(rename = "cube_val")]
     pub cube_val: sqlx::postgres::types::PgCube,
+    #[sqlx(rename = "point_val")]
     pub point_val: sqlx::postgres::types::PgPoint,
+    #[sqlx(rename = "line_val")]
     pub line_val: sqlx::postgres::types::PgLine,
+    #[sqlx(rename = "lseg_val")]
     pub lseg_val: sqlx::postgres::types::PgLSeg,
+    #[sqlx(rename = "box_val")]
     pub box_val: sqlx::postgres::types::PgBox,
+    #[sqlx(rename = "path_val")]
     pub path_val: sqlx::postgres::types::PgPath,
+    #[sqlx(rename = "polygon_val")]
     pub polygon_val: sqlx::postgres::types::PgPolygon,
+    #[sqlx(rename = "circle_val")]
     pub circle_val: sqlx::postgres::types::PgCircle,
 }
 pub struct GetMapping;
