@@ -275,7 +275,21 @@
                     "out": "examples/type-mapping/sqlx-mysql/src",
                     "options": {
                         "output": "queries.rs",
-                        "db_crate": "sqlx-mysql"
+                        "db_crate": "sqlx-mysql",
+                        "overrides": [
+                            {
+                                "db_type": "timestamp",
+                                "rs_type": "chrono::DateTime<chrono::Utc>"
+                            },
+                            {
+                                "db_type": "datetime",
+                                "rs_type": "chrono::NaiveDateTime"
+                            },
+                            {
+                                "db_type": "date",
+                                "rs_type": "chrono::NaiveDate"
+                            }
+                        ]
                     }
                 }
             ]
@@ -290,7 +304,21 @@
                     "out": "examples/type-mapping/sqlx-sqlite/src",
                     "options": {
                         "output": "queries.rs",
-                        "db_crate": "sqlx-sqlite"
+                        "db_crate": "sqlx-sqlite",
+                        "overrides": [
+                            {
+                                "db_type": "datetime",
+                                "rs_type": "chrono::NaiveDateTime"
+                            },
+                            {
+                                "db_type": "date",
+                                "rs_type": "chrono::NaiveDate"
+                            },
+                            {
+                                "db_type": "time",
+                                "rs_type": "chrono::NaiveTime"
+                            }
+                        ]
                     }
                 }
             ]
