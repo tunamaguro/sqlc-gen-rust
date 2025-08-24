@@ -255,6 +255,8 @@ struct Config {
     db_crate: db_crates::SupportedDbCrate,
     overrides: Vec<OverrideType>,
     debug: bool,
+    enum_derives: Vec<String>,
+    row_derives: Vec<String>,
 }
 
 impl Default for Config {
@@ -264,6 +266,8 @@ impl Default for Config {
             db_crate: Default::default(),
             overrides: Default::default(),
             debug: false,
+            enum_derives: Vec::new(),
+            row_derives: Vec::new(),
         }
     }
 }
@@ -341,11 +345,26 @@ pub fn try_main() -> Result<(), Error> {
         }
     }
 
-    let defined_enums = request
+    let enum_derives = config
+        .enum_derives
+        .iter()
+        .map(|d| syn::parse_str::<syn::Path>(d).map_err(|e| Error::any(e.into())))
+        .collect::<Result<Vec<_>, _>>()?;
+    let row_derives = config
+        .row_derives
+        .iter()
+        .map(|d| syn::parse_str::<syn::Path>(d).map_err(|e| Error::any(e.into())))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut defined_enums = request
         .catalog
         .as_ref()
         .map(collect_enums)
         .unwrap_or_default();
+
+    for e in &mut defined_enums {
+        e.derives = enum_derives.clone();
+    }
 
     for e in &defined_enums {
         db_type.insert_db_type(
@@ -362,11 +381,14 @@ pub fn try_main() -> Result<(), Error> {
         );
     }
 
-    let returning_rows = request
+    let mut returning_rows = request
         .queries
         .iter()
         .map(|q| ReturningRows::from_query(db_type.as_ref(), q))
         .collect::<Result<Vec<_>, _>>()?;
+    for r in &mut returning_rows {
+        r.derives = row_derives.clone();
+    }
     let queries = request
         .queries
         .iter()

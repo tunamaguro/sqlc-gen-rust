@@ -77,6 +77,7 @@ impl Postgres {
     }
 
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
+        let derives = &row.derives;
         let fields = row
             .column_names
             .iter()
@@ -88,11 +89,17 @@ impl Postgres {
             .collect::<Vec<_>>();
 
         let ident = row.struct_ident();
+        let derive_tt = if derives.is_empty() {
+            quote::quote! {}
+        } else {
+            quote::quote! {#[derive(#(#derives),*)]}
+        };
 
         // struct XXXRow {
         //  table_col: i32,...
         // }
         let row_tt = quote::quote! {
+            #derive_tt
             pub struct #ident {
                 #(#fields,)*
             }
@@ -229,6 +236,7 @@ impl DbCrate for Postgres {
         }
     }
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
+        let derives = &enum_type.derives;
         let fields = enum_type
             .values
             .iter()
@@ -243,8 +251,13 @@ impl DbCrate for Postgres {
 
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
+        let derive_tt = if derives.is_empty() {
+            quote::quote! {#[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]}
+        } else {
+            quote::quote! {#[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql, #(#derives),*)]}
+        };
         quote::quote! {
-            #[derive(Debug,Clone,Copy, postgres_types::ToSql, postgres_types::FromSql)]
+            #derive_tt
             #[postgres(name = #original_name)]
             pub enum #enum_name {
                 #(#fields,)*
@@ -404,5 +417,37 @@ impl DbCrate for Postgres {
             #fetch_tt
             #builder
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::ReturningRows;
+
+    #[test]
+    fn enum_additional_derives() {
+        let db_enum = DbEnum {
+            name: "mood".into(),
+            values: vec!["sad".into()],
+            derives: vec![syn::parse_str::<syn::Path>("serde::Serialize").unwrap()],
+        };
+        let tokens = Postgres::Tokio.defined_enum(&db_enum);
+        let s = tokens.to_string();
+        assert!(s.contains("serde :: Serialize"));
+    }
+
+    #[test]
+    fn row_additional_derives() {
+        let row = ReturningRows {
+            column_names: vec![],
+            column_names_original: vec![],
+            column_types: vec![],
+            query_name: "foo".into(),
+            derives: vec![syn::parse_str::<syn::Path>("Debug").unwrap()],
+        };
+        let tokens = Postgres::Tokio.returning_row(&row);
+        let s = tokens.to_string();
+        assert!(s.contains("derive"));
     }
 }

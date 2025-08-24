@@ -347,6 +347,9 @@ pub(crate) struct DbEnum {
     /// );
     /// ```
     pub(crate) values: Vec<String>,
+
+    /// additional derives for enum
+    pub(crate) derives: Vec<syn::Path>,
 }
 
 impl DbEnum {
@@ -363,6 +366,7 @@ pub(crate) fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
             let db_enum = DbEnum {
                 name: s_enum.name.clone(),
                 values: s_enum.vals.clone(),
+                derives: Vec::new(),
             };
             res.push(db_enum);
         }
@@ -378,6 +382,7 @@ pub(crate) struct ReturningRows {
     pub(crate) column_names_original: Vec<syn::LitStr>,
     pub(crate) column_types: Vec<RsColType>,
     pub(crate) query_name: String,
+    pub(crate) derives: Vec<syn::Path>,
 }
 
 impl ReturningRows {
@@ -407,6 +412,7 @@ impl ReturningRows {
             column_names_original,
             column_types,
             query_name: query.name.to_string(),
+            derives: Vec::new(),
         })
     }
 
