@@ -284,6 +284,7 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
+        let derives = &row.derives;
         let fields = row
             .column_names
             .iter()
@@ -299,8 +300,13 @@ impl Sqlx {
             .collect::<Vec<_>>();
 
         let ident = row.struct_ident();
+        let derive_tt = if derives.is_empty() {
+            quote::quote! {#[derive(sqlx::FromRow)]}
+        } else {
+            quote::quote! {#[derive(sqlx::FromRow, #(#derives),*)]}
+        };
         let row_tt = quote::quote! {
-            #[derive(sqlx::FromRow)]
+            #derive_tt
             pub struct #ident {
                 #(#fields,)*
             }
@@ -526,6 +532,7 @@ impl DbCrate for Sqlx {
     }
 
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
+        let derives = &enum_type.derives;
         let fields = enum_type
             .values
             .iter()
@@ -540,8 +547,13 @@ impl DbCrate for Sqlx {
 
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
+        let derive_tt = if derives.is_empty() {
+            quote::quote! {#[derive(Debug,Clone,Copy, sqlx::Type)]}
+        } else {
+            quote::quote! {#[derive(Debug,Clone,Copy, sqlx::Type, #(#derives),*)]}
+        };
         quote::quote! {
-            #[derive(Debug,Clone,Copy, sqlx::Type)]
+            #derive_tt
             #[sqlx(type_name = #original_name)]
             pub enum #enum_name {
                 #(#fields,)*

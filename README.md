@@ -204,9 +204,34 @@ The following is an example configuration:
 
 See [source code](https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605) for details on overwriting.
 
+### `enum_derives` / `row_derives`
+
+Add additional items to the `#[derive(...)]` attribute for generated enums or for `XXXRow` structs.
+Each field accepts an array of derive paths as strings. `enum_derives` applies only to enums, and
+`row_derives` applies only to row structs.
+
+```json
+{
+    "sql": [
+        {
+            "codegen": [
+                {
+                    "plugin": "sqlc-gen-rust",
+                    "out": "examples/e-commerce/src",
+                    "options": {
+                        "enum_derives": ["serde::Serialize", "serde::Deserialize"],
+                        "row_derives": ["serde::Serialize"]
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
+
 ### `output`
 
-Generated code destination. Default is `queries.rs`. 
+Generated code destination. Default is `queries.rs`.
 
 ## License
 
