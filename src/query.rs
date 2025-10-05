@@ -304,7 +304,9 @@ impl DbTypeMapper for DbTypeMap {
             .map(|s| s.to_lowercase())
             .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
 
-        self.get(&db_col_type)
+        self.typ_map
+            .get(&db_col_type)
+            .cloned()
             .ok_or_else(|| QueryError::cannot_map_type(db_col_type, db_col_name))
     }
 
@@ -322,12 +324,6 @@ impl DbTypeMapper for DbTypeMap {
             .entry(column_name.to_string())
             .or_insert(rs_type.clone());
         *e = rs_type;
-    }
-}
-
-impl DbTypeMap {
-    fn get(&self, db_type: &str) -> Option<RsType> {
-        self.typ_map.get(db_type).cloned()
     }
 }
 
