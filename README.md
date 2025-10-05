@@ -13,8 +13,8 @@ Add the following to your `sqlc.json` configuration file to use this plugin.
         {
             "name": "sqlc-gen-rust",
             "wasm": {
-                "url": "https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.9/sqlc-gen-rust.wasm",
-                "sha256": "ba3bfb9b5ce6c3121ada3afc3481d6adb8791afa72907d0026698db965b6dbef"
+                "url": "https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.10/sqlc-gen-rust.wasm",
+                "sha256": "5cebd5288dd5cd91fe31b7c0395773cbb84eebffe54c190cfea074b56efe6427"
             }
         }
     ],
