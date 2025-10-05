@@ -70,12 +70,20 @@ impl DbTypeMapper for MySqlTypeMap {
         }
     }
 
-    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
-        self.type_map.insert(db_type.to_string(), rs_type)
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        let e = self
+            .type_map
+            .entry(db_type.to_string())
+            .or_insert(rs_type.clone());
+        *e = rs_type;
     }
 
-    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType> {
-        self.column_map.insert(column_name.to_string(), rs_type)
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
+        let e = self
+            .column_map
+            .entry(column_name.to_string())
+            .or_insert(rs_type.clone());
+        *e = rs_type;
     }
 }
 
@@ -137,12 +145,20 @@ impl DbTypeMapper for SqliteTypeMap {
             .ok_or_else(|| QueryError::cannot_map_type(db_col_name, col_type))
     }
 
-    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType> {
-        self.type_map.insert(db_type.to_string(), rs_type)
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        let e = self
+            .type_map
+            .entry(db_type.to_string())
+            .or_insert(rs_type.clone());
+        *e = rs_type;
     }
 
-    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) -> Option<RsType> {
-        self.column_map.insert(column_name.to_string(), rs_type)
+    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
+        let e = self
+            .column_map
+            .entry(column_name.to_string())
+            .or_insert(rs_type.clone());
+        *e = rs_type;
     }
 }
 
