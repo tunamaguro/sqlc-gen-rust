@@ -74,7 +74,7 @@ impl DbTypeMapper for MySqlTypeMap {
         let e = self
             .type_map
             .entry(db_type.to_string())
-            .or_insert(rs_type.clone());
+            .or_insert_with(|| rs_type.clone());
         *e = rs_type;
     }
 
@@ -82,7 +82,7 @@ impl DbTypeMapper for MySqlTypeMap {
         let e = self
             .column_map
             .entry(column_name.to_string())
-            .or_insert(rs_type.clone());
+            .or_insert_with(|| rs_type.clone());
         *e = rs_type;
     }
 }
@@ -149,7 +149,7 @@ impl DbTypeMapper for SqliteTypeMap {
         let e = self
             .type_map
             .entry(db_type.to_string())
-            .or_insert(rs_type.clone());
+            .or_insert_with(|| rs_type.clone());
         *e = rs_type;
     }
 
@@ -157,7 +157,7 @@ impl DbTypeMapper for SqliteTypeMap {
         let e = self
             .column_map
             .entry(column_name.to_string())
-            .or_insert(rs_type.clone());
+            .or_insert_with(|| rs_type.clone());
         *e = rs_type;
     }
 }

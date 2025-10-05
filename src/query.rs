@@ -314,7 +314,7 @@ impl DbTypeMapper for DbTypeMap {
         let e = self
             .typ_map
             .entry(db_type.to_string())
-            .or_insert(rs_type.clone());
+            .or_insert_with(|| rs_type.clone());
         *e = rs_type;
     }
 
@@ -322,7 +322,7 @@ impl DbTypeMapper for DbTypeMap {
         let e = self
             .column_map
             .entry(column_name.to_string())
-            .or_insert(rs_type.clone());
+            .or_insert_with(|| rs_type.clone());
         *e = rs_type;
     }
 }
