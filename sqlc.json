@@ -20,7 +20,69 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "tokio_query.rs",
-                        "db_crate": "tokio-postgres"
+                        "db_crate": "tokio-postgres",
+                        "overrides": [
+                            {
+                                "db_type": "timestamptz",
+                                "rs_type": "chrono::DateTime<chrono::Utc>"
+                            },
+                            {
+                                "column": "users.created_at",
+                                "rs_type": "chrono::DateTime<chrono::Local>"
+                            }
+                        ],
+                        "enum_defaults": {
+                            "order_status": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]"
+                                ]
+                            }
+                        },
+                        "defaults": {
+                            "row": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "updated_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "ordered_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            },
+                            "params": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            }
+                        },
+                        "query_overrides": {
+                            "GetOrderDetails": {
+                                "row": {
+                                    "struct": [
+                                        "#[derive(serde::Serialize, serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ]
+                                }
+                            },
+                            "CreateOrder": {
+                                "params": {
+                                    "struct": [
+                                        "#[derive(serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ],
+                                    "fields": {
+                                        "orders.user_id": [
+                                            "#[serde(rename = \"userId\")]"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 {
@@ -28,7 +90,69 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "postgres_query.rs",
-                        "db_crate": "postgres"
+                        "db_crate": "postgres",
+                        "overrides": [
+                            {
+                                "db_type": "timestamptz",
+                                "rs_type": "chrono::DateTime<chrono::Utc>"
+                            },
+                            {
+                                "column": "users.created_at",
+                                "rs_type": "chrono::DateTime<chrono::Local>"
+                            }
+                        ],
+                        "enum_defaults": {
+                            "order_status": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]"
+                                ]
+                            }
+                        },
+                        "defaults": {
+                            "row": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "updated_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "ordered_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            },
+                            "params": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            }
+                        },
+                        "query_overrides": {
+                            "GetOrderDetails": {
+                                "row": {
+                                    "struct": [
+                                        "#[derive(serde::Serialize, serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ]
+                                }
+                            },
+                            "CreateOrder": {
+                                "params": {
+                                    "struct": [
+                                        "#[derive(serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ],
+                                    "fields": {
+                                        "orders.user_id": [
+                                            "#[serde(rename = \"userId\")]"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 {
@@ -36,7 +160,69 @@
                     "out": "examples/e-commerce/src",
                     "options": {
                         "output": "deadpool_query.rs",
-                        "db_crate": "deadpool-postgres"
+                        "db_crate": "deadpool-postgres",
+                        "overrides": [
+                            {
+                                "db_type": "timestamptz",
+                                "rs_type": "chrono::DateTime<chrono::Utc>"
+                            },
+                            {
+                                "column": "users.created_at",
+                                "rs_type": "chrono::DateTime<chrono::Local>"
+                            }
+                        ],
+                        "enum_defaults": {
+                            "order_status": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]"
+                                ]
+                            }
+                        },
+                        "defaults": {
+                            "row": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "updated_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "ordered_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            },
+                            "params": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            }
+                        },
+                        "query_overrides": {
+                            "GetOrderDetails": {
+                                "row": {
+                                    "struct": [
+                                        "#[derive(serde::Serialize, serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ]
+                                }
+                            },
+                            "CreateOrder": {
+                                "params": {
+                                    "struct": [
+                                        "#[derive(serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ],
+                                    "fields": {
+                                        "orders.user_id": [
+                                            "#[serde(rename = \"userId\")]"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 {
@@ -54,7 +240,59 @@
                                 "column": "users.created_at",
                                 "rs_type": "chrono::DateTime<chrono::Local>"
                             }
-                        ]
+                        ],
+                        "enum_defaults": {
+                            "order_status": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]"
+                                ]
+                            }
+                        },
+                        "defaults": {
+                            "row": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "updated_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ],
+                                    "ordered_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            },
+                            "params": {
+                                "fields": {
+                                    "created_at": [
+                                        "#[serde(with = \"chrono::serde::ts_seconds\")]"
+                                    ]
+                                }
+                            }
+                        },
+                        "query_overrides": {
+                            "GetOrderDetails": {
+                                "row": {
+                                    "struct": [
+                                        "#[derive(serde::Serialize, serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ]
+                                }
+                            },
+                            "CreateOrder": {
+                                "params": {
+                                    "struct": [
+                                        "#[derive(serde::Deserialize)]",
+                                        "#[serde(rename_all = \"camelCase\")]"
+                                    ],
+                                    "fields": {
+                                        "orders.user_id": [
+                                            "#[serde(rename = \"userId\")]"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             ]

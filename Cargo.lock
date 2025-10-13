@@ -285,6 +285,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -467,6 +468,7 @@ dependencies = [
  "futures",
  "postgres",
  "postgres-types",
+ "serde",
  "serde_json",
  "sqlx",
  "test-context",
@@ -2347,6 +2349,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f33196643e165781c20a5ead5582283a7dacbb87855d867fbc2df3f81eddc1be"
 dependencies = [
  "js-sys",
+ "serde",
  "wasm-bindgen",
 ]
 

@@ -301,15 +301,19 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let derives = &row.derives;
+        let struct_attributes = &row.struct_attributes;
         let fields = row
             .column_names
             .iter()
             .zip(row.column_names_original.iter())
             .zip(row.column_types.iter())
-            .map(|((col, original_col_name), rs_type)| {
+            .enumerate()
+            .map(|(idx, ((col, original_col_name), rs_type))| {
                 let col_t = rs_type.to_row_tokens();
+                let field_attributes = &row.field_attributes[idx];
                 quote::quote! {
                     #[sqlx(rename = #original_col_name)]
+                    #(#field_attributes)*
                     pub #col:#col_t
                 }
             })
@@ -323,6 +327,7 @@ impl Sqlx {
         };
         let row_tt = quote::quote! {
             #derive_tt
+            #(#struct_attributes)*
             pub struct #ident {
                 #(#fields,)*
             }
@@ -552,10 +557,13 @@ impl DbCrate for Sqlx {
         let fields = enum_type
             .values
             .iter()
-            .map(|field| {
+            .enumerate()
+            .map(|(idx, field)| {
                 let ident = value_ident(field);
+                let variant_attributes = &enum_type.variant_attributes[idx];
                 quote::quote! {
                     #[sqlx(rename = #field)]
+                    #(#variant_attributes)*
                     #ident
                 }
             })
@@ -563,6 +571,7 @@ impl DbCrate for Sqlx {
 
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
+        let struct_attributes = &enum_type.struct_attributes;
         let derive_tt = if derives.is_empty() {
             quote::quote! {#[derive(Debug,Clone,Copy, sqlx::Type)]}
         } else {
@@ -570,6 +579,7 @@ impl DbCrate for Sqlx {
         };
         quote::quote! {
             #derive_tt
+            #(#struct_attributes)*
             #[sqlx(type_name = #original_name)]
             pub enum #enum_name {
                 #(#fields,)*
@@ -585,17 +595,24 @@ impl DbCrate for Sqlx {
             .param_names
             .iter()
             .zip(query.param_types.iter())
-            .map(|(r, typ)| {
+            .enumerate()
+            .map(|(idx, (r, typ))| {
                 let typ = typ.to_param_tokens(&lifetime_a);
-                quote::quote! {#r:#typ}
+                let field_attributes = &query.field_attributes[idx];
+                quote::quote! {
+                    #(#field_attributes)*
+                    #r:#typ
+                }
             })
             .collect::<Vec<_>>();
 
         let need_lifetime = super::need_lifetime(query);
         let has_fields = !query.param_names.is_empty();
+        let struct_attributes = &query.struct_attributes;
         let struct_tt = match (need_lifetime, has_fields) {
             (true, _) => {
                 quote::quote! {
+                    #(#struct_attributes)*
                     pub struct #struct_ident<#lifetime_a>{
                         #(#fields,)*
                     }
@@ -603,6 +620,7 @@ impl DbCrate for Sqlx {
             }
             (false, true) => {
                 quote::quote! {
+                    #(#struct_attributes)*
                     pub struct #struct_ident{
                         #(#fields,)*
                     }
@@ -610,6 +628,7 @@ impl DbCrate for Sqlx {
             }
             (false, false) => {
                 quote::quote! {
+                    #(#struct_attributes)*
                     pub struct #struct_ident;
                 }
             }
