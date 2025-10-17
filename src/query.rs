@@ -354,6 +354,10 @@ pub(crate) struct DbEnum {
 
     /// additional derives for enum
     pub(crate) derives: Vec<syn::Path>,
+    /// additional struct-level attributes for enum
+    pub(crate) struct_attributes: Vec<syn::Attribute>,
+    /// additional variant-level attributes for enum (aligned with `values`)
+    pub(crate) variant_attributes: Vec<Vec<syn::Attribute>>,
 }
 
 impl DbEnum {
@@ -371,6 +375,8 @@ pub(crate) fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
                 name: s_enum.name.clone(),
                 values: s_enum.vals.clone(),
                 derives: Vec::new(),
+                struct_attributes: Vec::new(),
+                variant_attributes: vec![Vec::new(); s_enum.vals.len()],
             };
             res.push(db_enum);
         }
@@ -384,9 +390,15 @@ pub(crate) struct ReturningRows {
     pub(crate) column_names: Vec<syn::Ident>,
     /// original field name
     pub(crate) column_names_original: Vec<syn::LitStr>,
+    /// exact database column names (`table.column` when available)
+    pub(crate) column_db_names: Vec<String>,
     pub(crate) column_types: Vec<RsColType>,
     pub(crate) query_name: String,
     pub(crate) derives: Vec<syn::Path>,
+    /// additional struct-level attributes for the generated row
+    pub(crate) struct_attributes: Vec<syn::Attribute>,
+    /// additional field-level attributes aligned with `column_names`
+    pub(crate) field_attributes: Vec<Vec<syn::Attribute>>,
 }
 
 impl ReturningRows {
@@ -405,18 +417,24 @@ impl ReturningRows {
                 })
                 .unzip();
         let mut column_types = vec![];
+        let mut column_db_names = Vec::with_capacity(query.columns.len());
         for column in &query.columns {
+            column_db_names.push(make_column_name(column));
             let rs_type = RsColType::new_with_type(db_type, column).stacked()?;
 
             column_types.push(rs_type);
         }
+        let field_attributes = vec![Vec::new(); column_types.len()];
 
         Ok(Self {
             column_names,
             column_names_original,
+            column_db_names,
             column_types,
             query_name: query.name.to_string(),
             derives: Vec::new(),
+            struct_attributes: Vec::new(),
+            field_attributes,
         })
     }
 
@@ -514,6 +532,9 @@ fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
 pub(crate) struct Query {
     pub(crate) param_names: Vec<syn::Ident>,
     pub(crate) param_types: Vec<RsColType>,
+    pub(crate) param_db_names: Vec<String>,
+    pub(crate) struct_attributes: Vec<syn::Attribute>,
+    pub(crate) field_attributes: Vec<Vec<syn::Attribute>>,
 
     pub(crate) annotation: Annotation,
     pub(crate) insert_table: Option<String>,
@@ -560,28 +581,41 @@ impl Query {
             .iter()
             .map(|c| RsColType::new_with_type(db_type, c))
             .collect::<Result<Vec<_>, _>>()?;
+        let param_db_names = columns
+            .iter()
+            .map(|c| make_column_name(c))
+            .collect::<Vec<_>>();
 
         let mut param_data = param_names
             .into_iter()
             .zip(param_types)
+            .zip(param_db_names)
             .zip(param_idx)
             .collect::<Vec<_>>();
 
         param_data.sort_by_key(|((_, _), idx)| *idx);
-        let (param_names, param_types): (Vec<_>, Vec<_>) = param_data
-            .into_iter()
-            .map(|((name, typ), _)| (name, typ))
-            .unzip();
+        let mut param_names_sorted = Vec::with_capacity(param_data.len());
+        let mut param_types_sorted = Vec::with_capacity(param_data.len());
+        let mut param_db_names_sorted = Vec::with_capacity(param_data.len());
+        for (((name, typ), db_name), _) in param_data {
+            param_names_sorted.push(name);
+            param_types_sorted.push(typ);
+            param_db_names_sorted.push(db_name);
+        }
 
         let annotation = query.cmd.parse::<Annotation>().stacked()?;
         let query_name = query.name.to_string();
 
         let query_str = query.text.clone();
         let insert_table = query.insert_into_table.as_ref().map(|t| t.name.clone());
+        let field_attributes = vec![Vec::new(); param_db_names_sorted.len()];
 
         Ok(Self {
-            param_names,
-            param_types,
+            param_names: param_names_sorted,
+            param_types: param_types_sorted,
+            param_db_names: param_db_names_sorted,
+            struct_attributes: Vec::new(),
+            field_attributes,
             annotation,
             insert_table,
             query_name,

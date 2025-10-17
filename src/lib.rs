@@ -1,6 +1,8 @@
 use convert_case::{Case, Casing as _};
 use prost::Message as _;
+use std::collections::HashMap;
 use std::io::{Read as _, Write};
+use syn::parse::Parser as _;
 
 pub(crate) mod plugin {
     include!(concat!(env!("OUT_DIR"), "/plugin.rs"));
@@ -248,6 +250,139 @@ struct OverrideType {
     copy_cheap: bool,
 }
 
+#[derive(Debug, Clone, Default)]
+struct FieldAnnotationOverride {
+    column: String,
+    attributes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct StructAnnotationOverride {
+    struct_attributes: Vec<String>,
+    field_attributes: Vec<FieldAnnotationOverride>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[serde(default)]
+struct StructAnnotationConfig {
+    #[serde(alias = "struct")]
+    struct_attributes: Vec<String>,
+    fields: HashMap<String, Vec<String>>,
+}
+
+impl StructAnnotationConfig {
+    fn to_override(&self) -> StructAnnotationOverride {
+        let field_attributes = self
+            .fields
+            .iter()
+            .map(|(column, attributes)| FieldAnnotationOverride {
+                column: column.clone(),
+                attributes: attributes.clone(),
+            })
+            .collect();
+        StructAnnotationOverride {
+            struct_attributes: self.struct_attributes.clone(),
+            field_attributes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[serde(default)]
+struct AnnotationBundleConfig {
+    row: Option<StructAnnotationConfig>,
+    params: Option<StructAnnotationConfig>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[serde(default)]
+struct EnumAnnotationConfig {
+    #[serde(alias = "struct")]
+    struct_attributes: Vec<String>,
+    variants: HashMap<String, Vec<String>>,
+}
+
+fn parse_attribute_list(values: &[String]) -> Result<Vec<syn::Attribute>, Error> {
+    let mut result = Vec::new();
+    for attr in values {
+        let parsed = syn::Attribute::parse_outer
+            .parse_str(attr)
+            .map_err(|e| Error::any(Box::new(e)))?;
+        result.extend(parsed);
+    }
+    Ok(result)
+}
+
+fn apply_struct_annotation_override(
+    override_data: &StructAnnotationOverride,
+    db_names: &[String],
+    struct_attributes: &mut Vec<syn::Attribute>,
+    field_attributes: &mut [Vec<syn::Attribute>],
+) -> Result<(), Error> {
+    let struct_attrs = parse_attribute_list(&override_data.struct_attributes)?;
+    struct_attributes.extend(struct_attrs);
+
+    for field_override in &override_data.field_attributes {
+        let attrs = parse_attribute_list(&field_override.attributes)?;
+        for (idx, db_name) in db_names.iter().enumerate() {
+            let mut matches = db_name == &field_override.column;
+            if !matches {
+                if let Some(col) = db_name.rsplit('.').next() {
+                    matches = col == field_override.column;
+                }
+            }
+            if matches {
+                field_attributes[idx].extend(attrs.iter().cloned());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn apply_row_annotation_override(
+    row: &mut ReturningRows,
+    override_data: &StructAnnotationOverride,
+) -> Result<(), Error> {
+    apply_struct_annotation_override(
+        override_data,
+        &row.column_db_names,
+        &mut row.struct_attributes,
+        &mut row.field_attributes,
+    )
+}
+
+fn apply_query_param_annotation_override(
+    query: &mut Query,
+    override_data: &StructAnnotationOverride,
+) -> Result<(), Error> {
+    apply_struct_annotation_override(
+        override_data,
+        &query.param_db_names,
+        &mut query.struct_attributes,
+        &mut query.field_attributes,
+    )
+}
+
+fn apply_enum_annotation_config(
+    enum_type: &mut query::DbEnum,
+    config: &EnumAnnotationConfig,
+) -> Result<(), Error> {
+    let struct_attrs = parse_attribute_list(&config.struct_attributes)?;
+    enum_type.struct_attributes.extend(struct_attrs);
+
+    for (variant_name, attributes) in &config.variants {
+        let attrs = parse_attribute_list(attributes)?;
+        for (idx, value) in enum_type.values.iter().enumerate() {
+            if value == variant_name {
+                enum_type.variant_attributes[idx].extend(attrs.iter().cloned());
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
 struct Config {
@@ -257,6 +392,9 @@ struct Config {
     debug: bool,
     enum_derives: Vec<String>,
     row_derives: Vec<String>,
+    defaults: AnnotationBundleConfig,
+    query_overrides: HashMap<String, AnnotationBundleConfig>,
+    enum_defaults: HashMap<String, EnumAnnotationConfig>,
 }
 
 impl Default for Config {
@@ -268,6 +406,9 @@ impl Default for Config {
             debug: false,
             enum_derives: Vec::new(),
             row_derives: Vec::new(),
+            defaults: AnnotationBundleConfig::default(),
+            query_overrides: HashMap::new(),
+            enum_defaults: HashMap::new(),
         }
     }
 }
@@ -366,6 +507,19 @@ pub fn try_main() -> Result<(), Error> {
         e.derives = enum_derives.clone();
     }
 
+    if !config.enum_defaults.is_empty() {
+        let mut enum_index = HashMap::new();
+        for (idx, e) in defined_enums.iter().enumerate() {
+            enum_index.insert(e.name.clone(), idx);
+        }
+
+        for (name, enum_config) in &config.enum_defaults {
+            if let Some(&idx) = enum_index.get(name) {
+                apply_enum_annotation_config(&mut defined_enums[idx], enum_config)?;
+            }
+        }
+    }
+
     for e in &defined_enums {
         db_type.insert_db_type(
             &e.name,
@@ -389,11 +543,45 @@ pub fn try_main() -> Result<(), Error> {
     for r in &mut returning_rows {
         r.derives = row_derives.clone();
     }
-    let queries = request
+    let mut queries = request
         .queries
         .iter()
         .map(|q| Query::from_query(db_type.as_ref(), q))
         .collect::<Result<Vec<_>, _>>()?;
+
+    let row_defaults_override = config.defaults.row.as_ref().map(|cfg| cfg.to_override());
+    if let Some(ref override_data) = row_defaults_override {
+        for row in &mut returning_rows {
+            apply_row_annotation_override(row, override_data)?;
+        }
+    }
+
+    let params_defaults_override = config.defaults.params.as_ref().map(|cfg| cfg.to_override());
+    if let Some(ref override_data) = params_defaults_override {
+        for query in &mut queries {
+            apply_query_param_annotation_override(query, override_data)?;
+        }
+    }
+
+    if !config.query_overrides.is_empty() {
+        let mut query_index = HashMap::new();
+        for (idx, query) in queries.iter().enumerate() {
+            query_index.insert(query.query_name.clone(), idx);
+        }
+
+        for (query_name, override_config) in &config.query_overrides {
+            if let Some(&idx) = query_index.get(query_name) {
+                if let Some(row_cfg) = override_config.row.as_ref() {
+                    let row_override = row_cfg.to_override();
+                    apply_row_annotation_override(&mut returning_rows[idx], &row_override)?;
+                }
+                if let Some(params_cfg) = override_config.params.as_ref() {
+                    let params_override = params_cfg.to_override();
+                    apply_query_param_annotation_override(&mut queries[idx], &params_override)?;
+                }
+            }
+        }
+    }
 
     let enums_ts = defined_enums
         .iter()
