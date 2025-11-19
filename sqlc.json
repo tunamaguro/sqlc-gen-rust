@@ -38,6 +38,14 @@
                                 ]
                             }
                         },
+                        "row_overrides": {
+                            "CreateProductRow": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]",
+                                    "#[serde(rename_all = \"camelCase\")]"
+                                ]
+                            }
+                        },
                         "defaults": {
                             "row": {
                                 "fields": {
@@ -105,6 +113,14 @@
                             "order_status": {
                                 "struct": [
                                     "#[derive(serde::Serialize, serde::Deserialize)]"
+                                ]
+                            }
+                        },
+                        "row_overrides": {
+                            "CreateProductRow": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]",
+                                    "#[serde(rename_all = \"camelCase\")]"
                                 ]
                             }
                         },
@@ -178,6 +194,14 @@
                                 ]
                             }
                         },
+                        "row_overrides": {
+                            "CreateProductRow": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]",
+                                    "#[serde(rename_all = \"camelCase\")]"
+                                ]
+                            }
+                        },
                         "defaults": {
                             "row": {
                                 "fields": {
@@ -245,6 +269,14 @@
                             "order_status": {
                                 "struct": [
                                     "#[derive(serde::Serialize, serde::Deserialize)]"
+                                ]
+                            }
+                        },
+                        "row_overrides": {
+                            "CreateProductRow": {
+                                "struct": [
+                                    "#[derive(serde::Serialize, serde::Deserialize)]",
+                                    "#[serde(rename_all = \"camelCase\")]"
                                 ]
                             }
                         },

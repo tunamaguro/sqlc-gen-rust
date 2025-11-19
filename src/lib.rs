@@ -395,6 +395,7 @@ struct Config {
     defaults: AnnotationBundleConfig,
     query_overrides: HashMap<String, AnnotationBundleConfig>,
     enum_defaults: HashMap<String, EnumAnnotationConfig>,
+    row_overrides: HashMap<String, StructAnnotationConfig>,
 }
 
 impl Default for Config {
@@ -409,6 +410,7 @@ impl Default for Config {
             defaults: AnnotationBundleConfig::default(),
             query_overrides: HashMap::new(),
             enum_defaults: HashMap::new(),
+            row_overrides: HashMap::new(),
         }
     }
 }
@@ -583,6 +585,20 @@ pub fn try_main() -> Result<(), Error> {
         }
     }
 
+    if !config.row_overrides.is_empty() {
+        let mut row_index = HashMap::new();
+        for (idx, row) in returning_rows.iter().enumerate() {
+            row_index.insert(row.struct_ident().to_string(), idx);
+        }
+
+        for (row_name, override_config) in &config.row_overrides {
+            if let Some(&idx) = row_index.get(row_name) {
+                let row_override = override_config.to_override();
+                apply_row_annotation_override(&mut returning_rows[idx], &row_override)?;
+            }
+        }
+    }
+
     let enums_ts = defined_enums
         .iter()
         .map(|e| config.db_crate.defined_enum(e))
@@ -602,6 +618,7 @@ pub fn try_main() -> Result<(), Error> {
         #enums_tt
         #queries_tt
     };
+
     let mut response = plugin::GenerateResponse::default();
     let ast = syn::parse2(tt).map_err(|e| Error::any(e.into()))?;
     let contents = format!(
