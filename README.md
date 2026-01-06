@@ -145,6 +145,28 @@ See below for examples with other supported crates.
 - [`sqlx-mysql` generated code](./examples/authors/sqlx-mysql/src/lib.rs)
 - [`sqlx-sqlite` generated code](./examples/authors/sqlx-sqlite/src/lib.rs)
 
+## Supported Features
+
+### Query Annotations
+
+| crate             | `:exec` | `:execlastid` | `:many` | `:one` | `:copyfrom` |
+| ----------------- | ------- | ------------- | ------- | ------ | ------------ |
+| postgres          | ✅       | ❌             | ✅       | ✅      | ❌            |
+| tokio-postgres    | ✅       | ❌             | ✅       | ✅      | ✅            |
+| deadpool-postgres | ✅       | ❌             | ✅       | ✅      | ✅            |
+| sqlx-postgres     | ✅       | ❌             | ✅       | ✅      | ✅            |
+| sqlx-mysql        | ✅       | ❌             | ✅       | ✅      | ❌            |
+| sqlx-sqlite       | ✅       | ❌             | ✅       | ✅      | ❌            |
+
+### Macros
+
+| Macro        | Status |
+| ------------ | ------ |
+| `sqlc.arg`   | ✅      |
+| `sqlc.embed` | ❌      |
+| `sqlc.narg`  | ✅      |
+| `sqlc.slice` | ❌      |
+
 ## Options
 
 > [!NOTE]
