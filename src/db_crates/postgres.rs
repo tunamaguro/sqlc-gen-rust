@@ -77,46 +77,27 @@ impl Postgres {
     }
 
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
-        let derives = &row.derives;
-        let fields = row
-            .column_names
-            .iter()
-            .zip(row.column_types.iter())
-            .map(|(col, rs_type)| {
-                let col_t = rs_type.to_row_tokens();
-                quote::quote! {pub #col:#col_t}
-            })
-            .collect::<Vec<_>>();
+        let row_ast = super::RowAst::new(row);
 
-        let ident = row.struct_ident();
-        let derive_tt = if derives.is_empty() {
+        let ident = &row_ast.ident;
+        let derive_tt = if row.derives.is_empty() {
             quote::quote! {}
         } else {
+            let derives = &row.derives;
             quote::quote! {#[derive(#(#derives),*)]}
-        };
-
-        // struct XXXRow {
-        //  table_col: i32,...
-        // }
-        let row_tt = quote::quote! {
-            #derive_tt
-            pub struct #ident {
-                #(#fields,)*
-            }
         };
 
         let error_typ = self.error_type();
         let row_typ = self.row_type();
         let arg_ident = quote::format_ident!("row");
-        let from_fields = row
-            .column_names
+        let from_fields = row_ast
+            .fields
             .iter()
             .enumerate()
-            .map(|(idx, r)| {
+            .map(|(idx, (field_ident, _))| {
                 let literal = proc_macro2::Literal::usize_unsuffixed(idx);
-                quote::quote! {#r:#arg_ident.try_get(#literal)?}
-            })
-            .collect::<Vec<_>>();
+                quote::quote! {#field_ident:#arg_ident.try_get(#literal)?}
+            });
         let from_tt = quote::quote! {
             impl #ident {
                 pub fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
@@ -128,7 +109,8 @@ impl Postgres {
         };
 
         quote::quote! {
-            #row_tt
+            #derive_tt
+            #row_ast
             #from_tt
         }
     }

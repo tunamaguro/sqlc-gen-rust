@@ -178,6 +178,7 @@ impl RsType {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct RsColType {
     rs_type: RsType,
     /// maybe dim
