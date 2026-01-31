@@ -5,6 +5,7 @@ use std::io::{Read as _, Write};
 pub(crate) mod plugin {
     include!(concat!(env!("OUT_DIR"), "/plugin.rs"));
 }
+pub(crate) mod path_map;
 pub(crate) mod db_crates;
 pub(crate) mod query;
 use db_crates::DbCrate as _;
