@@ -29,20 +29,20 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetAuthorRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         GetAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
     }
 }
@@ -94,15 +94,6 @@ pub struct ListAuthors;
 impl ListAuthors {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 ORDER BY name";
-    pub async fn query_many(
-        &self,
-        client: &impl deadpool_postgres::GenericClient,
-    ) -> Result<Vec<ListAuthorsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &[]).await?;
-        rows.into_iter()
-            .map(|r| ListAuthorsRow::from_row(&r))
-            .collect()
-    }
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -111,11 +102,20 @@ ORDER BY name";
         deadpool_postgres::tokio_postgres::Error,
     > {
         let st = client
-            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .query_raw(Self::QUERY, self.as_params().into_iter())
             .await?;
         Ok(st)
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+    pub async fn query_many(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<Vec<ListAuthorsRow>, deadpool_postgres::tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        rows.into_iter()
+            .map(|r| ListAuthorsRow::from_row(&r))
+            .collect()
+    }
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
     }
 }
@@ -168,20 +168,20 @@ RETURNING id, name, bio";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateAuthorRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         CreateAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateAuthorRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.bio]
     }
 }
@@ -241,9 +241,9 @@ WHERE id = $1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_slice()).await
+        client.execute(Self::QUERY, &self.as_params()).await
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
     }
 }

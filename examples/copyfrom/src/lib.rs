@@ -26,7 +26,7 @@ mod tests {
         let mut writer = BinaryCopyInWriter::new(sink, &[Type::INT8, Type::TEXT, Type::TEXT]);
 
         let author1 = CreateAuthors::builder().id(0).name("Foo").bio(None).build();
-        writer.write(&author1.as_slice()).unwrap();
+        writer.write(&author1.as_params()).unwrap();
 
         let author2 = CreateAuthors::builder()
             .id(1)
@@ -34,7 +34,7 @@ mod tests {
             .bio(Some("Bar's bio"))
             .build();
 
-        writer.write(&author2.as_slice()).unwrap();
+        writer.write(&author2.as_params()).unwrap();
         writer.finish().unwrap();
 
         let row = GetAuthor::builder()
@@ -73,7 +73,7 @@ mod tests {
         tokio::pin!(writer);
 
         let author1 = CreateAuthors::builder().id(0).name("Foo").bio(None).build();
-        writer.as_mut().write(&author1.as_slice()).await.unwrap();
+        writer.as_mut().write(&author1.as_params()).await.unwrap();
 
         let author2 = CreateAuthors::builder()
             .id(1)
@@ -81,7 +81,7 @@ mod tests {
             .bio(Some("Bar's bio"))
             .build();
 
-        writer.as_mut().write(&author2.as_slice()).await.unwrap();
+        writer.as_mut().write(&author2.as_params()).await.unwrap();
         writer.as_mut().finish().await.unwrap();
 
         let row = GetAuthor::builder()
@@ -122,7 +122,7 @@ mod tests {
         tokio::pin!(writer);
 
         let author1 = CreateAuthors::builder().id(0).name("Foo").bio(None).build();
-        writer.as_mut().write(&author1.as_slice()).await.unwrap();
+        writer.as_mut().write(&author1.as_params()).await.unwrap();
 
         let author2 = CreateAuthors::builder()
             .id(1)
@@ -130,7 +130,7 @@ mod tests {
             .bio(Some("Bar's bio"))
             .build();
 
-        writer.as_mut().write(&author2.as_slice()).await.unwrap();
+        writer.as_mut().write(&author2.as_params()).await.unwrap();
         writer.as_mut().finish().await.unwrap();
 
         let row = GetAuthor::builder()

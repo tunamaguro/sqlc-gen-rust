@@ -578,47 +578,11 @@ impl DbCrate for Sqlx {
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let struct_ident = value_ident(&query.query_name);
-        let lifetime_a = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+        let query_ast = super::QueryAst::new(query);
+        let struct_ident = &query_ast.ident;
+        let lifetime_a = &query_ast.lifetime;
+        let need_lifetime = query_ast.need_lifetime();
 
-        let fields = query
-            .param_names
-            .iter()
-            .zip(query.param_types.iter())
-            .map(|(r, typ)| {
-                let typ = typ.to_param_tokens(&lifetime_a);
-                quote::quote! {#r:#typ}
-            })
-            .collect::<Vec<_>>();
-
-        let need_lifetime = super::need_lifetime(query);
-        let has_fields = !query.param_names.is_empty();
-        let struct_tt = match (need_lifetime, has_fields) {
-            (true, _) => {
-                quote::quote! {
-                    pub struct #struct_ident<#lifetime_a>{
-                        #(#fields,)*
-                    }
-                }
-            }
-            (false, true) => {
-                quote::quote! {
-                    pub struct #struct_ident{
-                        #(#fields,)*
-                    }
-                }
-            }
-            (false, false) => {
-                quote::quote! {
-                    pub struct #struct_ident;
-                }
-            }
-        };
-
-        let params = query.param_names.iter().fold(
-            quote::quote! {},
-            |acc, x| quote::quote! {#acc .bind(self.#x)},
-        );
         let query_fns = {
             let database_ident = self.database_ident();
             let row_ident = row.struct_ident();
@@ -632,6 +596,12 @@ impl DbCrate for Sqlx {
                      query_as<#lifetime_a>(&#lifetime_a self)
                 }
             };
+
+            let bind_params = query_ast.fields.iter().map(|(field, _)| field).fold(
+                quote::quote! {},
+                |acc, x| quote::quote! {#acc .bind(self.#x)},
+            );
+
             // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
             let query_as = quote::quote! {
                 pub fn #query_as_def->sqlx::query::QueryAs<
@@ -642,7 +612,7 @@ impl DbCrate for Sqlx {
                 >{
                     sqlx::query_as::<_,#row_ident>(
                                     Self::QUERY,
-                                ) #params
+                                ) #bind_params
                 }
             };
 
@@ -711,7 +681,7 @@ impl DbCrate for Sqlx {
                                 let mut conn = conn.acquire().await?;
                                 sqlx::query(
                                     Self::QUERY,
-                                )  #params .execute(&mut *conn).await
+                                )  #bind_params .execute(&mut *conn).await
                             }
                         }
                     }
@@ -775,10 +745,10 @@ impl DbCrate for Sqlx {
         };
 
         let returning_row = self.returning_row(row);
-        let builder_tt = super::create_builder(query);
+        let builder_tt = query_ast.make_builder();
         quote::quote! {
             #returning_row
-            #struct_tt
+            #query_ast
             #fetch_tt
             #builder_tt
         }
