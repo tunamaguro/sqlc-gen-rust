@@ -46,17 +46,18 @@ postgres-types = { version = "0.2.9", features = [
     "array-impls",
     "with-uuid-1",
     "with-serde_json-1",
-    "with-chrono-0_4"
+    "with-chrono-0_4",
 ] }
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.8.6", features = [
     "postgres",
     "mysql",
     "sqlite",
     "runtime-tokio",
     "uuid",
     "chrono",
-    "ipnet"
+    "ipnet",
 ] }
+rusqlite = { version = "0.32" }
 
 tokio = { version = "1.47.1", features = ["full"] }
 

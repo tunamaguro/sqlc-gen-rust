@@ -1,3 +1,4 @@
+pub use test_context::test_context;
 use test_context::{AsyncTestContext, TestContext};
 
 pub struct PgSyncTestContext {
@@ -352,6 +353,17 @@ impl AsyncTestContext for SqlxSqliteContext {
     }
 }
 
+pub struct RusqliteContext {
+    pub conn: rusqlite::Connection,
+}
+
+impl TestContext for RusqliteContext {
+    fn setup() -> Self {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        Self { conn }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,5 +423,42 @@ mod tests {
 
         let int_val: i32 = row.try_get("int_val").unwrap();
         assert_eq!(int_val, 123);
+    }
+
+    #[test_context(SqlxMysqlContext)]
+    #[tokio::test]
+    async fn test_sqlx_mysql(ctx: &mut SqlxMysqlContext) {
+        use sqlx::Row as _;
+        let pool = &ctx.pool;
+        let row = sqlx::query("SELECT 1 as int_val")
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        let int_val: i32 = row.try_get("int_val").unwrap();
+        assert_eq!(int_val, 1);
+    }
+
+    #[test_context(SqlxSqliteContext)]
+    #[tokio::test]
+    async fn test_sqlx_sqlite(ctx: &mut SqlxSqliteContext) {
+        use sqlx::Row as _;
+        let pool = &ctx.pool;
+        let row = sqlx::query("SELECT 1 as int_val")
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        let int_val: i32 = row.try_get("int_val").unwrap();
+        assert_eq!(int_val, 1);
+    }
+
+    #[test_context(RusqliteContext)]
+    #[test]
+    fn test_rusqlite(ctx: &mut RusqliteContext) {
+        let conn = &ctx.conn;
+        let int_val: i32 = conn
+            .query_row("SELECT 1 as int_val", (), |row| row.get("int_val"))
+            .unwrap();
+
+        assert_eq!(int_val, 1);
     }
 }

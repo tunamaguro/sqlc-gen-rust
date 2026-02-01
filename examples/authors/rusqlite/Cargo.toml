@@ -1,0 +1,13 @@
+[package]
+name = "authors-rusqlite"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rusqlite = { workspace = true }
+
+uuid = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+test-utils = { workspace = true }
