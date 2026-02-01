@@ -80,7 +80,11 @@ sql:
         options:
           output: queries.rs
           db_crate: sqlx-sqlite
-
+      - plugin: sqlc-gen-rust
+        out: examples/authors/rusqlite/src
+        options:
+          output: queries.rs
+          db_crate: rusqlite
   - schema: examples/jets/schema.sql
     queries: examples/jets/queries.sql
     engine: postgresql

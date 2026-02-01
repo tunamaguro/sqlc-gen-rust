@@ -1,6 +1,7 @@
 use crate::query::{self, DbEnum, DbTypeMap, Query, ReturningRows, TypeMapper};
 
 mod postgres;
+mod rusqlite;
 mod sqlx;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -8,6 +9,7 @@ mod sqlx;
 pub enum SupportedDbCrate {
     Postgres(postgres::Postgres),
     Sqlx(sqlx::Sqlx),
+    Rusqlite(rusqlite::Rusqlite),
 }
 
 pub(super) trait DbCrate {
@@ -32,29 +34,33 @@ pub(super) trait DbCrate {
 impl DbCrate for SupportedDbCrate {
     fn type_map(&self) -> Box<dyn TypeMapper> {
         match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.type_map(),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.type_map(),
+            Self::Postgres(postgres) => postgres.type_map(),
+            Self::Sqlx(sqlx) => sqlx.type_map(),
+            Self::Rusqlite(rusqlite) => rusqlite.type_map(),
         }
     }
 
     fn init(&self) -> proc_macro2::TokenStream {
         match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.init(),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.init(),
+            Self::Postgres(postgres) => postgres.init(),
+            Self::Sqlx(sqlx) => sqlx.init(),
+            Self::Rusqlite(rusqlite) => rusqlite.init(),
         }
     }
 
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.defined_enum(enum_type),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.defined_enum(enum_type),
+            Self::Postgres(postgres) => postgres.defined_enum(enum_type),
+            Self::Sqlx(sqlx) => sqlx.defined_enum(enum_type),
+            Self::Rusqlite(rusqlite) => rusqlite.defined_enum(enum_type),
         }
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
         match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.generate_query(row, query),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.generate_query(row, query),
+            Self::Postgres(postgres) => postgres.generate_query(row, query),
+            Self::Sqlx(sqlx) => sqlx.generate_query(row, query),
+            Self::Rusqlite(rusqlite) => rusqlite.generate_query(row, query),
         }
     }
 }
