@@ -1,4 +1,4 @@
-use crate::query::{DbEnum, DbTypeMapper, Query, ReturningRows, RsColType};
+use crate::query::{DbEnum, DbTypeMap, Query, ReturningRows, RsColType, TypeMapper};
 
 mod postgres;
 mod sqlx;
@@ -11,8 +11,12 @@ pub enum SupportedDbCrate {
 }
 
 pub(super) trait DbCrate {
+    fn type_map(&self) -> Box<dyn TypeMapper>;
+
     // Generate DB type to Rust type mapping
-    fn db_type_map(&self) -> Box<dyn DbTypeMapper>;
+    fn db_type_map(&self) -> DbTypeMap {
+        DbTypeMap::from_dyn(self.type_map())
+    }
 
     /// Generate top `use` or `fn`
     fn init(&self) -> proc_macro2::TokenStream {
@@ -26,10 +30,10 @@ pub(super) trait DbCrate {
 }
 
 impl DbCrate for SupportedDbCrate {
-    fn db_type_map(&self) -> Box<dyn DbTypeMapper> {
+    fn type_map(&self) -> Box<dyn TypeMapper> {
         match self {
-            SupportedDbCrate::Postgres(postgres) => postgres.db_type_map(),
-            SupportedDbCrate::Sqlx(sqlx) => sqlx.db_type_map(),
+            SupportedDbCrate::Postgres(postgres) => postgres.type_map(),
+            SupportedDbCrate::Sqlx(sqlx) => sqlx.type_map(),
         }
     }
 

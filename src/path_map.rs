@@ -1,21 +1,30 @@
 use core::iter;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct PathMap<T> {
-    paths: Vec<(String, T)>,
+    paths: std::collections::BTreeMap<String, T>,
 }
 
 impl<T> PathMap<T> {
-    pub(crate) fn push(&mut self, path: String, val: T) {
-        self.paths.push((path, val));
+    pub(crate) fn insert(&mut self, path: String, val: T) -> Option<T> {
+        self.paths.insert(path, val)
     }
 
     pub(crate) fn find_best_match(&self, path: &str) -> Option<&T> {
         sub_path_iter(path).find_map(|sub_path| {
             self.paths
                 .iter()
-                .find_map(|(p, v)| if p == sub_path { Some(v) } else { None })
+                .find(|(p, _v)| p.as_str() == sub_path)
+                .map(|(_p, v)| v)
         })
+    }
+}
+
+impl<T> Default for PathMap<T> {
+    fn default() -> Self {
+        Self {
+            paths: Default::default(),
+        }
     }
 }
 
@@ -47,6 +56,7 @@ fn suffixes(path: &str) -> impl Iterator<Item = &str> {
 ///
 /// prefixes("authors.a.b") -> ["authors.a","authors"]
 ///
+#[allow(unused)]
 fn prefixes(path: &str) -> impl Iterator<Item = &str> {
     iter::successors(Some(path), |s| {
         s.rsplit_once('.')
@@ -59,6 +69,26 @@ fn prefixes(path: &str) -> impl Iterator<Item = &str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_path_map() {
+        let mut m = PathMap::default();
+        m.insert("authors.a.b".into(), 1);
+        m.insert(".a.b".into(), 2);
+        m.insert(".b".into(), 3);
+        m.insert(".".into(), 4);
+
+        // exact match
+        assert_eq!(m.find_best_match("authors.a.b"), Some(&1));
+
+        // suffix match
+        assert_eq!(m.find_best_match("x.a.b"), Some(&2));
+        assert_eq!(m.find_best_match("x.b"), Some(&3));
+
+        // fallback
+        assert_eq!(m.find_best_match("totally.unrelated"), Some(&4));
+    }
+
     #[test]
     fn test_suffixes() {
         let mut it = suffixes("authors.a.b");

@@ -5,8 +5,8 @@ use std::io::{Read as _, Write};
 pub(crate) mod plugin {
     include!(concat!(env!("OUT_DIR"), "/plugin.rs"));
 }
-pub(crate) mod path_map;
 pub(crate) mod db_crates;
+pub(crate) mod path_map;
 pub(crate) mod query;
 use db_crates::DbCrate as _;
 use query::{Query, ReturningRows, RsType, collect_enums};
@@ -385,7 +385,7 @@ pub fn try_main() -> Result<(), Error> {
     let mut returning_rows = request
         .queries
         .iter()
-        .map(|q| ReturningRows::from_query(db_type.as_ref(), q))
+        .map(|q| ReturningRows::from_query(&db_type, q))
         .collect::<Result<Vec<_>, _>>()?;
     for r in &mut returning_rows {
         r.derives = row_derives.clone();
@@ -393,7 +393,7 @@ pub fn try_main() -> Result<(), Error> {
     let queries = request
         .queries
         .iter()
-        .map(|q| Query::from_query(db_type.as_ref(), q))
+        .map(|q| Query::from_query(&db_type, q))
         .collect::<Result<Vec<_>, _>>()?;
 
     let enums_ts = defined_enums
