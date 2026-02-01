@@ -248,7 +248,7 @@ impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let mut row_ast = super::RowAst::new(row);
         for field in row_ast.fields.iter_mut() {
-            let original = &field.column_name_original;
+            let original = &field.name_original;
             let att = &field.attribute;
             let attribute = quote::quote! {
                 #att
@@ -488,17 +488,13 @@ impl DbCrate for Sqlx {
 
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         let derives = &enum_type.derives;
-        let fields = enum_type
-            .values
-            .iter()
-            .map(|field| {
-                let ident = value_ident(field);
-                quote::quote! {
-                    #[sqlx(rename = #field)]
-                    #ident
-                }
-            })
-            .collect::<Vec<_>>();
+        let fields = enum_type.values.iter().map(|field| {
+            let ident = value_ident(field);
+            quote::quote! {
+                #[sqlx(rename = #field)]
+                #ident
+            }
+        });
 
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
@@ -536,7 +532,7 @@ impl DbCrate for Sqlx {
                 }
             };
 
-            let bind_params = query_ast.fields.iter().map(|(field, _)| field).fold(
+            let bind_params = query_ast.fields.iter().map(|f| &f.name).fold(
                 quote::quote! {},
                 |acc, x| quote::quote! {#acc .bind(self.#x)},
             );
@@ -626,8 +622,9 @@ impl DbCrate for Sqlx {
                     }
                 }
                 (Sqlx::Postgres, Annotation::CopyFrom) => {
-                    let add_row = query.param_names.iter().map(|x| {
-                        quote::quote! {sink.add(&self.#x).await?;}
+                    let add_row = query.fields.iter().map(|x| {
+                        let name = &x.name;
+                        quote::quote! {sink.add(&self.#name).await?;}
                     });
                     let sink_ident = CopyDataSink::ident();
                     let sink_error = CopyDataSink::box_error();

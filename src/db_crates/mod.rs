@@ -1,4 +1,4 @@
-use crate::query::{self, DbEnum, DbTypeMap, Query, ReturningRows, RsColType, TypeMapper};
+use crate::query::{self, DbEnum, DbTypeMap, Query, ReturningRows, TypeMapper};
 
 mod postgres;
 mod sqlx;
@@ -82,7 +82,7 @@ impl quote::ToTokens for RowAst {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = &self.ident;
         let fields = self.fields.iter().map(|field| {
-            let field_name = &field.column_name;
+            let field_name = &field.name;
             let field_typ = field.typ.to_row_tokens();
             let attribute = &field.attribute;
             quote::quote! {
@@ -103,19 +103,14 @@ impl quote::ToTokens for RowAst {
 struct QueryAst {
     pub ident: syn::Ident,
     pub lifetime: syn::Lifetime,
-    pub fields: Vec<(syn::Ident, RsColType)>,
+    pub fields: Vec<query::ColumnField>,
 }
 
 impl QueryAst {
     fn new(query: &Query) -> Self {
         let ident = crate::value_ident(&query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
-        let fields = query
-            .param_names
-            .iter()
-            .cloned()
-            .zip(query.param_types.iter().cloned())
-            .collect();
+        let fields = query.fields.clone();
         Self {
             ident,
             lifetime,
@@ -124,7 +119,7 @@ impl QueryAst {
     }
 
     fn need_lifetime(&self) -> bool {
-        self.fields.iter().any(|(_, typ)| typ.need_lifetime())
+        self.fields.iter().any(|f| f.typ.need_lifetime())
     }
 
     fn make_builder(&self) -> proc_macro2::TokenStream {
@@ -141,13 +136,14 @@ impl QueryAst {
         let field_list = self
             .fields
             .iter()
-            .map(|(field, _)| field)
+            .map(|f| &f.name)
             .map(|n| n.to_token_stream())
             .collect::<Vec<_>>();
+
         let typ_list = self
             .fields
             .iter()
-            .map(|(_, typ)| typ)
+            .map(|f| &f.typ)
             .map(|typ| typ.to_param_tokens(lifetime))
             .collect::<Vec<_>>();
 
@@ -189,7 +185,7 @@ impl QueryAst {
             let typ_generics = self
                 .fields
                 .iter()
-                .map(|(field, _)| field)
+                .map(|f| &f.name)
                 .map(|n| crate::value_ident(&n.to_string()))
                 .collect::<Vec<_>>();
 
@@ -250,9 +246,10 @@ impl QueryAst {
 
 impl quote::ToTokens for QueryAst {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let fields = self.fields.iter().map(|(field, typ)| {
-            let typ = typ.to_param_tokens(&self.lifetime);
-            quote::quote! {#field:#typ}
+        let fields = self.fields.iter().map(|f| {
+            let name = &f.name;
+            let typ = f.typ.to_param_tokens(&self.lifetime);
+            quote::quote! {#name:#typ}
         });
         let ident = &self.ident;
         let lifetime = &self.lifetime;

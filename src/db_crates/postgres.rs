@@ -91,7 +91,7 @@ impl Postgres {
         let row_typ = self.row_type();
         let arg_ident = quote::format_ident!("row");
         let from_fields = row_ast.fields.iter().enumerate().map(|(idx, field)| {
-            let field_ident = &field.column_name;
+            let field_ident = &field.name;
             let literal = proc_macro2::Literal::usize_unsuffixed(idx);
             quote::quote! {#field_ident:#arg_ident.try_get(#literal)?}
         });
@@ -339,10 +339,11 @@ impl DbCrate for Postgres {
                 quote::quote! {#struct_ident}
             };
 
-            let param_num = proc_macro2::Literal::usize_unsuffixed(query.param_names.len());
-            let params = query_ast.fields.iter().map(|(field, _)| {
+            let param_num = proc_macro2::Literal::usize_unsuffixed(query.fields.len());
+            let params = query_ast.fields.iter().map(|f| {
+                let name = &f.name;
                 quote::quote! {
-                    &self.#field
+                    &self.#name
                 }
             });
 

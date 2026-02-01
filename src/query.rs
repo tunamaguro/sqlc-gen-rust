@@ -415,9 +415,9 @@ pub(crate) fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
 #[derive(Clone)]
 pub(crate) struct ColumnField {
     /// normalized field name
-    pub(crate) column_name: syn::Ident,
+    pub(crate) name: syn::Ident,
     /// original field name
-    pub(crate) column_name_original: syn::LitStr,
+    pub(crate) name_original: syn::LitStr,
     pub(crate) typ: RsColType,
     pub(crate) attribute: Option<proc_macro2::TokenStream>,
 }
@@ -448,8 +448,8 @@ impl ReturningRows {
         let fields = column_names
             .zip(column_types)
             .map(|((col_name_original, col_name), col_type)| ColumnField {
-                column_name: col_name,
-                column_name_original: col_name_original,
+                name: col_name,
+                name_original: col_name_original,
                 typ: col_type,
                 attribute: None,
             })
@@ -554,8 +554,7 @@ fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
 }
 
 pub(crate) struct Query {
-    pub(crate) param_names: Vec<syn::Ident>,
-    pub(crate) param_types: Vec<RsColType>,
+    pub(crate) fields: Vec<ColumnField>,
 
     pub(crate) annotation: Annotation,
     pub(crate) insert_table: Option<String>,
@@ -581,39 +580,38 @@ impl Query {
         db_type: &DbTypeMap,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
-        let (param_idx, columns): (Vec<_>, Vec<_>) = query
+        let columns = query
             .params
             .iter()
             .map(|p| {
                 p.column
                     .as_ref()
                     .ok_or_else(|| QueryError::missing_param_column(p.number))
-                    .map(|c| (p.number, c))
             })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .unzip();
+            .collect::<Result<Vec<_>, _>>()?;
 
         let param_names = generate_column_names(columns.iter().copied())
             .into_iter()
-            .map(|s| field_ident(&s))
-            .collect::<Vec<_>>();
+            .map(|s| {
+                (
+                    syn::LitStr::new(&s, proc_macro2::Span::call_site()),
+                    field_ident(&s),
+                )
+            });
         let param_types = columns
             .iter()
-            .map(|c| RsColType::new_with_type(db_type, c))
+            .map(|col| RsColType::new_with_type(db_type, col))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let mut param_data = param_names
-            .into_iter()
+        let fields = param_names
             .zip(param_types)
-            .zip(param_idx)
+            .map(|((par_name_original, par_name), par_type)| ColumnField {
+                name: par_name,
+                name_original: par_name_original,
+                typ: par_type,
+                attribute: None,
+            })
             .collect::<Vec<_>>();
-
-        param_data.sort_by_key(|((_, _), idx)| *idx);
-        let (param_names, param_types): (Vec<_>, Vec<_>) = param_data
-            .into_iter()
-            .map(|((name, typ), _)| (name, typ))
-            .unzip();
 
         let annotation = query.cmd.parse::<Annotation>().stacked()?;
         let query_name = query.name.to_string();
@@ -622,8 +620,7 @@ impl Query {
         let insert_table = query.insert_into_table.as_ref().map(|t| t.name.clone());
 
         Ok(Self {
-            param_names,
-            param_types,
+            fields,
             annotation,
             insert_table,
             query_name,
@@ -635,9 +632,9 @@ impl Query {
         match self.annotation {
             Annotation::CopyFrom => {
                 let params = self
-                    .param_names
+                    .fields
                     .iter()
-                    .map(|x| x.to_string())
+                    .map(|x| x.name.to_string())
                     .reduce(|acc, x| format!("{acc},{x}"))
                     .unwrap_or_default();
                 let table = self.insert_table.as_deref().unwrap_or("table");
