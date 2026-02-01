@@ -246,22 +246,17 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
+        let mut row_ast = super::RowAst::new(row);
+        for field in row_ast.fields.iter_mut() {
+            let original = &field.column_name_original;
+            let att = &field.attribute;
+            let attribute = quote::quote! {
+                #att
+                #[sqlx(rename = #original)]
+            };
+            field.attribute = Some(attribute);
+        }
         let derives = &row.derives;
-        let fields = row
-            .column_names
-            .iter()
-            .zip(row.column_names_original.iter())
-            .zip(row.column_types.iter())
-            .map(|((col, original_col_name), rs_type)| {
-                let col_t = rs_type.to_row_tokens();
-                quote::quote! {
-                    #[sqlx(rename = #original_col_name)]
-                    pub #col:#col_t
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let ident = row.struct_ident();
         let derive_tt = if derives.is_empty() {
             quote::quote! {#[derive(sqlx::FromRow)]}
         } else {
@@ -269,9 +264,7 @@ impl Sqlx {
         };
         let row_tt = quote::quote! {
             #derive_tt
-            pub struct #ident {
-                #(#fields,)*
-            }
+            #row_ast
         };
 
         row_tt

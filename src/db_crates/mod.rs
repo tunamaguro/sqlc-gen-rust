@@ -1,4 +1,4 @@
-use crate::query::{DbEnum, DbTypeMap, Query, ReturningRows, RsColType, TypeMapper};
+use crate::query::{self, DbEnum, DbTypeMap, Query, ReturningRows, RsColType, TypeMapper};
 
 mod postgres;
 mod sqlx;
@@ -67,17 +67,12 @@ impl Default for SupportedDbCrate {
 
 struct RowAst {
     pub ident: syn::Ident,
-    pub fields: Vec<(syn::Ident, RsColType)>,
+    pub fields: Vec<query::ColumnField>,
 }
 
 impl RowAst {
     fn new(row: &ReturningRows) -> Self {
-        let fields = row
-            .column_names
-            .iter()
-            .cloned()
-            .zip(row.column_types.iter().cloned())
-            .collect();
+        let fields = row.fields.clone();
         let ident = row.struct_ident();
         Self { ident, fields }
     }
@@ -86,9 +81,14 @@ impl RowAst {
 impl quote::ToTokens for RowAst {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = &self.ident;
-        let fields = self.fields.iter().map(|(field, typ)| {
-            let typ_tt = typ.to_row_tokens();
-            quote::quote! {pub #field:#typ_tt}
+        let fields = self.fields.iter().map(|field| {
+            let field_name = &field.column_name;
+            let field_typ = field.typ.to_row_tokens();
+            let attribute = &field.attribute;
+            quote::quote! {
+                #attribute
+                pub #field_name:#field_typ
+            }
         });
 
         let tt = quote::quote! {

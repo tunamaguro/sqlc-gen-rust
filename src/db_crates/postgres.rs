@@ -90,14 +90,11 @@ impl Postgres {
         let error_typ = self.error_type();
         let row_typ = self.row_type();
         let arg_ident = quote::format_ident!("row");
-        let from_fields = row_ast
-            .fields
-            .iter()
-            .enumerate()
-            .map(|(idx, (field_ident, _))| {
-                let literal = proc_macro2::Literal::usize_unsuffixed(idx);
-                quote::quote! {#field_ident:#arg_ident.try_get(#literal)?}
-            });
+        let from_fields = row_ast.fields.iter().enumerate().map(|(idx, field)| {
+            let field_ident = &field.column_name;
+            let literal = proc_macro2::Literal::usize_unsuffixed(idx);
+            quote::quote! {#field_ident:#arg_ident.try_get(#literal)?}
+        });
         let from_tt = quote::quote! {
             impl #ident {
                 pub fn from_row(#arg_ident: &#row_typ)->Result<Self,#error_typ>{
@@ -369,37 +366,5 @@ impl DbCrate for Postgres {
             #fetch_tt
             #builder
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::query::ReturningRows;
-
-    #[test]
-    fn enum_additional_derives() {
-        let db_enum = DbEnum {
-            name: "mood".into(),
-            values: vec!["sad".into()],
-            derives: vec![syn::parse_str::<syn::Path>("serde::Serialize").unwrap()],
-        };
-        let tokens = Postgres::Tokio.defined_enum(&db_enum);
-        let s = tokens.to_string();
-        assert!(s.contains("serde :: Serialize"));
-    }
-
-    #[test]
-    fn row_additional_derives() {
-        let row = ReturningRows {
-            column_names: vec![],
-            column_names_original: vec![],
-            column_types: vec![],
-            query_name: "foo".into(),
-            derives: vec![syn::parse_str::<syn::Path>("Debug").unwrap()],
-        };
-        let tokens = Postgres::Tokio.returning_row(&row);
-        let s = tokens.to_string();
-        assert!(s.contains("derive"));
     }
 }

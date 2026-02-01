@@ -412,12 +412,18 @@ pub(crate) fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
     res
 }
 
-pub(crate) struct ReturningRows {
+#[derive(Clone)]
+pub(crate) struct ColumnField {
     /// normalized field name
-    pub(crate) column_names: Vec<syn::Ident>,
+    pub(crate) column_name: syn::Ident,
     /// original field name
-    pub(crate) column_names_original: Vec<syn::LitStr>,
-    pub(crate) column_types: Vec<RsColType>,
+    pub(crate) column_name_original: syn::LitStr,
+    pub(crate) typ: RsColType,
+    pub(crate) attribute: Option<proc_macro2::TokenStream>,
+}
+
+pub(crate) struct ReturningRows {
+    pub(crate) fields: Vec<ColumnField>,
     pub(crate) query_name: String,
     pub(crate) derives: Vec<syn::Path>,
 }
@@ -427,27 +433,30 @@ impl ReturningRows {
         db_type: &DbTypeMap,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
-        let (column_names_original, column_names): (Vec<_>, Vec<_>) =
-            generate_column_names(&query.columns)
-                .into_iter()
-                .map(|s| {
-                    (
-                        syn::LitStr::new(&s, proc_macro2::Span::call_site()),
-                        field_ident(&s),
-                    )
-                })
-                .unzip();
-        let mut column_types = vec![];
-        for column in &query.columns {
-            let rs_type = RsColType::new_with_type(db_type, column).stacked()?;
+        let column_names = generate_column_names(&query.columns).into_iter().map(|s| {
+            (
+                syn::LitStr::new(&s, proc_macro2::Span::call_site()),
+                field_ident(&s),
+            )
+        });
+        let column_types = query
+            .columns
+            .iter()
+            .map(|col| RsColType::new_with_type(db_type, col).stacked())
+            .collect::<Result<Vec<_>, _>>()?;
 
-            column_types.push(rs_type);
-        }
+        let fields = column_names
+            .zip(column_types)
+            .map(|((col_name_original, col_name), col_type)| ColumnField {
+                column_name: col_name,
+                column_name_original: col_name_original,
+                typ: col_type,
+                attribute: None,
+            })
+            .collect::<Vec<_>>();
 
         Ok(Self {
-            column_names,
-            column_names_original,
-            column_types,
+            fields,
             query_name: query.name.to_string(),
             derives: Vec::new(),
         })
