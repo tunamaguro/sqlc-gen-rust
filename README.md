@@ -4,34 +4,22 @@ sqlc plugin for Rust database crates.
 
 ## Usage
 
-Add the following to your `sqlc.json` configuration file to use this plugin.
+Add the following to your configuration file to use this plugin.
 
-```json
-{
-    "version": "2",
-    "plugins": [
-        {
-            "name": "sqlc-gen-rust",
-            "wasm": {
-                "url": "https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.10/sqlc-gen-rust.wasm",
-                "sha256": "5cebd5288dd5cd91fe31b7c0395773cbb84eebffe54c190cfea074b56efe6427"
-            }
-        }
-    ],
-    "sql": [
-        {
-            "schema": "schema.sql",
-            "queries": "queries.sql",
-            "engine": "postgresql",
-            "codegen": [
-                {
-                    "plugin": "sqlc-gen-rust",
-                    "out": "src/db"
-                }
-            ]
-        }
-    ]
-}
+```yaml
+version: "2"
+plugins:
+  - name: sqlc-gen-rust
+    wasm:
+      url: https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.10/sqlc-gen-rust.wasm
+      sha256: 5cebd5288dd5cd91fe31b7c0395773cbb84eebffe54c190cfea074b56efe6427
+sql:
+  - schema: schema.sql
+    queries: queries.sql
+    engine: postgresql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: src/
 ```
 
 ## Supported crates
@@ -169,9 +157,6 @@ See below for examples with other supported crates.
 
 ## Options
 
-> [!NOTE]
-> This plugin supports JSON only. YAML is not supported.
-
 ### `db_crate`
 
 The crate used in the generated code. Default is `tokio-postgres`. Available values are below.
@@ -194,61 +179,45 @@ When both are specified, it will result in an error. Furthermore, entries with a
 
 The following is an example configuration:
 
-```json
-{
-    "sql": [
-        {
-            "codegen": [
-                {
-                    "plugin": "sqlc-gen-rust",
-                    "out": "examples/e-commerce/src",
-                    "options": {
-                        "overrides": [
-                            {
-                                "db_type":"pg_catalog.varchar", 
-                                "rs_type": "String", // Required. The target Rust type.
-                                "rs_slice": "str", // Optional. If set, the argument of the generated code uses `&str` instead of `&String`.
-                                "copy_cheap": false // Optional. If true, the argument of the generated code uses `i32` instead of `&i32`.
-                            },
-                            {
-                                "column": "users.metadata",
-                                "rs_type": "serde_json::Value"
-                            }
-                            // other overrides...
-                        ]
-                    }
-                }
-            ]
-        }
-    ]
-}
+```yaml
+sql:
+  - schema: examples/e-commerce/schema.sql
+    queries: examples/e-commerce/queries.sql
+    engine: postgresql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/e-commerce/src
+        options:
+          output: sqlx_query.rs
+          db_crate: sqlx-postgres
+          overrides:
+            - db_type: pg_catalog.varchar # Database type to override
+              rs_type: std::borrow::Cow<'static,str>  # Rust type to use in generated code
+              rs_slice: str # Optional. If set, the argument of the generated code uses `&str` instead of `&std::borrow::Cow<'static,str>`
+              copy_cheap: false # Optional. If true, the argument of the generated code uses `std::borrow::Cow<'static,str>` instead of `&std::borrow::Cow<'static,str>`.
+            - column: .users.created_at # A column name to override. For details about matching columns see `row_attributes` / `column_attributes` below
+              rs_type: serde_json::Value
 ```
 
-See [source code](https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605) for details on overwriting.
+### `row_attributes` / `column_attributes`
 
-### `enum_derives` / `row_derives`
+パスに一致したフィールドの前に任意の文字列を追加します。想定される使用法はアトリビュートの追加です。
+パスのマッチは次の順序で行われます
 
-Add additional items to the `#[derive(...)]` attribute for generated enums or for `XXXRow` structs.
-Each field accepts an array of derive paths as strings. `enum_derives` applies only to enums, and
-`row_derives` applies only to row structs.
+### `enum_derives` 
 
-```json
-{
-    "sql": [
-        {
-            "codegen": [
-                {
-                    "plugin": "sqlc-gen-rust",
-                    "out": "examples/e-commerce/src",
-                    "options": {
-                        "enum_derives": ["serde::Serialize", "serde::Deserialize"],
-                        "row_derives": ["serde::Serialize"]
-                    }
-                }
-            ]
-        }
-    ]
-}
+Add additional items to the `#[derive(...)]` attribute for generated enums.
+Each field accepts an array of derive paths as strings. 
+
+```yaml
+sql:
+  - codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/e-commerce/src
+        options:
+          enum_derives: 
+            - serde::Serialize
+            - serde::Deserialize
 ```
 
 ### `output`

@@ -44,10 +44,10 @@ generate:
     cargo build --target wasm32-wasip1
 
     WASM_SHA256=$(sha256sum target/wasm32-wasip1/debug/sqlc-gen-rust.wasm | awk '{print $1}');
-    sed "s/\$WASM_SHA256/${WASM_SHA256}/g" sqlc.json > _sqlc_dev.json
-    sqlc generate -f _sqlc_dev.json
+    sed "s/\$WASM_SHA256/${WASM_SHA256}/g" sqlc.yaml > _sqlc_dev.yaml
+    sqlc generate -f _sqlc_dev.yaml
 
-    rm _sqlc_dev.json
+    rm _sqlc_dev.yaml
     just f
 
 # build plugin and generate sqlc
@@ -58,10 +58,10 @@ generate-release:
     cargo build --target wasm32-wasip1 --release --locked
 
     WASM_SHA256=$(sha256sum target/wasm32-wasip1/release/sqlc-gen-rust.wasm | awk '{print $1}');
-    sed "s/\$WASM_SHA256/${WASM_SHA256}/g" sqlc.json | sed "s/debug/release/g" > _sqlc_dev.json
-    sqlc generate -f _sqlc_dev.json
+    sed "s/\$WASM_SHA256/${WASM_SHA256}/g" sqlc.yaml | sed "s/debug/release/g" > _sqlc_dev.yaml
+    sqlc generate -f _sqlc_dev.yaml
 
-    rm _sqlc_dev.json
+    rm _sqlc_dev.yaml
 
 build-release:
     #!/usr/bin/env bash
