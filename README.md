@@ -195,14 +195,42 @@ sql:
               rs_type: std::borrow::Cow<'static,str>  # Rust type to use in generated code
               rs_slice: str # Optional. If set, the argument of the generated code uses `&str` instead of `&std::borrow::Cow<'static,str>`
               copy_cheap: false # Optional. If true, the argument of the generated code uses `std::borrow::Cow<'static,str>` instead of `&std::borrow::Cow<'static,str>`.
-            - column: .users.created_at # A column name to override. For details about matching columns see `row_attributes` / `column_attributes` below
+            - column: .users.created_at # A column name to override. This will be searched for in the `.{TableName}.{ColumnName}` path. For details about matching columns see `row_attributes` / `column_attributes` below
               rs_type: serde_json::Value
 ```
 
 ### `row_attributes` / `column_attributes`
 
-Appends an arbitrary sequence of tokens immediately before the field that matches the path. Common usage includes adding attributes.
-The value accepts either a string or an array of strings. When using an array, it is concatenated with `\n`.
+Inserts an arbitrary sequence of tokens immediately **before** the generated item that matches the path.
+Common usage includes adding Rust attributes (e.g. `#[derive(...)]`, `#[serde(...)]`, etc.).
+
+The value accepts either a string or an array of strings. When using an array, items are concatenated with `\n`.
+
+#### Match Rules
+
+Keys are treated as path segments separated by `.` and searched in the following order:
+
+1. Full match
+2. Suffix match (e.g., `.authors.id` -> `.id`)
+3. Fallback `.`
+
+#### `row_attributes`
+
+`row_attributes` are searched with `.{QueryName}` (e.g., `.GetAuthor`), then fallback to `.`.
+Note that `row_attributes` effectively has only these two levels: `.{QueryName}` and `.`.
+
+#### `column_attributes`
+
+`column_attributes` are searched in two steps, and **Query-specific rules always win**:
+
+1. Query scope: search with `.{QueryName}.{FieldName}`
+2. Table scope (only if step 1 has no match): search with `.{TableName}.{ColumnName}`
+
+Both steps use the same PathMap rules (full match -> suffix match -> `.`).
+
+> `{FieldName}` is the **generated Rust field name** (snake_case), not necessarily the original SQL column name.
+> For queries with duplicate column names (e.g. joins), generated fields may become `users_id`, `posts_id`, or even `id_1`, `id_2`.
+> Check the generated `*Row` struct field names and use them in the key.
 
 Examples
 
@@ -223,17 +251,6 @@ sql:
             .author.id: "#[doc=\"apply to author table's id column\"]"
             .GetAuthor.id: "#[doc=\"apply to GetAuthor's id column\"]"
 ```
-
-#### Match Rules
-
-Keys are treated as path segments separated by `.` and searched in the following order:
-
-1. Full match
-2. Suffix match (e.g., `.authors.id` -> `.id`)
-3. Fallback `.`
-
-`row_attributes` are searched for using `.{QueryName}` (e.g., `.GetAuthor`).
-`column_attributes` are searched for both `.{QueryName}.{FieldName}` and `.{TableName}.{ColumnName}`, with the earliest match being applied.
 
 ### `enum_derives` 
 
