@@ -1,4 +1,3 @@
-pub use test_context::test_context;
 use test_context::{AsyncTestContext, TestContext};
 
 pub struct PgSyncTestContext {
