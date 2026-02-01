@@ -101,20 +101,20 @@ FROM mapping";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetMappingRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         GetMappingRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetMappingRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetMappingRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
     }
 }
@@ -225,9 +225,9 @@ impl<'a> InsertMapping<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_slice()).await
+        client.execute(Self::QUERY, &self.as_params()).await
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 24] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 24] {
         [
             &self.bool_val,
             &self.bool_array_val,

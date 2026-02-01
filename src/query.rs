@@ -178,6 +178,7 @@ impl RsType {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct RsColType {
     rs_type: RsType,
     /// maybe dim
@@ -195,15 +196,15 @@ pub(crate) fn make_column_type(db_type: &plugin::Identifier) -> String {
 
 pub(crate) fn make_column_name(column: &plugin::Column) -> String {
     if let Some(table) = &column.table {
-        format!("{}.{}", table.name, column.name)
+        format!(".{}.{}", table.name, column.name)
     } else {
-        column.name.clone()
+        format!(".{}", column.name)
     }
 }
 
 impl RsColType {
     pub(crate) fn new_with_type(
-        db_type: &dyn DbTypeMapper,
+        db_type: &DbTypeMap,
         column: &plugin::Column,
     ) -> Result<Self, QueryError> {
         let rs_type = db_type.get_column_type(column).stacked()?;
@@ -276,24 +277,65 @@ impl RsColType {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct DbTypeMap {
-    /// db_type to rust type
-    typ_map: std::collections::BTreeMap<String, RsType>,
-    /// column name to rust type
-    column_map: std::collections::BTreeMap<String, RsType>,
-}
-
-pub(crate) trait DbTypeMapper {
-    fn get_column_type(&self, column: &plugin::Column) -> Result<RsType, QueryError>;
+pub trait TypeMapper {
+    fn find_rs_type(&self, db_type_name: &str) -> Option<&RsType>;
+    fn find_column_type(&self, column: &plugin::Column) -> Option<RsType> {
+        let col_type = column.r#type.as_ref().map(make_column_type)?;
+        self.find_rs_type(&col_type).cloned()
+    }
     fn insert_db_type(&mut self, db_type: &str, rs_type: RsType);
-    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType);
 }
 
-impl DbTypeMapper for DbTypeMap {
-    fn get_column_type(&self, column: &plugin::Column) -> Result<RsType, QueryError> {
+#[derive(Default)]
+pub(crate) struct SimpleTypeMap {
+    /// db_type to rust type
+    map: std::collections::BTreeMap<String, RsType>,
+}
+
+impl TypeMapper for SimpleTypeMap {
+    fn find_rs_type(&self, db_type_name: &str) -> Option<&RsType> {
+        self.map.get(db_type_name)
+    }
+
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        self.map.insert(db_type.to_string(), rs_type);
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ColumnTypeMap {
+    /// column name to rust type
+    column_map: crate::path_map::PathMap<RsType>,
+}
+
+impl ColumnTypeMap {
+    pub(crate) fn insert(&mut self, column_name: &str, rs_type: RsType) {
+        self.column_map.insert(column_name.to_string(), rs_type);
+    }
+
+    pub(crate) fn find_type(&self, column_name: &str) -> Option<&RsType> {
+        self.column_map.find_best_match(column_name)
+    }
+}
+
+pub(crate) struct DbTypeMap {
+    type_map: Box<dyn TypeMapper>,
+    column_map: ColumnTypeMap,
+}
+
+impl DbTypeMap {
+    pub(crate) fn from_dyn(type_map: Box<dyn TypeMapper>) -> Self {
+        Self {
+            type_map,
+            column_map: Default::default(),
+        }
+    }
+}
+
+impl DbTypeMap {
+    pub(crate) fn get_column_type(&self, column: &plugin::Column) -> Result<RsType, QueryError> {
         let db_col_name = make_column_name(column);
-        if let Some(rs_type) = self.column_map.get(&db_col_name) {
+        if let Some(rs_type) = self.column_map.find_type(&db_col_name) {
             return Ok(rs_type.clone());
         };
 
@@ -301,29 +343,20 @@ impl DbTypeMapper for DbTypeMap {
             .r#type
             .as_ref()
             .map(make_column_type)
-            .map(|s| s.to_lowercase())
-            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
+            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?
+            .to_lowercase();
 
-        self.typ_map
-            .get(&db_col_type)
-            .cloned()
+        self.type_map
+            .find_column_type(column)
             .ok_or_else(|| QueryError::cannot_map_type(db_col_type, db_col_name))
     }
 
-    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
-        let e = self
-            .typ_map
-            .entry(db_type.to_string())
-            .or_insert_with(|| rs_type.clone());
-        *e = rs_type;
+    pub(crate) fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        self.type_map.insert_db_type(db_type, rs_type);
     }
 
-    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
-        let e = self
-            .column_map
-            .entry(column_name.to_string())
-            .or_insert_with(|| rs_type.clone());
-        *e = rs_type;
+    pub(crate) fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
+        self.column_map.insert(column_name, rs_type);
     }
 }
 
@@ -379,44 +412,125 @@ pub(crate) fn collect_enums(catalog: &plugin::Catalog) -> Vec<DbEnum> {
     res
 }
 
-pub(crate) struct ReturningRows {
+#[derive(Clone)]
+pub(crate) struct ColumnField {
     /// normalized field name
-    pub(crate) column_names: Vec<syn::Ident>,
+    pub(crate) name: syn::Ident,
     /// original field name
-    pub(crate) column_names_original: Vec<syn::LitStr>,
-    pub(crate) column_types: Vec<RsColType>,
+    pub(crate) name_original: syn::LitStr,
+    pub(crate) typ: RsColType,
+    pub(crate) attribute: Option<proc_macro2::TokenStream>,
+}
+
+fn deserialize_path_map<'de, D>(
+    deserializer: D,
+) -> Result<crate::path_map::PathMap<proc_macro2::TokenStream>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Debug, serde::Deserialize)]
+    #[serde(untagged)]
+    enum SingleOrMany {
+        Single(String),
+        Many(Vec<String>),
+    }
+
+    impl SingleOrMany {
+        fn into_token(self) -> Result<proc_macro2::TokenStream, syn::Error> {
+            let s = match self {
+                SingleOrMany::Single(v) => v,
+                SingleOrMany::Many(items) => items.join("\n"),
+            };
+
+            syn::parse_str::<proc_macro2::TokenStream>(&s)
+        }
+    }
+
+    let m = std::collections::BTreeMap::<String, SingleOrMany>::deserialize(deserializer)?;
+    let mut map = crate::path_map::PathMap::default();
+    for (k, v) in m.into_iter() {
+        let v = v.into_token().map_err(serde::de::Error::custom)?;
+        map.insert(k, v);
+    }
+    Ok(map)
+}
+
+#[derive(Default, Debug, serde::Deserialize)]
+#[serde(default)]
+pub(crate) struct ReturnRowAttributes {
+    #[serde(deserialize_with = "deserialize_path_map")]
+    row_attributes: crate::path_map::PathMap<proc_macro2::TokenStream>,
+    #[serde(deserialize_with = "deserialize_path_map")]
+    column_attributes: crate::path_map::PathMap<proc_macro2::TokenStream>,
+}
+
+#[derive(Clone)]
+pub(crate) struct ReturningRows {
+    pub(crate) fields: Vec<ColumnField>,
     pub(crate) query_name: String,
-    pub(crate) derives: Vec<syn::Path>,
+    pub(crate) attributes: Option<proc_macro2::TokenStream>,
 }
 
 impl ReturningRows {
     pub(crate) fn from_query(
-        db_type: &dyn DbTypeMapper,
+        db_type: &DbTypeMap,
+        attribute_map: &ReturnRowAttributes,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
-        let (column_names_original, column_names): (Vec<_>, Vec<_>) =
-            generate_column_names(&query.columns)
-                .into_iter()
-                .map(|s| {
-                    (
-                        syn::LitStr::new(&s, proc_macro2::Span::call_site()),
-                        field_ident(&s),
-                    )
-                })
-                .unzip();
-        let mut column_types = vec![];
-        for column in &query.columns {
-            let rs_type = RsColType::new_with_type(db_type, column).stacked()?;
+        let field_names = generate_column_names(&query.columns)
+            .into_iter()
+            .map(|s| field_ident(&s));
+        let original_names = query
+            .columns
+            .iter()
+            .map(|col| syn::LitStr::new(&col.name, proc_macro2::Span::call_site()));
+        let column_names = field_names.zip(original_names).collect::<Vec<_>>();
 
-            column_types.push(rs_type);
-        }
+        let column_attributes = query
+            .columns
+            .iter()
+            .zip(column_names.iter())
+            .map(|(col, (name, _))| {
+                let query_att = attribute_map
+                    .column_attributes
+                    .find_best_match(&format!(".{}.{}", query.name, name));
+                let table_att = attribute_map
+                    .column_attributes
+                    .find_best_match(&make_column_name(col));
+                query_att.or(table_att)
+            })
+            .collect::<Vec<_>>();
+
+        let column_types = query
+            .columns
+            .iter()
+            .map(|col| RsColType::new_with_type(db_type, col).stacked())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let fields = column_names
+            .into_iter()
+            .zip(column_types)
+            .zip(column_attributes)
+            .map(
+                |(((col_name, col_name_original), col_type), col_attribute)| ColumnField {
+                    name: col_name,
+                    name_original: col_name_original,
+                    typ: col_type,
+                    attribute: col_attribute.cloned(),
+                },
+            )
+            .collect::<Vec<_>>();
+
+        let row_attributes = attribute_map
+            .row_attributes
+            .find_best_match(&format!(".{}", query.name));
 
         Ok(Self {
-            column_names,
-            column_names_original,
-            column_types,
+            fields,
             query_name: query.name.to_string(),
-            derives: Vec::new(),
+            attributes: row_attributes.cloned(),
         })
     }
 
@@ -512,8 +626,7 @@ fn make_raw_string_literal(s: &str) -> proc_macro2::TokenStream {
 }
 
 pub(crate) struct Query {
-    pub(crate) param_names: Vec<syn::Ident>,
-    pub(crate) param_types: Vec<RsColType>,
+    pub(crate) fields: Vec<ColumnField>,
 
     pub(crate) annotation: Annotation,
     pub(crate) insert_table: Option<String>,
@@ -536,42 +649,41 @@ pub(crate) struct Query {
 
 impl Query {
     pub(crate) fn from_query(
-        db_type: &dyn DbTypeMapper,
+        db_type: &DbTypeMap,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
-        let (param_idx, columns): (Vec<_>, Vec<_>) = query
+        let columns = query
             .params
             .iter()
             .map(|p| {
                 p.column
                     .as_ref()
                     .ok_or_else(|| QueryError::missing_param_column(p.number))
-                    .map(|c| (p.number, c))
             })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .unzip();
-
-        let param_names = generate_column_names(columns.iter().copied())
-            .into_iter()
-            .map(|s| field_ident(&s))
-            .collect::<Vec<_>>();
-        let param_types = columns
-            .iter()
-            .map(|c| RsColType::new_with_type(db_type, c))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let mut param_data = param_names
+        let field_names = generate_column_names(columns.iter().copied())
             .into_iter()
-            .zip(param_types)
-            .zip(param_idx)
-            .collect::<Vec<_>>();
+            .map(|s| field_ident(&s));
+        let original_names = columns
+            .iter()
+            .map(|col| syn::LitStr::new(&col.name, proc_macro2::Span::call_site()));
+        let param_names = field_names.zip(original_names);
 
-        param_data.sort_by_key(|((_, _), idx)| *idx);
-        let (param_names, param_types): (Vec<_>, Vec<_>) = param_data
-            .into_iter()
-            .map(|((name, typ), _)| (name, typ))
-            .unzip();
+        let param_types = columns
+            .iter()
+            .map(|col| RsColType::new_with_type(db_type, col))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let fields = param_names
+            .zip(param_types)
+            .map(|((par_name, par_name_original), par_type)| ColumnField {
+                name: par_name,
+                name_original: par_name_original,
+                typ: par_type,
+                attribute: None,
+            })
+            .collect::<Vec<_>>();
 
         let annotation = query.cmd.parse::<Annotation>().stacked()?;
         let query_name = query.name.to_string();
@@ -580,8 +692,7 @@ impl Query {
         let insert_table = query.insert_into_table.as_ref().map(|t| t.name.clone());
 
         Ok(Self {
-            param_names,
-            param_types,
+            fields,
             annotation,
             insert_table,
             query_name,
@@ -593,9 +704,9 @@ impl Query {
         match self.annotation {
             Annotation::CopyFrom => {
                 let params = self
-                    .param_names
+                    .fields
                     .iter()
-                    .map(|x| x.to_string())
+                    .map(|x| x.name.to_string())
                     .reduce(|acc, x| format!("{acc},{x}"))
                     .unwrap_or_default();
                 let table = self.insert_table.as_deref().unwrap_or("table");

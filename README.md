@@ -4,34 +4,22 @@ sqlc plugin for Rust database crates.
 
 ## Usage
 
-Add the following to your `sqlc.json` configuration file to use this plugin.
+Add the following to your configuration file to use this plugin.
 
-```json
-{
-    "version": "2",
-    "plugins": [
-        {
-            "name": "sqlc-gen-rust",
-            "wasm": {
-                "url": "https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.10/sqlc-gen-rust.wasm",
-                "sha256": "5cebd5288dd5cd91fe31b7c0395773cbb84eebffe54c190cfea074b56efe6427"
-            }
-        }
-    ],
-    "sql": [
-        {
-            "schema": "schema.sql",
-            "queries": "queries.sql",
-            "engine": "postgresql",
-            "codegen": [
-                {
-                    "plugin": "sqlc-gen-rust",
-                    "out": "src/db"
-                }
-            ]
-        }
-    ]
-}
+```yaml
+version: "2"
+plugins:
+  - name: sqlc-gen-rust
+    wasm:
+      url: https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.10/sqlc-gen-rust.wasm
+      sha256: 5cebd5288dd5cd91fe31b7c0395773cbb84eebffe54c190cfea074b56efe6427
+sql:
+  - schema: schema.sql
+    queries: queries.sql
+    engine: postgresql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: src/
 ```
 
 ## Supported crates
@@ -145,10 +133,29 @@ See below for examples with other supported crates.
 - [`sqlx-mysql` generated code](./examples/authors/sqlx-mysql/src/lib.rs)
 - [`sqlx-sqlite` generated code](./examples/authors/sqlx-sqlite/src/lib.rs)
 
-## Options
+## Supported Features
 
-> [!NOTE]
-> This plugin supports JSON only. YAML is not supported.
+### Query Annotations
+
+| crate             | `:exec` | `:execlastid` | `:many` | `:one` | `:copyfrom` |
+| ----------------- | ------- | ------------- | ------- | ------ | ------------ |
+| postgres          | ✅       | ❌             | ✅       | ✅      | ❌            |
+| tokio-postgres    | ✅       | ❌             | ✅       | ✅      | ✅            |
+| deadpool-postgres | ✅       | ❌             | ✅       | ✅      | ✅            |
+| sqlx-postgres     | ✅       | ❌             | ✅       | ✅      | ✅            |
+| sqlx-mysql        | ✅       | ❌             | ✅       | ✅      | ❌            |
+| sqlx-sqlite       | ✅       | ❌             | ✅       | ✅      | ❌            |
+
+### Macros
+
+| Macro        | Status |
+| ------------ | ------ |
+| `sqlc.arg`   | ✅      |
+| `sqlc.embed` | ❌      |
+| `sqlc.narg`  | ✅      |
+| `sqlc.slice` | ❌      |
+
+## Options
 
 ### `db_crate`
 
@@ -172,61 +179,93 @@ When both are specified, it will result in an error. Furthermore, entries with a
 
 The following is an example configuration:
 
-```json
-{
-    "sql": [
-        {
-            "codegen": [
-                {
-                    "plugin": "sqlc-gen-rust",
-                    "out": "examples/e-commerce/src",
-                    "options": {
-                        "overrides": [
-                            {
-                                "db_type":"pg_catalog.varchar", 
-                                "rs_type": "String", // Required. The target Rust type.
-                                "rs_slice": "str", // Optional. If set, the argument of the generated code uses `&str` instead of `&String`.
-                                "copy_cheap": false // Optional. If true, the argument of the generated code uses `i32` instead of `&i32`.
-                            },
-                            {
-                                "column": "users.metadata",
-                                "rs_type": "serde_json::Value"
-                            }
-                            // other overrides...
-                        ]
-                    }
-                }
-            ]
-        }
-    ]
-}
+```yaml
+sql:
+  - schema: examples/e-commerce/schema.sql
+    queries: examples/e-commerce/queries.sql
+    engine: postgresql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/e-commerce/src
+        options:
+          output: sqlx_query.rs
+          db_crate: sqlx-postgres
+          overrides:
+            - db_type: pg_catalog.varchar # Database type to override
+              rs_type: std::borrow::Cow<'static,str>  # Rust type to use in generated code
+              rs_slice: str # Optional. If set, the argument of the generated code uses `&str` instead of `&std::borrow::Cow<'static,str>`
+              copy_cheap: false # Optional. If true, the argument of the generated code uses `std::borrow::Cow<'static,str>` instead of `&std::borrow::Cow<'static,str>`.
+            - column: .users.created_at # A column name to override. This will be searched for in the `.{TableName}.{ColumnName}` path. For details about matching columns see `row_attributes` / `column_attributes` below
+              rs_type: serde_json::Value
 ```
 
-See [source code](https://github.com/sqlc-dev/sqlc/blob/v1.29.0/internal/codegen/golang/postgresql_type.go#L37-L605) for details on overwriting.
+### `row_attributes` / `column_attributes`
 
-### `enum_derives` / `row_derives`
+Inserts an arbitrary sequence of tokens immediately **before** the generated item that matches the path.
+Common usage includes adding Rust attributes (e.g. `#[derive(...)]`, `#[serde(...)]`, etc.).
 
-Add additional items to the `#[derive(...)]` attribute for generated enums or for `XXXRow` structs.
-Each field accepts an array of derive paths as strings. `enum_derives` applies only to enums, and
-`row_derives` applies only to row structs.
+The value accepts either a string or an array of strings. When using an array, items are concatenated with `\n`.
 
-```json
-{
-    "sql": [
-        {
-            "codegen": [
-                {
-                    "plugin": "sqlc-gen-rust",
-                    "out": "examples/e-commerce/src",
-                    "options": {
-                        "enum_derives": ["serde::Serialize", "serde::Deserialize"],
-                        "row_derives": ["serde::Serialize"]
-                    }
-                }
-            ]
-        }
-    ]
-}
+#### Match Rules
+
+Keys are treated as path segments separated by `.` and searched in the following order:
+
+1. Full match
+2. Suffix match (e.g., `.authors.id` -> `.id`)
+3. Fallback `.`
+
+#### `row_attributes`
+
+`row_attributes` are searched with `.{QueryName}` (e.g., `.GetAuthor`), then fallback to `.`.
+Note that `row_attributes` effectively has only these two levels: `.{QueryName}` and `.`.
+
+#### `column_attributes`
+
+`column_attributes` are searched in two steps, and **Query-specific rules always win**:
+
+1. Query scope: search with `.{QueryName}.{FieldName}`
+2. Table scope (only if step 1 has no match): search with `.{TableName}.{ColumnName}`
+
+Both steps use the same PathMap rules (full match -> suffix match -> `.`).
+
+> `{FieldName}` is the **generated Rust field name** (snake_case), not necessarily the original SQL column name.
+> For queries with duplicate column names (e.g. joins), generated fields may become `users_id`, `posts_id`, or even `id_1`, `id_2`.
+> Check the generated `*Row` struct field names and use them in the key.
+
+Examples
+
+```yaml
+sql:
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/authors/tokio-postgres/src
+        options:
+          output: queries.rs
+          db_crate: tokio-postgres
+          row_attributes:
+            .: "#[doc=\"apply to all row\"]"
+            .GetAuthor: "#[doc=\"apply to only GetAuthorRow\"]"
+          column_attributes:
+            .: "#[doc=\"apply to all column\"]"
+            .name: "#[doc=\"apply to all name column\"]"
+            .author.id: "#[doc=\"apply to author table's id column\"]"
+            .GetAuthor.id: "#[doc=\"apply to GetAuthor's id column\"]"
+```
+
+### `enum_derives` 
+
+Add additional items to the `#[derive(...)]` attribute for generated enums.
+Each field accepts an array of derive paths as strings. 
+
+```yaml
+sql:
+  - codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/e-commerce/src
+        options:
+          enum_derives: 
+            - serde::Serialize
+            - serde::Deserialize
 ```
 
 ### `output`

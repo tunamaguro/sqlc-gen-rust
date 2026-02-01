@@ -58,20 +58,20 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateUserRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         CreateUserRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateUserRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateUserRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 4] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 4] {
         [
             &self.username,
             &self.email,
@@ -195,20 +195,20 @@ WHERE email = $1 LIMIT 1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetUserByEmailRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         GetUserByEmailRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetUserByEmailRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetUserByEmailRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.email]
     }
 }
@@ -269,17 +269,6 @@ impl ListUsers {
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2";
-    pub async fn query_many(
-        &self,
-        client: &impl deadpool_postgres::GenericClient,
-    ) -> Result<Vec<ListUsersRow>, deadpool_postgres::tokio_postgres::Error> {
-        let rows = client
-            .query(Self::QUERY, &[&self.limit, &self.offset])
-            .await?;
-        rows.into_iter()
-            .map(|r| ListUsersRow::from_row(&r))
-            .collect()
-    }
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -288,11 +277,20 @@ OFFSET $2";
         deadpool_postgres::tokio_postgres::Error,
     > {
         let st = client
-            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .query_raw(Self::QUERY, self.as_params().into_iter())
             .await?;
         Ok(st)
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+    pub async fn query_many(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<Vec<ListUsersRow>, deadpool_postgres::tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        rows.into_iter()
+            .map(|r| ListUsersRow::from_row(&r))
+            .collect()
+    }
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.limit, &self.offset]
     }
 }
@@ -381,20 +379,20 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateProductRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         CreateProductRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateProductRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateProductRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 6] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 6] {
         [
             &self.category_id,
             &self.name,
@@ -676,20 +674,20 @@ WHERE
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetProductWithCategoryRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         GetProductWithCategoryRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetProductWithCategoryRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetProductWithCategoryRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
     }
 }
@@ -778,27 +776,6 @@ ORDER BY
     p.created_at DESC
 LIMIT $1
 OFFSET $2";
-    pub async fn query_many(
-        &self,
-        client: &impl deadpool_postgres::GenericClient,
-    ) -> Result<Vec<SearchProductsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let rows = client
-            .query(
-                Self::QUERY,
-                &[
-                    &self.limit,
-                    &self.offset,
-                    &self.name,
-                    &self.category_ids,
-                    &self.min_price,
-                    &self.max_price,
-                ],
-            )
-            .await?;
-        rows.into_iter()
-            .map(|r| SearchProductsRow::from_row(&r))
-            .collect()
-    }
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -807,11 +784,20 @@ OFFSET $2";
         deadpool_postgres::tokio_postgres::Error,
     > {
         let st = client
-            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .query_raw(Self::QUERY, self.as_params().into_iter())
             .await?;
         Ok(st)
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 6] {
+    pub async fn query_many(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<Vec<SearchProductsRow>, deadpool_postgres::tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        rows.into_iter()
+            .map(|r| SearchProductsRow::from_row(&r))
+            .collect()
+    }
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 6] {
         [
             &self.limit,
             &self.offset,
@@ -993,16 +979,6 @@ pub struct GetProductsWithSpecificAttribute<'a> {
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb";
-    pub async fn query_many(
-        &self,
-        client: &impl deadpool_postgres::GenericClient,
-    ) -> Result<Vec<GetProductsWithSpecificAttributeRow>, deadpool_postgres::tokio_postgres::Error>
-    {
-        let rows = client.query(Self::QUERY, &[&self.column_1]).await?;
-        rows.into_iter()
-            .map(|r| GetProductsWithSpecificAttributeRow::from_row(&r))
-            .collect()
-    }
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -1011,11 +987,21 @@ WHERE attributes @> $1::jsonb";
         deadpool_postgres::tokio_postgres::Error,
     > {
         let st = client
-            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .query_raw(Self::QUERY, self.as_params().into_iter())
             .await?;
         Ok(st)
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub async fn query_many(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<Vec<GetProductsWithSpecificAttributeRow>, deadpool_postgres::tokio_postgres::Error>
+    {
+        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        rows.into_iter()
+            .map(|r| GetProductsWithSpecificAttributeRow::from_row(&r))
+            .collect()
+    }
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.column_1]
     }
 }
@@ -1070,9 +1056,9 @@ WHERE id = $1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_slice()).await
+        client.execute(Self::QUERY, &self.as_params()).await
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 2] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.id, &self.add_quantity]
     }
 }
@@ -1147,20 +1133,20 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateOrderRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         CreateOrderRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateOrderRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateOrderRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 3] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 3] {
         [&self.user_id, &self.status, &self.total_amount]
     }
 }
@@ -1256,20 +1242,20 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateOrderItemRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         CreateOrderItemRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateOrderItemRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateOrderItemRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 4] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 4] {
         [
             &self.order_id,
             &self.product_id,
@@ -1404,20 +1390,20 @@ WHERE o.id = $1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetOrderDetailsRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         GetOrderDetailsRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetOrderDetailsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetOrderDetailsRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
     }
 }
@@ -1479,15 +1465,6 @@ impl ListOrderItemsByOrderId {
 FROM order_items oi
 JOIN products p ON oi.product_id = p.id
 WHERE oi.order_id = $1";
-    pub async fn query_many(
-        &self,
-        client: &impl deadpool_postgres::GenericClient,
-    ) -> Result<Vec<ListOrderItemsByOrderIdRow>, deadpool_postgres::tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &[&self.order_id]).await?;
-        rows.into_iter()
-            .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
-            .collect()
-    }
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -1496,11 +1473,20 @@ WHERE oi.order_id = $1";
         deadpool_postgres::tokio_postgres::Error,
     > {
         let st = client
-            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .query_raw(Self::QUERY, self.as_params().into_iter())
             .await?;
         Ok(st)
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub async fn query_many(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<Vec<ListOrderItemsByOrderIdRow>, deadpool_postgres::tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        rows.into_iter()
+            .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
+            .collect()
+    }
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.order_id]
     }
 }
@@ -1568,20 +1554,20 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateReviewRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         CreateReviewRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateReviewRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateReviewRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 4] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 4] {
         [&self.user_id, &self.product_id, &self.rating, &self.comment]
     }
 }
@@ -1688,20 +1674,20 @@ GROUP BY product_id";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetProductAverageRatingRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
         GetProductAverageRatingRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetProductAverageRatingRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice()).await?;
+        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.product_id]
     }
 }
@@ -1768,15 +1754,6 @@ JOIN orders o ON oi.order_id = o.id
 WHERE o.status IN ('delivered', 'shipped')
 GROUP BY c.id, c.name
 ORDER BY total_sales DESC";
-    pub async fn query_many(
-        &self,
-        client: &impl deadpool_postgres::GenericClient,
-    ) -> Result<Vec<GetCategorySalesRankingRow>, deadpool_postgres::tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &[]).await?;
-        rows.into_iter()
-            .map(|r| GetCategorySalesRankingRow::from_row(&r))
-            .collect()
-    }
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -1785,11 +1762,20 @@ ORDER BY total_sales DESC";
         deadpool_postgres::tokio_postgres::Error,
     > {
         let st = client
-            .query_raw(Self::QUERY, self.as_slice().into_iter())
+            .query_raw(Self::QUERY, self.as_params().into_iter())
             .await?;
         Ok(st)
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 0] {
+    pub async fn query_many(
+        &self,
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<Vec<GetCategorySalesRankingRow>, deadpool_postgres::tokio_postgres::Error> {
+        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        rows.into_iter()
+            .map(|r| GetCategorySalesRankingRow::from_row(&r))
+            .collect()
+    }
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
     }
 }
@@ -1828,9 +1814,9 @@ impl DeleteUserAndRelatedData {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_slice()).await
+        client.execute(Self::QUERY, &self.as_params()).await
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
     }
 }

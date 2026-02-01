@@ -1,9 +1,6 @@
 use super::DbCrate;
 use crate::{
-    query::{
-        Annotation, DbEnum, DbTypeMap, DbTypeMapper, Query, QueryError, ReturningRows, RsType,
-        make_column_type,
-    },
+    query::{Annotation, DbEnum, Query, ReturningRows, RsType, SimpleTypeMap, TypeMapper},
     value_ident,
 };
 
@@ -11,79 +8,56 @@ use crate::{
 pub struct MySqlTypeMap {
     /// db_type to rust type
     type_map: std::collections::BTreeMap<String, RsType>,
-    /// column name to rust type
-    column_map: std::collections::BTreeMap<String, RsType>,
 }
 
-impl DbTypeMapper for MySqlTypeMap {
-    fn get_column_type(
-        &self,
-        column: &crate::plugin::Column,
-    ) -> Result<RsType, crate::query::QueryError> {
-        let db_col_name = crate::query::make_column_name(column);
-        if let Some(rs_type) = self.column_map.get(&db_col_name) {
-            return Ok(rs_type.clone());
-        };
+impl TypeMapper for MySqlTypeMap {
+    fn find_rs_type(&self, db_type_name: &str) -> Option<&RsType> {
+        self.type_map.get(db_type_name)
+    }
 
+    fn find_column_type(&self, column: &crate::plugin::Column) -> Option<RsType> {
         let col_type = column
             .r#type
             .as_ref()
-            .map(make_column_type)
-            .map(|s| s.to_lowercase())
-            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
-
-        if let Some(rs_type) = self.type_map.get(&col_type) {
-            return Ok(rs_type.clone());
+            .map(crate::query::make_column_type)?
+            .to_lowercase();
+        if let Some(rs_type) = self.find_rs_type(&col_type) {
+            return Some(rs_type.clone());
         };
 
         match col_type.as_str() {
             "tinyint" => match (column.length, column.unsigned) {
-                (1, _) => Ok(RsType::new(syn::parse_str("bool").unwrap(), None, true)),
-                (_, true) => Ok(RsType::new(syn::parse_str("u8").unwrap(), None, true)),
-                (_, false) => Ok(RsType::new(syn::parse_str("i8").unwrap(), None, true)),
+                (1, _) => Some(RsType::new(syn::parse_str("bool").unwrap(), None, true)),
+                (_, true) => Some(RsType::new(syn::parse_str("u8").unwrap(), None, true)),
+                (_, false) => Some(RsType::new(syn::parse_str("i8").unwrap(), None, true)),
             },
             "smallint" => {
                 if column.unsigned {
-                    Ok(RsType::new(syn::parse_str("u16").unwrap(), None, true))
+                    Some(RsType::new(syn::parse_str("u16").unwrap(), None, true))
                 } else {
-                    Ok(RsType::new(syn::parse_str("i16").unwrap(), None, true))
+                    Some(RsType::new(syn::parse_str("i16").unwrap(), None, true))
                 }
             }
             "int" | "integer" | "mediumint" => {
                 if column.unsigned {
-                    Ok(RsType::new(syn::parse_str("u32").unwrap(), None, true))
+                    Some(RsType::new(syn::parse_str("u32").unwrap(), None, true))
                 } else {
-                    Ok(RsType::new(syn::parse_str("i32").unwrap(), None, true))
+                    Some(RsType::new(syn::parse_str("i32").unwrap(), None, true))
                 }
             }
             "bigint" => {
                 if column.unsigned {
-                    Ok(RsType::new(syn::parse_str("u64").unwrap(), None, true))
+                    Some(RsType::new(syn::parse_str("u64").unwrap(), None, true))
                 } else {
-                    Ok(RsType::new(syn::parse_str("i64").unwrap(), None, true))
+                    Some(RsType::new(syn::parse_str("i64").unwrap(), None, true))
                 }
             }
-            _ => Err(QueryError::cannot_map_type(
-                db_col_name,
-                col_type.to_string(),
-            )),
+            _ => None,
         }
     }
 
     fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
-        let e = self
-            .type_map
-            .entry(db_type.to_string())
-            .or_insert_with(|| rs_type.clone());
-        *e = rs_type;
-    }
-
-    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
-        let e = self
-            .column_map
-            .entry(column_name.to_string())
-            .or_insert_with(|| rs_type.clone());
-        *e = rs_type;
+        self.type_map.insert(db_type.to_string(), rs_type);
     }
 }
 
@@ -91,74 +65,46 @@ impl DbTypeMapper for MySqlTypeMap {
 pub struct SqliteTypeMap {
     /// db_type to rust type
     type_map: std::collections::BTreeMap<String, RsType>,
-    /// column name to rust type
-    column_map: std::collections::BTreeMap<String, RsType>,
 }
 
-impl DbTypeMapper for SqliteTypeMap {
-    fn get_column_type(&self, column: &crate::plugin::Column) -> Result<RsType, QueryError> {
-        let db_col_name = crate::query::make_column_name(column);
-        if let Some(rs_type) = self.column_map.get(&db_col_name) {
-            return Ok(rs_type.clone());
-        };
+impl TypeMapper for SqliteTypeMap {
+    fn find_rs_type(&self, db_type_name: &str) -> Option<&RsType> {
+        self.type_map.get(db_type_name)
+    }
 
+    fn find_column_type(&self, column: &crate::plugin::Column) -> Option<RsType> {
         let col_type = column
             .r#type
             .as_ref()
-            .map(make_column_type)
-            .map(|s| s.to_lowercase())
-            .ok_or_else(|| QueryError::missing_column_type(db_col_name.clone()))?;
-
-        if let Some(rs_type) = self.type_map.get(&col_type) {
-            return Ok(rs_type.clone());
+            .map(crate::query::make_column_type)?
+            .to_lowercase();
+        if let Some(rs_type) = self.find_rs_type(&col_type) {
+            return Some(rs_type.clone());
         };
 
         // Rust type determine by affinity
         // See https://www.sqlite.org/datatype3.html
         if col_type.contains("int") {
-            return Ok(RsType::new(syn::parse_quote!(i64), None, true));
+            return self.find_rs_type("int").cloned();
         }
 
         if col_type.contains("char") || col_type.contains("clob") || col_type.contains("text") {
-            return Ok(RsType::new(
-                syn::parse_quote!(String),
-                Some(syn::parse_quote!(str)),
-                false,
-            ));
+            return self.find_rs_type("text").cloned();
         }
 
         if col_type.contains("blob") || col_type.is_empty() {
-            return Ok(RsType::new(
-                syn::parse_quote!(Vec<u8>),
-                Some(syn::parse_quote!([u8])),
-                false,
-            ));
+            return self.find_rs_type("blob").cloned();
         }
 
         if col_type.contains("real") || col_type.contains("floa") || col_type.contains("doub") {
-            return Ok(RsType::new(syn::parse_quote!(f64), None, true));
+            return self.find_rs_type("real").cloned();
         }
 
-        self.type_map
-            .get("numeric")
-            .cloned()
-            .ok_or_else(|| QueryError::cannot_map_type(db_col_name, col_type))
+        self.find_rs_type("numeric").cloned()
     }
 
     fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
-        let e = self
-            .type_map
-            .entry(db_type.to_string())
-            .or_insert_with(|| rs_type.clone());
-        *e = rs_type;
-    }
-
-    fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
-        let e = self
-            .column_map
-            .entry(column_name.to_string())
-            .or_insert_with(|| rs_type.clone());
-        *e = rs_type;
+        self.type_map.insert(db_type.to_string(), rs_type);
     }
 }
 
@@ -300,35 +246,24 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
-        let derives = &row.derives;
-        let fields = row
-            .column_names
-            .iter()
-            .zip(row.column_names_original.iter())
-            .zip(row.column_types.iter())
-            .map(|((col, original_col_name), rs_type)| {
-                let col_t = rs_type.to_row_tokens();
-                quote::quote! {
-                    #[sqlx(rename = #original_col_name)]
-                    pub #col:#col_t
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut row = row.clone();
 
-        let ident = row.struct_ident();
-        let derive_tt = if derives.is_empty() {
-            quote::quote! {#[derive(sqlx::FromRow)]}
-        } else {
-            quote::quote! {#[derive(sqlx::FromRow, #(#derives),*)]}
-        };
-        let row_tt = quote::quote! {
+        for field in row.fields.iter_mut() {
+            let original = &field.name_original;
+            let att = &field.attribute;
+            let attribute = quote::quote! {
+                #att
+                #[sqlx(rename = #original)]
+            };
+            field.attribute = Some(attribute);
+        }
+        let struct_tt = super::make_return_row(&row);
+
+        let derive_tt = quote::quote! {#[derive(sqlx::FromRow)]};
+        quote::quote! {
             #derive_tt
-            pub struct #ident {
-                #(#fields,)*
-            }
-        };
-
-        row_tt
+            #struct_tt
+        }
     }
 
     fn copy_cheap_types(&self) -> &[(&str, &[&str])] {
@@ -494,13 +429,13 @@ impl Sqlx {
 
 impl DbCrate for Sqlx {
     /// Creates a new `DbTypeMap` with default types for PostgreSQL.
-    fn db_type_map(&self) -> Box<dyn DbTypeMapper> {
+    fn type_map(&self) -> Box<dyn crate::query::TypeMapper> {
         let copy_cheap = self.copy_cheap_types();
 
         let default_types = self.default_types();
 
-        let mut map: Box<dyn DbTypeMapper> = match self {
-            Sqlx::Postgres => Box::new(DbTypeMap::default()),
+        let mut map: Box<dyn TypeMapper> = match self {
+            Sqlx::Postgres => Box::new(SimpleTypeMap::default()),
             Sqlx::MySql => Box::new(MySqlTypeMap::default()),
             Sqlx::Sqlite => Box::new(SqliteTypeMap::default()),
         };
@@ -549,17 +484,13 @@ impl DbCrate for Sqlx {
 
     fn defined_enum(&self, enum_type: &DbEnum) -> proc_macro2::TokenStream {
         let derives = &enum_type.derives;
-        let fields = enum_type
-            .values
-            .iter()
-            .map(|field| {
-                let ident = value_ident(field);
-                quote::quote! {
-                    #[sqlx(rename = #field)]
-                    #ident
-                }
-            })
-            .collect::<Vec<_>>();
+        let fields = enum_type.values.iter().map(|field| {
+            let ident = value_ident(field);
+            quote::quote! {
+                #[sqlx(rename = #field)]
+                #ident
+            }
+        });
 
         let original_name = &enum_type.name;
         let enum_name = enum_type.ident();
@@ -578,47 +509,11 @@ impl DbCrate for Sqlx {
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let struct_ident = value_ident(&query.query_name);
-        let lifetime_a = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
+        let query_ast = super::QueryAst::new(query);
+        let struct_ident = &query_ast.ident;
+        let lifetime_a = &query_ast.lifetime;
+        let need_lifetime = query_ast.need_lifetime();
 
-        let fields = query
-            .param_names
-            .iter()
-            .zip(query.param_types.iter())
-            .map(|(r, typ)| {
-                let typ = typ.to_param_tokens(&lifetime_a);
-                quote::quote! {#r:#typ}
-            })
-            .collect::<Vec<_>>();
-
-        let need_lifetime = super::need_lifetime(query);
-        let has_fields = !query.param_names.is_empty();
-        let struct_tt = match (need_lifetime, has_fields) {
-            (true, _) => {
-                quote::quote! {
-                    pub struct #struct_ident<#lifetime_a>{
-                        #(#fields,)*
-                    }
-                }
-            }
-            (false, true) => {
-                quote::quote! {
-                    pub struct #struct_ident{
-                        #(#fields,)*
-                    }
-                }
-            }
-            (false, false) => {
-                quote::quote! {
-                    pub struct #struct_ident;
-                }
-            }
-        };
-
-        let params = query.param_names.iter().fold(
-            quote::quote! {},
-            |acc, x| quote::quote! {#acc .bind(self.#x)},
-        );
         let query_fns = {
             let database_ident = self.database_ident();
             let row_ident = row.struct_ident();
@@ -632,6 +527,12 @@ impl DbCrate for Sqlx {
                      query_as<#lifetime_a>(&#lifetime_a self)
                 }
             };
+
+            let bind_params = query_ast.fields.iter().map(|f| &f.name).fold(
+                quote::quote! {},
+                |acc, x| quote::quote! {#acc .bind(self.#x)},
+            );
+
             // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
             let query_as = quote::quote! {
                 pub fn #query_as_def->sqlx::query::QueryAs<
@@ -642,7 +543,7 @@ impl DbCrate for Sqlx {
                 >{
                     sqlx::query_as::<_,#row_ident>(
                                     Self::QUERY,
-                                ) #params
+                                ) #bind_params
                 }
             };
 
@@ -711,14 +612,15 @@ impl DbCrate for Sqlx {
                                 let mut conn = conn.acquire().await?;
                                 sqlx::query(
                                     Self::QUERY,
-                                )  #params .execute(&mut *conn).await
+                                )  #bind_params .execute(&mut *conn).await
                             }
                         }
                     }
                 }
                 (Sqlx::Postgres, Annotation::CopyFrom) => {
-                    let add_row = query.param_names.iter().map(|x| {
-                        quote::quote! {sink.add(&self.#x).await?;}
+                    let add_row = query.fields.iter().map(|x| {
+                        let name = &x.name;
+                        quote::quote! {sink.add(&self.#name).await?;}
                     });
                     let sink_ident = CopyDataSink::ident();
                     let sink_error = CopyDataSink::box_error();
@@ -775,10 +677,10 @@ impl DbCrate for Sqlx {
         };
 
         let returning_row = self.returning_row(row);
-        let builder_tt = super::create_builder(query);
+        let builder_tt = query_ast.make_builder();
         quote::quote! {
             #returning_row
-            #struct_tt
+            #query_ast
             #fetch_tt
             #builder_tt
         }

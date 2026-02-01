@@ -6,6 +6,7 @@ pub(crate) mod plugin {
     include!(concat!(env!("OUT_DIR"), "/plugin.rs"));
 }
 pub(crate) mod db_crates;
+pub(crate) mod path_map;
 pub(crate) mod query;
 use db_crates::DbCrate as _;
 use query::{Query, ReturningRows, RsType, collect_enums};
@@ -248,15 +249,16 @@ struct OverrideType {
     copy_cheap: bool,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(default)]
 struct Config {
     output: String,
     db_crate: db_crates::SupportedDbCrate,
     overrides: Vec<OverrideType>,
     debug: bool,
+    #[serde(flatten)]
+    return_row_attributes: query::ReturnRowAttributes,
     enum_derives: Vec<String>,
-    row_derives: Vec<String>,
 }
 
 impl Default for Config {
@@ -266,8 +268,8 @@ impl Default for Config {
             db_crate: Default::default(),
             overrides: Default::default(),
             debug: false,
+            return_row_attributes: Default::default(),
             enum_derives: Vec::new(),
-            row_derives: Vec::new(),
         }
     }
 }
@@ -350,11 +352,6 @@ pub fn try_main() -> Result<(), Error> {
         .iter()
         .map(|d| syn::parse_str::<syn::Path>(d).map_err(|e| Error::any(e.into())))
         .collect::<Result<Vec<_>, _>>()?;
-    let row_derives = config
-        .row_derives
-        .iter()
-        .map(|d| syn::parse_str::<syn::Path>(d).map_err(|e| Error::any(e.into())))
-        .collect::<Result<Vec<_>, _>>()?;
 
     let mut defined_enums = request
         .catalog
@@ -381,18 +378,16 @@ pub fn try_main() -> Result<(), Error> {
         );
     }
 
-    let mut returning_rows = request
+    let returning_rows = request
         .queries
         .iter()
-        .map(|q| ReturningRows::from_query(db_type.as_ref(), q))
+        .map(|q| ReturningRows::from_query(&db_type, &config.return_row_attributes, q))
         .collect::<Result<Vec<_>, _>>()?;
-    for r in &mut returning_rows {
-        r.derives = row_derives.clone();
-    }
+
     let queries = request
         .queries
         .iter()
-        .map(|q| Query::from_query(db_type.as_ref(), q))
+        .map(|q| Query::from_query(&db_type, q))
         .collect::<Result<Vec<_>, _>>()?;
 
     let enums_ts = defined_enums

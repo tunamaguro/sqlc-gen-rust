@@ -27,20 +27,20 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetAuthorRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_slice())?;
+        let row = client.query_one(Self::QUERY, &self.as_params())?;
         GetAuthorRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_slice())?;
+        let row = client.query_opt(Self::QUERY, &self.as_params())?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
     }
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 1] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
     }
 }
@@ -85,7 +85,7 @@ pub struct CreateAuthors<'a> {
 }
 impl<'a> CreateAuthors<'a> {
     pub const QUERY: &'static str = r"COPY authors (id,name,bio) FROM STDIN (FORMAT BINARY)";
-    pub fn as_slice(&self) -> [&(dyn ToSql + Sync); 3] {
+    pub fn as_params(&self) -> [&(dyn ToSql + Sync); 3] {
         [&self.id, &self.name, &self.bio]
     }
 }
