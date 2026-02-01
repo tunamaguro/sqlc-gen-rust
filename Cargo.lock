@@ -1828,7 +1828,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-gen-rust"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "convert_case",
  "prettyplease",
