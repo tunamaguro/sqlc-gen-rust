@@ -433,12 +433,15 @@ impl ReturningRows {
         db_type: &DbTypeMap,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
-        let column_names = generate_column_names(&query.columns).into_iter().map(|s| {
-            (
-                syn::LitStr::new(&s, proc_macro2::Span::call_site()),
-                field_ident(&s),
-            )
-        });
+        let field_names = generate_column_names(&query.columns)
+            .into_iter()
+            .map(|s| field_ident(&s));
+        let original_names = query
+            .columns
+            .iter()
+            .map(|col| syn::LitStr::new(&col.name, proc_macro2::Span::call_site()));
+        let column_names = field_names.zip(original_names);
+
         let column_types = query
             .columns
             .iter()
@@ -447,7 +450,7 @@ impl ReturningRows {
 
         let fields = column_names
             .zip(column_types)
-            .map(|((col_name_original, col_name), col_type)| ColumnField {
+            .map(|((col_name, col_name_original), col_type)| ColumnField {
                 name: col_name,
                 name_original: col_name_original,
                 typ: col_type,
@@ -590,14 +593,14 @@ impl Query {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        let param_names = generate_column_names(columns.iter().copied())
+        let field_names = generate_column_names(columns.iter().copied())
             .into_iter()
-            .map(|s| {
-                (
-                    syn::LitStr::new(&s, proc_macro2::Span::call_site()),
-                    field_ident(&s),
-                )
-            });
+            .map(|s| field_ident(&s));
+        let original_names = columns
+            .iter()
+            .map(|col| syn::LitStr::new(&col.name, proc_macro2::Span::call_site()));
+        let param_names = field_names.zip(original_names);
+
         let param_types = columns
             .iter()
             .map(|col| RsColType::new_with_type(db_type, col))
@@ -605,7 +608,7 @@ impl Query {
 
         let fields = param_names
             .zip(param_types)
-            .map(|((par_name_original, par_name), par_type)| ColumnField {
+            .map(|((par_name, par_name_original), par_type)| ColumnField {
                 name: par_name,
                 name_original: par_name_original,
                 typ: par_type,
