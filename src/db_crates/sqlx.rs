@@ -246,8 +246,9 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
 
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
-        let mut row_ast = super::RowAst::new(row);
-        for field in row_ast.fields.iter_mut() {
+        let mut row = row.clone();
+
+        for field in row.fields.iter_mut() {
             let original = &field.name_original;
             let att = &field.attribute;
             let attribute = quote::quote! {
@@ -256,15 +257,18 @@ impl Sqlx {
             };
             field.attribute = Some(attribute);
         }
+        let struct_tt = super::make_return_row(&row);
+
         let derives = &row.derives;
         let derive_tt = if derives.is_empty() {
             quote::quote! {#[derive(sqlx::FromRow)]}
         } else {
             quote::quote! {#[derive(sqlx::FromRow, #(#derives),*)]}
         };
+
         let row_tt = quote::quote! {
             #derive_tt
-            #row_ast
+            #struct_tt
         };
 
         row_tt

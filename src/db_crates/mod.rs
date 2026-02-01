@@ -65,38 +65,23 @@ impl Default for SupportedDbCrate {
     }
 }
 
-struct RowAst {
-    pub ident: syn::Ident,
-    pub fields: Vec<query::ColumnField>,
-}
-
-impl RowAst {
-    fn new(row: &ReturningRows) -> Self {
-        let fields = row.fields.clone();
-        let ident = row.struct_ident();
-        Self { ident, fields }
-    }
-}
-
-impl quote::ToTokens for RowAst {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ident = &self.ident;
-        let fields = self.fields.iter().map(|field| {
-            let field_name = &field.name;
-            let field_typ = field.typ.to_row_tokens();
-            let attribute = &field.attribute;
-            quote::quote! {
-                #attribute
-                pub #field_name:#field_typ
-            }
-        });
-
-        let tt = quote::quote! {
-            pub struct #ident {
-                #(#fields,)*
-            }
-        };
-        tokens.extend(tt);
+fn make_return_row(row: &query::ReturningRows) -> proc_macro2::TokenStream {
+    let ident = &row.struct_ident();
+    let row_attribute = &row.attributes;
+    let fields = row.fields.iter().map(|field| {
+        let field_name = &field.name;
+        let field_typ = field.typ.to_row_tokens();
+        let attribute = &field.attribute;
+        quote::quote! {
+            #attribute
+            pub #field_name:#field_typ
+        }
+    });
+    quote::quote! {
+        #row_attribute
+        pub struct #ident {
+            #(#fields,)*
+        }
     }
 }
 

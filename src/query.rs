@@ -196,9 +196,9 @@ pub(crate) fn make_column_type(db_type: &plugin::Identifier) -> String {
 
 pub(crate) fn make_column_name(column: &plugin::Column) -> String {
     if let Some(table) = &column.table {
-        format!("{}.{}", table.name, column.name)
+        format!(".{}.{}", table.name, column.name)
     } else {
-        column.name.clone()
+        format!(".{}", column.name)
     }
 }
 
@@ -422,15 +422,62 @@ pub(crate) struct ColumnField {
     pub(crate) attribute: Option<proc_macro2::TokenStream>,
 }
 
+fn deserialize_path_map<'de, D>(
+    deserializer: D,
+) -> Result<crate::path_map::PathMap<proc_macro2::TokenStream>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Debug, serde::Deserialize)]
+    #[serde(untagged)]
+    enum SingleOrMany {
+        Single(String),
+        Many(Vec<String>),
+    }
+
+    impl SingleOrMany {
+        fn into_token(self) -> Result<proc_macro2::TokenStream, syn::Error> {
+            let s = match self {
+                SingleOrMany::Single(v) => v,
+                SingleOrMany::Many(items) => items.join("\n"),
+            };
+
+            syn::parse_str::<proc_macro2::TokenStream>(&s)
+        }
+    }
+
+    let m = std::collections::BTreeMap::<String, SingleOrMany>::deserialize(deserializer)?;
+    let mut map = crate::path_map::PathMap::default();
+    for (k, v) in m.into_iter() {
+        let v = v.into_token().map_err(serde::de::Error::custom)?;
+        map.insert(k, v);
+    }
+    Ok(map)
+}
+
+#[derive(Default, Debug, serde::Deserialize)]
+#[serde(default)]
+pub(crate) struct ReturnRowAttributes {
+    #[serde(deserialize_with = "deserialize_path_map")]
+    row_attributes: crate::path_map::PathMap<proc_macro2::TokenStream>,
+    #[serde(deserialize_with = "deserialize_path_map")]
+    column_attributes: crate::path_map::PathMap<proc_macro2::TokenStream>,
+}
+
+#[derive(Clone)]
 pub(crate) struct ReturningRows {
     pub(crate) fields: Vec<ColumnField>,
     pub(crate) query_name: String,
+    pub(crate) attributes: Option<proc_macro2::TokenStream>,
     pub(crate) derives: Vec<syn::Path>,
 }
 
 impl ReturningRows {
     pub(crate) fn from_query(
         db_type: &DbTypeMap,
+        row_attributes: &ReturnRowAttributes,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
         let field_names = generate_column_names(&query.columns)
@@ -440,7 +487,22 @@ impl ReturningRows {
             .columns
             .iter()
             .map(|col| syn::LitStr::new(&col.name, proc_macro2::Span::call_site()));
-        let column_names = field_names.zip(original_names);
+        let column_names = field_names.zip(original_names).collect::<Vec<_>>();
+
+        let column_attributes = query
+            .columns
+            .iter()
+            .zip(column_names.iter())
+            .map(|(col, (name, _))| {
+                let query_att = row_attributes
+                    .column_attributes
+                    .find_best_match(&format!(".{}.{}", query.name, name));
+                let table_att = row_attributes
+                    .column_attributes
+                    .find_best_match(&make_column_name(col));
+                query_att.or(table_att)
+            })
+            .collect::<Vec<_>>();
 
         let column_types = query
             .columns
@@ -449,18 +511,27 @@ impl ReturningRows {
             .collect::<Result<Vec<_>, _>>()?;
 
         let fields = column_names
+            .into_iter()
             .zip(column_types)
-            .map(|((col_name, col_name_original), col_type)| ColumnField {
-                name: col_name,
-                name_original: col_name_original,
-                typ: col_type,
-                attribute: None,
-            })
+            .zip(column_attributes)
+            .map(
+                |(((col_name, col_name_original), col_type), col_attribute)| ColumnField {
+                    name: col_name,
+                    name_original: col_name_original,
+                    typ: col_type,
+                    attribute: col_attribute.cloned(),
+                },
+            )
             .collect::<Vec<_>>();
+
+        let row_attributes = row_attributes
+            .row_attributes
+            .find_best_match(&format!(".{}", query.name));
 
         Ok(Self {
             fields,
             query_name: query.name.to_string(),
+            attributes: row_attributes.cloned(),
             derives: Vec::new(),
         })
     }

@@ -77,9 +77,9 @@ impl Postgres {
     }
 
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
-        let row_ast = super::RowAst::new(row);
+        let row_struct = super::make_return_row(row);
 
-        let ident = &row_ast.ident;
+        let ident = row.struct_ident();
         let derive_tt = if row.derives.is_empty() {
             quote::quote! {}
         } else {
@@ -90,7 +90,7 @@ impl Postgres {
         let error_typ = self.error_type();
         let row_typ = self.row_type();
         let arg_ident = quote::format_ident!("row");
-        let from_fields = row_ast.fields.iter().enumerate().map(|(idx, field)| {
+        let from_fields = row.fields.iter().enumerate().map(|(idx, field)| {
             let field_ident = &field.name;
             let literal = proc_macro2::Literal::usize_unsuffixed(idx);
             quote::quote! {#field_ident:#arg_ident.try_get(#literal)?}
@@ -107,7 +107,7 @@ impl Postgres {
 
         quote::quote! {
             #derive_tt
-            #row_ast
+            #row_struct
             #from_tt
         }
     }

@@ -51,7 +51,7 @@
                                 "rs_type": "chrono::DateTime<chrono::Utc>"
                             },
                             {
-                                "column": "users.created_at",
+                                "column": ".users.created_at",
                                 "rs_type": "chrono::DateTime<chrono::Local>"
                             }
                         ]

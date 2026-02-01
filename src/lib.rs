@@ -249,13 +249,15 @@ struct OverrideType {
     copy_cheap: bool,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(default)]
 struct Config {
     output: String,
     db_crate: db_crates::SupportedDbCrate,
     overrides: Vec<OverrideType>,
     debug: bool,
+    #[serde(flatten)]
+    return_row_attributes: query::ReturnRowAttributes,
     enum_derives: Vec<String>,
     row_derives: Vec<String>,
 }
@@ -267,6 +269,7 @@ impl Default for Config {
             db_crate: Default::default(),
             overrides: Default::default(),
             debug: false,
+            return_row_attributes: Default::default(),
             enum_derives: Vec::new(),
             row_derives: Vec::new(),
         }
@@ -385,7 +388,7 @@ pub fn try_main() -> Result<(), Error> {
     let mut returning_rows = request
         .queries
         .iter()
-        .map(|q| ReturningRows::from_query(&db_type, q))
+        .map(|q| ReturningRows::from_query(&db_type, &config.return_row_attributes, q))
         .collect::<Result<Vec<_>, _>>()?;
     for r in &mut returning_rows {
         r.derives = row_derives.clone();
