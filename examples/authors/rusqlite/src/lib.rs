@@ -16,7 +16,7 @@ mod tests {
     #[test]
     fn test_authors(ctx: &mut RusqliteContext) {
         let conn = &ctx.conn;
-        migrate_db(&conn);
+        migrate_db(conn);
 
         let authors = queries::ListAuthors.query_many(conn).unwrap();
         assert_eq!(authors.len(), 0);
