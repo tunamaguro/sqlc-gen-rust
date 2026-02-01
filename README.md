@@ -30,9 +30,10 @@ sql:
 - [sqlx-postgres](https://docs.rs/sqlx/latest/sqlx/postgres/index.html)
 - [sqlx-mysql](https://docs.rs/sqlx/latest/sqlx/mysql/index.html)
 - [sqlx-sqlite](https://docs.rs/sqlx/latest/sqlx/sqlite/index.html)
+- [rusqlite](https://docs.rs/rusqlite/latest/rusqlite/)
 
 > [!NOTE]
-> When using `sqlx-sqlite`: SQLite uses dynamic typing. Columns with **NUMERIC affinity** may store values as **INTEGER** when they can be represented exactly as integers. 
+> SQLite uses dynamic typing. Columns with **NUMERIC affinity** may store values as **INTEGER** when they can be represented exactly as integers. 
 > For example, `13.0` may be stored as `13`. The generated code always reads NUMERIC as `f64` (`REAL`), so decoding can fail with a type mismatch when SQLite returns an integer. See the [SQLite type affinity docs](https://www.sqlite.org/datatype3.html) and the [`sqlx` type mapping docs](https://docs.rs/sqlx/latest/sqlx/sqlite/types/index.html) for details.
 
 
@@ -132,6 +133,7 @@ See below for examples with other supported crates.
 - [`sqlx-postgres` generated code](./examples/authors/sqlx-postgres/src/lib.rs)
 - [`sqlx-mysql` generated code](./examples/authors/sqlx-mysql/src/lib.rs)
 - [`sqlx-sqlite` generated code](./examples/authors/sqlx-sqlite/src/lib.rs)
+- [`rusqlite` generated code](./examples/authors/rusqlite/src/lib.rs)
 
 ## Supported Features
 
@@ -167,6 +169,7 @@ The crate used in the generated code. Default is `tokio-postgres`. Available val
 - `sqlx-postgres`
 - `sqlx-mysql`
 - `sqlx-sqlite`
+- `rusqlite`
 
 ### `overrides`
 
