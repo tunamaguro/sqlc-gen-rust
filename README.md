@@ -201,8 +201,39 @@ sql:
 
 ### `row_attributes` / `column_attributes`
 
-パスに一致したフィールドの前に任意の文字列を追加します。想定される使用法はアトリビュートの追加です。
-パスのマッチは次の順序で行われます
+Appends an arbitrary sequence of tokens immediately before the field that matches the path. Common usage includes adding attributes.
+The value accepts either a string or an array of strings. When using an array, it is concatenated with `\n`.
+
+Examples
+
+```yaml
+sql:
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/authors/tokio-postgres/src
+        options:
+          output: queries.rs
+          db_crate: tokio-postgres
+          row_attributes:
+            .: "#[doc=\"apply to all row\"]"
+            .GetAuthor: "#[doc=\"apply to only GetAuthorRow\"]"
+          column_attributes:
+            .: "#[doc=\"apply to all column\"]"
+            .name: "#[doc=\"apply to all name column\"]"
+            .author.id: "#[doc=\"apply to author table's id column\"]"
+            .GetAuthor.id: "#[doc=\"apply to GetAuthor's id column\"]"
+```
+
+#### Match Rules
+
+Keys are treated as path segments separated by `.` and searched in the following order:
+
+1. Full match
+2. Suffix match (e.g., `.authors.id` -> `.id`)
+3. Fallback `.`
+
+`row_attributes` are searched for using `.{QueryName}` (e.g., `.GetAuthor`).
+`column_attributes` are searched for both `.{QueryName}.{FieldName}` and `.{TableName}.{ColumnName}`, with the earliest match being applied.
 
 ### `enum_derives` 
 
