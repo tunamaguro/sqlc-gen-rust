@@ -80,13 +80,6 @@ impl Postgres {
         let row_struct = super::make_return_row(row);
 
         let ident = row.struct_ident();
-        let derive_tt = if row.derives.is_empty() {
-            quote::quote! {}
-        } else {
-            let derives = &row.derives;
-            quote::quote! {#[derive(#(#derives),*)]}
-        };
-
         let error_typ = self.error_type();
         let row_typ = self.row_type();
         let arg_ident = quote::format_ident!("row");
@@ -106,7 +99,6 @@ impl Postgres {
         };
 
         quote::quote! {
-            #derive_tt
             #row_struct
             #from_tt
         }

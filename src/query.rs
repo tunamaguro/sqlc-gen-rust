@@ -471,13 +471,12 @@ pub(crate) struct ReturningRows {
     pub(crate) fields: Vec<ColumnField>,
     pub(crate) query_name: String,
     pub(crate) attributes: Option<proc_macro2::TokenStream>,
-    pub(crate) derives: Vec<syn::Path>,
 }
 
 impl ReturningRows {
     pub(crate) fn from_query(
         db_type: &DbTypeMap,
-        row_attributes: &ReturnRowAttributes,
+        attribute_map: &ReturnRowAttributes,
         query: &plugin::Query,
     ) -> Result<Self, QueryError> {
         let field_names = generate_column_names(&query.columns)
@@ -494,10 +493,10 @@ impl ReturningRows {
             .iter()
             .zip(column_names.iter())
             .map(|(col, (name, _))| {
-                let query_att = row_attributes
+                let query_att = attribute_map
                     .column_attributes
                     .find_best_match(&format!(".{}.{}", query.name, name));
-                let table_att = row_attributes
+                let table_att = attribute_map
                     .column_attributes
                     .find_best_match(&make_column_name(col));
                 query_att.or(table_att)
@@ -524,7 +523,7 @@ impl ReturningRows {
             )
             .collect::<Vec<_>>();
 
-        let row_attributes = row_attributes
+        let row_attributes = attribute_map
             .row_attributes
             .find_best_match(&format!(".{}", query.name));
 
@@ -532,7 +531,6 @@ impl ReturningRows {
             fields,
             query_name: query.name.to_string(),
             attributes: row_attributes.cloned(),
-            derives: Vec::new(),
         })
     }
 

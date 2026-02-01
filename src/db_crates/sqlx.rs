@@ -259,19 +259,11 @@ impl Sqlx {
         }
         let struct_tt = super::make_return_row(&row);
 
-        let derives = &row.derives;
-        let derive_tt = if derives.is_empty() {
-            quote::quote! {#[derive(sqlx::FromRow)]}
-        } else {
-            quote::quote! {#[derive(sqlx::FromRow, #(#derives),*)]}
-        };
-
-        let row_tt = quote::quote! {
+        let derive_tt = quote::quote! {#[derive(sqlx::FromRow)]};
+        quote::quote! {
             #derive_tt
             #struct_tt
-        };
-
-        row_tt
+        }
     }
 
     fn copy_cheap_types(&self) -> &[(&str, &[&str])] {
