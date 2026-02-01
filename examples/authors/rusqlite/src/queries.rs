@@ -35,10 +35,7 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = ? LIMIT 1";
-    pub fn query_one(
-        &self,
-        client: &impl RusqliteClient,
-    ) -> rusqlite::Result<GetAuthorRow> {
+    pub fn query_one(&self, client: &impl RusqliteClient) -> rusqlite::Result<GetAuthorRow> {
         Self::prepare(client)?.query_row(self.as_params(), GetAuthorRow::from_row)
     }
     pub fn query_opt(
@@ -191,10 +188,7 @@ impl<'a, Bio> CreateAuthorBuilder<'a, ((), Bio)> {
     }
 }
 impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
-    pub fn bio(
-        self,
-        bio: Option<&'a str>,
-    ) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
+    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
         let (name, ()) = self.fields;
         let _phantom = self._phantom;
         CreateAuthorBuilder {

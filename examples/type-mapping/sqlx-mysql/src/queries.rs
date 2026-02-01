@@ -176,9 +176,9 @@ impl<'a> InsertMapping<'a> {
     pub fn execute<'b, A>(
         &'a self,
         conn: A,
-    ) -> impl Future<
-        Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>,
-    > + Send + 'a
+    ) -> impl Future<Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
     where
         A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
     {
@@ -206,10 +206,8 @@ impl<'a> InsertMapping<'a> {
     }
 }
 impl<'a> InsertMapping<'a> {
-    pub const fn builder() -> InsertMappingBuilder<
-        'a,
-        ((), (), (), (), (), (), (), (), (), (), (), (), (), (), ()),
-    > {
+    pub const fn builder()
+    -> InsertMappingBuilder<'a, ((), (), (), (), (), (), (), (), (), (), (), (), (), (), ())> {
         InsertMappingBuilder {
             fields: ((), (), (), (), (), (), (), (), (), (), (), (), (), (), ()),
             _phantom: std::marker::PhantomData,
@@ -239,26 +237,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        (),
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            (),
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn bool_val(
         self,
         bool_val: bool,
@@ -338,26 +338,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        (),
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            (),
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn tinyint_val(
         self,
         tinyint_val: i8,
@@ -437,26 +439,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        (),
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            (),
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn smallint_val(
         self,
         smallint_val: i16,
@@ -536,26 +540,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        (),
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            (),
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn int_val(
         self,
         int_val: i32,
@@ -635,26 +641,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        (),
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            (),
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn int_nullable_val(
         self,
         int_nullable_val: Option<i32>,
@@ -734,26 +742,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        (),
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            (),
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn bigint_val(
         self,
         bigint_val: i64,
@@ -833,26 +843,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        (),
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            (),
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn float_val(
         self,
         float_val: f32,
@@ -932,26 +944,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        (),
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            (),
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn double_val(
         self,
         double_val: f64,
@@ -1031,26 +1045,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        (),
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            (),
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn text_val(
         self,
         text_val: &'a str,
@@ -1130,26 +1146,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        (),
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            (),
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn blob_val(
         self,
         blob_val: &'a [u8],
@@ -1229,26 +1247,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        (),
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            (),
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn timestamp_val(
         self,
         timestamp_val: &'a chrono::DateTime<chrono::Utc>,
@@ -1328,26 +1348,28 @@ impl<
     DateVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        (),
-        DateVal,
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            (),
+            DateVal,
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn datetime_val(
         self,
         datetime_val: &'a chrono::NaiveDateTime,
@@ -1427,26 +1449,28 @@ impl<
     DatetimeVal,
     TimeVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        (),
-        TimeVal,
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            (),
+            TimeVal,
+            JsonVal,
+        ),
+    >
+{
     pub fn date_val(
         self,
         date_val: &'a chrono::NaiveDate,
@@ -1526,26 +1550,28 @@ impl<
     DatetimeVal,
     DateVal,
     JsonVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        (),
-        JsonVal,
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            (),
+            JsonVal,
+        ),
+    >
+{
     pub fn time_val(
         self,
         time_val: sqlx::mysql::types::MySqlTime,
@@ -1625,26 +1651,28 @@ impl<
     DatetimeVal,
     DateVal,
     TimeVal,
-> InsertMappingBuilder<
-    'a,
-    (
-        BoolVal,
-        TinyintVal,
-        SmallintVal,
-        IntVal,
-        IntNullableVal,
-        BigintVal,
-        FloatVal,
-        DoubleVal,
-        TextVal,
-        BlobVal,
-        TimestampVal,
-        DatetimeVal,
-        DateVal,
-        TimeVal,
-        (),
-    ),
-> {
+>
+    InsertMappingBuilder<
+        'a,
+        (
+            BoolVal,
+            TinyintVal,
+            SmallintVal,
+            IntVal,
+            IntNullableVal,
+            BigintVal,
+            FloatVal,
+            DoubleVal,
+            TextVal,
+            BlobVal,
+            TimestampVal,
+            DatetimeVal,
+            DateVal,
+            TimeVal,
+            (),
+        ),
+    >
+{
     pub fn json_val(
         self,
         json_val: &'a serde_json::Value,
@@ -1708,28 +1736,28 @@ impl<
         }
     }
 }
-impl<
-    'a,
-> InsertMappingBuilder<
-    'a,
-    (
-        bool,
-        i8,
-        i16,
-        i32,
-        Option<i32>,
-        i64,
-        f32,
-        f64,
-        &'a str,
-        &'a [u8],
-        &'a chrono::DateTime<chrono::Utc>,
-        &'a chrono::NaiveDateTime,
-        &'a chrono::NaiveDate,
-        sqlx::mysql::types::MySqlTime,
-        &'a serde_json::Value,
-    ),
-> {
+impl<'a>
+    InsertMappingBuilder<
+        'a,
+        (
+            bool,
+            i8,
+            i16,
+            i32,
+            Option<i32>,
+            i64,
+            f32,
+            f64,
+            &'a str,
+            &'a [u8],
+            &'a chrono::DateTime<chrono::Utc>,
+            &'a chrono::NaiveDateTime,
+            &'a chrono::NaiveDate,
+            sqlx::mysql::types::MySqlTime,
+            &'a serde_json::Value,
+        ),
+    >
+{
     pub const fn build(self) -> InsertMapping<'a> {
         let (
             bool_val,

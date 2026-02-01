@@ -101,7 +101,9 @@ ORDER BY name";
         client: &mut impl postgres::GenericClient,
     ) -> Result<Vec<ListAuthorsRow>, postgres::Error> {
         let rows = client.query(Self::QUERY, &self.as_params())?;
-        rows.into_iter().map(|r| ListAuthorsRow::from_row(&r)).collect()
+        rows.into_iter()
+            .map(|r| ListAuthorsRow::from_row(&r))
+            .collect()
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -194,10 +196,7 @@ impl<'a, Bio> CreateAuthorBuilder<'a, ((), Bio)> {
     }
 }
 impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
-    pub fn bio(
-        self,
-        bio: Option<&'a str>,
-    ) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
+    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
         let (name, ()) = self.fields;
         let _phantom = self._phantom;
         CreateAuthorBuilder {

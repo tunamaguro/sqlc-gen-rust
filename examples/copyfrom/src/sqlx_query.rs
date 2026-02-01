@@ -30,9 +30,7 @@ impl<C: std::ops::DerefMut<Target = sqlx::PgConnection>> CopyDataSink<C> {
         Ok(())
     }
     /// Complete copy process and return number of rows affected.
-    pub async fn finish(
-        mut self,
-    ) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn finish(mut self) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
         const COPY_TRAILER: &[u8] = &(-1_i16).to_be_bytes();
         self.data_buf.extend(COPY_TRAILER);
         self.send().await?;
@@ -55,7 +53,8 @@ impl<C: std::ops::DerefMut<Target = sqlx::PgConnection>> CopyDataSink<C> {
                 self.data_buf.extend((-1_i32).to_be_bytes());
             }
             sqlx::encode::IsNull::No => {
-                self.data_buf.extend((self.encode_buf.len() as i32).to_be_bytes());
+                self.data_buf
+                    .extend((self.encode_buf.len() as i32).to_be_bytes());
                 self.data_buf.extend_from_slice(self.encode_buf.as_slice());
             }
         }

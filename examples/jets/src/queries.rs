@@ -10,7 +10,9 @@ impl CountPilotsRow {
     pub fn from_row(
         row: &deadpool_postgres::tokio_postgres::Row,
     ) -> Result<Self, deadpool_postgres::tokio_postgres::Error> {
-        Ok(Self { count: row.try_get(0)? })
+        Ok(Self {
+            count: row.try_get(0)?,
+        })
     }
 }
 pub struct CountPilots;
@@ -79,7 +81,9 @@ impl ListPilots {
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let st = client.query_raw(Self::QUERY, self.as_params().into_iter()).await?;
+        let st = client
+            .query_raw(Self::QUERY, self.as_params().into_iter())
+            .await?;
         Ok(st)
     }
     pub async fn query_many(
@@ -87,7 +91,9 @@ impl ListPilots {
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<ListPilotsRow>, deadpool_postgres::tokio_postgres::Error> {
         let rows = client.query(Self::QUERY, &self.as_params()).await?;
-        rows.into_iter().map(|r| ListPilotsRow::from_row(&r)).collect()
+        rows.into_iter()
+            .map(|r| ListPilotsRow::from_row(&r))
+            .collect()
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
