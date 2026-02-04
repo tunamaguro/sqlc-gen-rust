@@ -56,14 +56,8 @@ impl TypeMapper for MySqlTypeMap {
         }
     }
 
-    fn upsert_db_type(&mut self, db_type: &str, mut rs_type: RsType) -> Option<RsType> {
-        if let Some(exist) = self.type_map.get_mut(db_type) {
-            core::mem::swap(exist, &mut rs_type);
-            Some(rs_type)
-        } else {
-            self.type_map.insert(db_type.to_string(), rs_type);
-            None
-        }
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        self.type_map.insert(db_type.to_string(), rs_type);
     }
 }
 
@@ -109,14 +103,8 @@ impl TypeMapper for SqliteTypeMap {
         self.find_rs_type("numeric").cloned()
     }
 
-    fn upsert_db_type(&mut self, db_type: &str, mut rs_type: RsType) -> Option<RsType> {
-        if let Some(exist) = self.type_map.get_mut(db_type) {
-            core::mem::swap(exist, &mut rs_type);
-            Some(rs_type)
-        } else {
-            self.type_map.insert(db_type.to_string(), rs_type);
-            None
-        }
+    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        self.type_map.insert(db_type.to_string(), rs_type);
     }
 }
 
@@ -456,7 +444,7 @@ impl DbCrate for Sqlx {
             let owned_type = syn::parse_str::<syn::Type>(owned_type).expect("Failed to parse type");
 
             for pg_type in pg_types.iter() {
-                map.upsert_db_type(pg_type, RsType::new(owned_type.clone(), None, true));
+                map.insert_db_type(pg_type, RsType::new(owned_type.clone(), None, true));
             }
         }
 
@@ -466,7 +454,7 @@ impl DbCrate for Sqlx {
                 .map(|s| syn::parse_str::<syn::Type>(s).expect("Failed to parse slice type"));
 
             for pg_type in pg_types.iter() {
-                map.upsert_db_type(
+                map.insert_db_type(
                     pg_type,
                     RsType::new(owned_type.clone(), slice_type.clone(), false),
                 );
