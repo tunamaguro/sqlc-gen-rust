@@ -283,7 +283,7 @@ pub trait TypeMapper {
         let col_type = column.r#type.as_ref().map(make_column_type)?;
         self.find_rs_type(&col_type).cloned()
     }
-    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType);
+    fn upsert_db_type(&mut self, db_type: &str, rs_type: RsType) -> Option<RsType>;
 }
 
 #[derive(Default)]
@@ -297,8 +297,14 @@ impl TypeMapper for SimpleTypeMap {
         self.map.get(db_type_name)
     }
 
-    fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
-        self.map.insert(db_type.to_string(), rs_type);
+    fn upsert_db_type(&mut self, db_type: &str, mut rs_type: RsType) -> Option<RsType> {
+        if let Some(exist) = self.map.get_mut(db_type) {
+            core::mem::swap(exist, &mut rs_type);
+            Some(rs_type)
+        } else {
+            self.map.insert(db_type.to_string(), rs_type);
+            None
+        }
     }
 }
 
@@ -351,11 +357,11 @@ impl DbTypeMap {
             .ok_or_else(|| QueryError::cannot_map_type(db_col_type, db_col_name))
     }
 
-    pub(crate) fn insert_db_type(&mut self, db_type: &str, rs_type: RsType) {
-        self.type_map.insert_db_type(db_type, rs_type);
+    pub(crate) fn upsert_db_type(&mut self, db_type: &str, rs_type: RsType) {
+        self.type_map.upsert_db_type(db_type, rs_type);
     }
 
-    pub(crate) fn insert_column_type(&mut self, column_name: &str, rs_type: RsType) {
+    pub(crate) fn upsert_column_type(&mut self, column_name: &str, rs_type: RsType) {
         self.column_map.insert(column_name, rs_type);
     }
 }

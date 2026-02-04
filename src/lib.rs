@@ -316,7 +316,7 @@ pub fn try_main() -> Result<(), Error> {
 
         match (&override_type.db_type, &override_type.column) {
             (None, Some(column)) => {
-                db_type.insert_column_type(
+                db_type.upsert_column_type(
                     column,
                     RsType::new(
                         owned_type.clone(),
@@ -326,7 +326,7 @@ pub fn try_main() -> Result<(), Error> {
                 );
             }
             (Some(db_type_name), None) => {
-                db_type.insert_db_type(
+                db_type.upsert_db_type(
                     db_type_name,
                     RsType::new(
                         owned_type.clone(),
@@ -364,7 +364,7 @@ pub fn try_main() -> Result<(), Error> {
     }
 
     for e in &defined_enums {
-        db_type.insert_db_type(
+        db_type.upsert_db_type(
             &e.name,
             RsType::new(
                 syn::TypePath {
