@@ -59,10 +59,10 @@ sqlx = { version = "0.8.6", features = [
 ] }
 rusqlite = { version = "0.32" }
 
-tokio = { version = "1.47.1", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 
-chrono = { version = "0.4.41" }
-uuid = { version = "1.18" }
+chrono = { version = "0.4.43" }
+uuid = { version = "1.20" }
 serde_json = { version = "1.0" }
 
 test-context = "0.4.1"

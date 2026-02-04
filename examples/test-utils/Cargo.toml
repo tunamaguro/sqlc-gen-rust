@@ -12,4 +12,4 @@ rusqlite = { workspace = true }
 tokio = { workspace = true }
 fastrand = "2.3.0"
 test-context = { workspace = true }
-url = "2.5.4"
+url = "2.5.8"
