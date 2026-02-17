@@ -27,18 +27,25 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetAuthorRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params())?;
+        let stmt = Self::prepare(client)?;
+        let row = client.query_one(&stmt, &self.as_params())?;
         GetAuthorRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params())?;
+        let stmt = Self::prepare(client)?;
+        let row = client.query_opt(&stmt, &self.as_params())?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn prepare(
+        client: &mut impl postgres::GenericClient,
+    ) -> Result<postgres::Statement, postgres::Error> {
+        client.prepare(Self::QUERY)
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -94,16 +101,23 @@ ORDER BY name";
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        client.query_raw(Self::QUERY, self.as_params().into_iter())
+        let stmt = Self::prepare(client)?;
+        client.query_raw(&stmt, self.as_params())
     }
     pub fn query_many(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Vec<ListAuthorsRow>, postgres::Error> {
-        let rows = client.query(Self::QUERY, &self.as_params())?;
+        let stmt = Self::prepare(client)?;
+        let rows = client.query(&stmt, &self.as_params())?;
         rows.into_iter()
             .map(|r| ListAuthorsRow::from_row(&r))
             .collect()
+    }
+    pub fn prepare(
+        client: &mut impl postgres::GenericClient,
+    ) -> Result<postgres::Statement, postgres::Error> {
+        client.prepare(Self::QUERY)
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -156,18 +170,25 @@ RETURNING id, name, bio";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateAuthorRow, postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params())?;
+        let stmt = Self::prepare(client)?;
+        let row = client.query_one(&stmt, &self.as_params())?;
         CreateAuthorRow::from_row(&row)
     }
     pub fn query_opt(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateAuthorRow>, postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params())?;
+        let stmt = Self::prepare(client)?;
+        let row = client.query_opt(&stmt, &self.as_params())?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub fn prepare(
+        client: &mut impl postgres::GenericClient,
+    ) -> Result<postgres::Statement, postgres::Error> {
+        client.prepare(Self::QUERY)
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.bio]
@@ -227,7 +248,13 @@ WHERE id = $1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<u64, postgres::Error> {
-        client.execute(Self::QUERY, &self.as_params())
+        let stmt = Self::prepare(client)?;
+        client.execute(&stmt, &self.as_params())
+    }
+    pub fn prepare(
+        client: &mut impl postgres::GenericClient,
+    ) -> Result<postgres::Statement, postgres::Error> {
+        client.prepare(Self::QUERY)
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]

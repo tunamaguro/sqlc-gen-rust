@@ -27,18 +27,25 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetAuthorRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         GetAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -94,19 +101,24 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client
-            .query_raw(Self::QUERY, self.as_params().into_iter())
-            .await?;
+        let stmt = Self::prepare(client).await?;
+        let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
     pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListAuthorsRow>, tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListAuthorsRow::from_row(&r))
             .collect()
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -159,18 +171,25 @@ RETURNING id, name, bio";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateAuthorRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateAuthorRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateAuthorRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.bio]
@@ -230,7 +249,13 @@ WHERE id = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_params()).await
+        let stmt = Self::prepare(client).await?;
+        client.execute(&stmt, &self.as_params()).await
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]

@@ -34,30 +34,27 @@ impl<'de> serde::Deserialize<'de> for Postgres {
 impl Postgres {
     fn generic_client_type(&self, lifetime: Option<&syn::Lifetime>) -> syn::Type {
         let l = lifetime.map(|s| s.to_token_stream()).unwrap_or_default();
-        let s = match self {
-            Postgres::Sync => quote::quote! {&#l mut impl postgres::GenericClient},
-            Postgres::Tokio => quote::quote! {&#l impl tokio_postgres::GenericClient},
-            Postgres::DeadPool => quote::quote! {&#l impl deadpool_postgres::GenericClient},
-        };
-        syn::parse2(s).unwrap()
+        match self {
+            Postgres::Sync => syn::parse_quote! {&#l mut impl postgres::GenericClient},
+            Postgres::Tokio => syn::parse_quote! {&#l impl tokio_postgres::GenericClient},
+            Postgres::DeadPool => syn::parse_quote! {&#l impl deadpool_postgres::GenericClient},
+        }
     }
 
     fn row_type(&self) -> syn::Type {
-        let s = match self {
-            Postgres::Sync => "postgres::Row",
-            Postgres::Tokio => "tokio_postgres::Row",
-            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Row",
-        };
-        syn::parse_str(s).unwrap()
+        match self {
+            Postgres::Sync => syn::parse_quote! {postgres::Row},
+            Postgres::Tokio => syn::parse_quote! {tokio_postgres::Row},
+            Postgres::DeadPool => syn::parse_quote! {deadpool_postgres::tokio_postgres::Row},
+        }
     }
 
     fn error_type(&self) -> syn::Type {
-        let s = match self {
-            Postgres::Sync => "postgres::Error",
-            Postgres::Tokio => "tokio_postgres::Error",
-            Postgres::DeadPool => "deadpool_postgres::tokio_postgres::Error",
-        };
-        syn::parse_str(s).unwrap()
+        match self {
+            Postgres::Sync => syn::parse_quote! {postgres::Error},
+            Postgres::Tokio => syn::parse_quote! {tokio_postgres::Error},
+            Postgres::DeadPool => syn::parse_quote! { deadpool_postgres::tokio_postgres::Error},
+        }
     }
 
     fn async_part(&self) -> proc_macro2::TokenStream {
@@ -73,6 +70,14 @@ impl Postgres {
             Postgres::Sync => quote::quote! {},
             Postgres::Tokio => quote::quote! {.await},
             Postgres::DeadPool => quote::quote! {.await},
+        }
+    }
+
+    fn stmt_type(&self) -> syn::Type {
+        match self {
+            Postgres::Sync => syn::parse_quote! {postgres::Statement},
+            Postgres::Tokio => syn::parse_quote! {tokio_postgres::Statement},
+            Postgres::DeadPool => syn::parse_quote! {deadpool_postgres::tokio_postgres::Statement},
         }
     }
 
@@ -241,21 +246,22 @@ impl DbCrate for Postgres {
         let client_ident = quote::format_ident!("client");
         let client_typ = self.generic_client_type(None);
         let error_typ = self.error_type();
+        let row_ident = row.struct_ident();
         let async_part = self.async_part();
         let await_part = self.await_part();
 
         let query_fns = match query.annotation {
             Annotation::One => {
-                let row_ident = row.struct_ident();
-
                 quote::quote! {
                     pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
-                        let row = client.query_one(Self::QUERY, &self.as_params()) #await_part?;
+                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let row = #client_ident.query_one(&stmt, &self.as_params()) #await_part?;
                         #row_ident::from_row(&row)
                     }
 
                     pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
-                        let row = client.query_opt(Self::QUERY, &self.as_params()) #await_part?;
+                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let row = #client_ident.query_opt(&stmt, &self.as_params()) #await_part?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
                             None => Ok(None)
@@ -264,8 +270,6 @@ impl DbCrate for Postgres {
                 }
             }
             Annotation::Many => {
-                let row_ident = row.struct_ident();
-
                 let stream_fetch = {
                     match self {
                         Postgres::Sync => {
@@ -273,8 +277,8 @@ impl DbCrate for Postgres {
                                 pub fn query_iter<'row_iter>(&self,#client_ident:&'row_iter mut  impl postgres::GenericClient)
                                 ->Result<postgres::RowIter<'row_iter>,#error_typ>
                                 {
-
-                                    client.query_raw(Self::QUERY, self.as_params().into_iter())
+                                    let stmt = Self::prepare(#client_ident)?;
+                                    #client_ident.query_raw(&stmt, self.as_params())
                                 }
                             }
                         }
@@ -282,7 +286,8 @@ impl DbCrate for Postgres {
                             quote::quote! {
                                 pub async fn query_stream(&self,#client_ident: #client_typ)
                                 ->Result<tokio_postgres::RowStream,#error_typ>{
-                                    let st = client.query_raw(Self::QUERY, self.as_params().into_iter()).await?;
+                                    let stmt = Self::prepare(#client_ident).await?;
+                                    let st = #client_ident.query_raw(&stmt, self.as_params()).await?;
                                     Ok(st)
                                 }
                             }
@@ -291,7 +296,8 @@ impl DbCrate for Postgres {
                             quote::quote! {
                                  pub async fn query_stream(&self,#client_ident: #client_typ)
                                 ->Result<deadpool_postgres::tokio_postgres::RowStream,#error_typ>{
-                                    let st = client.query_raw(Self::QUERY, self.as_params().into_iter()).await?;
+                                    let stmt = Self::prepare(#client_ident).await?;
+                                    let st = #client_ident.query_raw(&stmt, self.as_params()).await?;
                                     Ok(st)
                                 }
                             }
@@ -301,7 +307,8 @@ impl DbCrate for Postgres {
 
                 let vec_fetch = quote::quote! {
                     pub #async_part fn query_many(&self,#client_ident: #client_typ)->Result<Vec<#row_ident>,#error_typ>{
-                        let rows = client.query(Self::QUERY, &self.as_params()) #await_part?;
+                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let rows = #client_ident.query(&stmt, &self.as_params()) #await_part?;
                         rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
                     }
                 };
@@ -314,7 +321,8 @@ impl DbCrate for Postgres {
             Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
                 quote::quote! {
                     pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
-                        client.execute(Self::QUERY, &self.as_params()) #await_part
+                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        #client_ident.execute(&stmt, &self.as_params()) #await_part
                     }
                 }
             }
@@ -339,10 +347,32 @@ impl DbCrate for Postgres {
                 }
             });
 
+            let stmt_typ = self.stmt_type();
+
+            let prepare_fn = match self {
+                Postgres::Sync => quote::quote! {
+                    pub fn prepare(#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
+                        #client_ident.prepare(Self::QUERY)
+                    }
+                },
+                Postgres::Tokio => quote::quote! {
+                    pub async fn prepare(#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
+                        #client_ident.prepare(Self::QUERY).await
+                    }
+                },
+                Postgres::DeadPool => quote::quote! {
+                    pub async fn prepare(#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
+                        #client_ident.prepare_cached(Self::QUERY).await
+                    }
+                },
+            };
+
             quote::quote! {
                 impl #imp_ident {
                     pub const QUERY:&'static str = #query_str;
                     #query_fns
+
+                    #prepare_fn
 
                     pub fn as_params(&self) -> [&(dyn ToSql + Sync); #param_num] {
                         [ #(#params,)* ]

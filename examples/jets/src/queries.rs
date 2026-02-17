@@ -22,18 +22,28 @@ impl CountPilots {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CountPilotsRow, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         CountPilotsRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CountPilotsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CountPilotsRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<
+        deadpool_postgres::tokio_postgres::Statement,
+        deadpool_postgres::tokio_postgres::Error,
+    > {
+        client.prepare_cached(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -81,19 +91,27 @@ impl ListPilots {
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let st = client
-            .query_raw(Self::QUERY, self.as_params().into_iter())
-            .await?;
+        let stmt = Self::prepare(client).await?;
+        let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
     pub async fn query_many(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<ListPilotsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListPilotsRow::from_row(&r))
             .collect()
+    }
+    pub async fn prepare(
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<
+        deadpool_postgres::tokio_postgres::Statement,
+        deadpool_postgres::tokio_postgres::Error,
+    > {
+        client.prepare_cached(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -134,7 +152,16 @@ impl DeletePilot {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_params()).await
+        let stmt = Self::prepare(client).await?;
+        client.execute(&stmt, &self.as_params()).await
+    }
+    pub async fn prepare(
+        client: &impl deadpool_postgres::GenericClient,
+    ) -> Result<
+        deadpool_postgres::tokio_postgres::Statement,
+        deadpool_postgres::tokio_postgres::Error,
+    > {
+        client.prepare_cached(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]

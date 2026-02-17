@@ -101,18 +101,25 @@ FROM mapping";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetMappingRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         GetMappingRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetMappingRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetMappingRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -225,7 +232,13 @@ impl<'a> InsertMapping<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_params()).await
+        let stmt = Self::prepare(client).await?;
+        client.execute(&stmt, &self.as_params()).await
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 24] {
         [
