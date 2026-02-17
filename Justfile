@@ -55,7 +55,7 @@ generate-release:
     #!/usr/bin/env bash
     set -euxo pipefail
 
-    cargo build --target wasm32-wasip1 --release --locked
+    cargo build --target wasm32-wasip1 --release
 
     WASM_SHA256=$(sha256sum target/wasm32-wasip1/release/sqlc-gen-rust.wasm | awk '{print $1}');
     sed "s/\$WASM_SHA256/${WASM_SHA256}/g" sqlc.yaml | sed "s/debug/release/g" > _sqlc_dev.yaml
