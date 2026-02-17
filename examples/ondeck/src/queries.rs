@@ -32,19 +32,24 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client
-            .query_raw(Self::QUERY, self.as_params().into_iter())
-            .await?;
+        let stmt = Self::prepare(client).await?;
+        let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
     pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListCitiesRow>, tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListCitiesRow::from_row(&r))
             .collect()
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -91,18 +96,25 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetCityRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         GetCityRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetCityRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetCityRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.slug]
@@ -164,18 +176,25 @@ impl<'a> CreateCity<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateCityRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateCityRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateCityRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateCityRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.slug]
@@ -237,7 +256,13 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_params()).await
+        let stmt = Self::prepare(client).await?;
+        client.execute(&stmt, &self.as_params()).await
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.slug, &self.name]
@@ -321,19 +346,24 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client
-            .query_raw(Self::QUERY, self.as_params().into_iter())
-            .await?;
+        let stmt = Self::prepare(client).await?;
+        let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
     pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListVenuesRow>, tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListVenuesRow::from_row(&r))
             .collect()
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.city]
@@ -383,7 +413,13 @@ WHERE slug = $1 AND slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        client.execute(Self::QUERY, &self.as_params()).await
+        let stmt = Self::prepare(client).await?;
+        client.execute(&stmt, &self.as_params()).await
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.slug]
@@ -457,18 +493,25 @@ WHERE slug = $1 AND city = $2";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetVenueRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         GetVenueRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetVenueRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetVenueRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.slug, &self.city]
@@ -555,18 +598,25 @@ impl<'a> CreateVenue<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateVenueRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateVenueRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateVenueRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateVenueRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 7] {
         [
@@ -772,18 +822,25 @@ RETURNING id";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<UpdateVenueNameRow, tokio_postgres::Error> {
-        let row = client.query_one(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_one(&stmt, &self.as_params()).await?;
         UpdateVenueNameRow::from_row(&row)
     }
     pub async fn query_opt(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<UpdateVenueNameRow>, tokio_postgres::Error> {
-        let row = client.query_opt(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(UpdateVenueNameRow::from_row(&row)?)),
             None => Ok(None),
         }
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.slug, &self.name]
@@ -851,19 +908,24 @@ ORDER BY 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let st = client
-            .query_raw(Self::QUERY, self.as_params().into_iter())
-            .await?;
+        let stmt = Self::prepare(client).await?;
+        let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
     pub async fn query_many(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<VenueCountByCityRow>, tokio_postgres::Error> {
-        let rows = client.query(Self::QUERY, &self.as_params()).await?;
+        let stmt = Self::prepare(client).await?;
+        let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| VenueCountByCityRow::from_row(&r))
             .collect()
+    }
+    pub async fn prepare(
+        client: &impl tokio_postgres::GenericClient,
+    ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
+        client.prepare(Self::QUERY).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
