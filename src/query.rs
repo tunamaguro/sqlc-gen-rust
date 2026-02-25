@@ -212,7 +212,9 @@ impl RsColType {
         if column.is_sqlc_slice && dim == 0 {
             dim = 1;
         }
-        let optional = !column.not_null;
+        // Slice parameters are input values for IN clauses — never optional,
+        // regardless of the column's schema nullability.
+        let optional = !column.not_null && !column.is_sqlc_slice;
 
         Ok(Self {
             rs_type,
