@@ -208,8 +208,13 @@ impl RsColType {
         column: &plugin::Column,
     ) -> Result<Self, QueryError> {
         let rs_type = db_type.get_column_type(column).stacked()?;
-        let dim = usize::try_from(column.array_dims).unwrap_or_default();
-        let optional = !column.not_null;
+        let mut dim = usize::try_from(column.array_dims).unwrap_or_default();
+        if column.is_sqlc_slice && dim == 0 {
+            dim = 1;
+        }
+        // Slice parameters are input values for IN clauses — never optional,
+        // regardless of the column's schema nullability.
+        let optional = !column.not_null && !column.is_sqlc_slice;
 
         Ok(Self {
             rs_type,
@@ -420,6 +425,7 @@ pub(crate) struct ColumnField {
     pub(crate) name_original: syn::LitStr,
     pub(crate) typ: RsColType,
     pub(crate) attribute: Option<proc_macro2::TokenStream>,
+    pub(crate) is_sqlc_slice: bool,
 }
 
 fn deserialize_path_map<'de, D>(
@@ -519,6 +525,7 @@ impl ReturningRows {
                     name_original: col_name_original,
                     typ: col_type,
                     attribute: col_attribute.cloned(),
+                    is_sqlc_slice: false,
                 },
             )
             .collect::<Vec<_>>();
@@ -645,6 +652,8 @@ pub(crate) struct Query {
     /// ^^^^^^^^^^^^^^^^^^^^^^
     /// ```
     query_str: String,
+    /// Whether any parameter uses `sqlc.slice()`
+    pub(crate) has_slices: bool,
 }
 
 impl Query {
@@ -677,14 +686,17 @@ impl Query {
 
         let fields = param_names
             .zip(param_types)
-            .map(|((par_name, par_name_original), par_type)| ColumnField {
+            .zip(columns.iter())
+            .map(|(((par_name, par_name_original), par_type), col)| ColumnField {
                 name: par_name,
                 name_original: par_name_original,
                 typ: par_type,
                 attribute: None,
+                is_sqlc_slice: col.is_sqlc_slice,
             })
             .collect::<Vec<_>>();
 
+        let has_slices = fields.iter().any(|f| f.is_sqlc_slice);
         let annotation = query.cmd.parse::<Annotation>().stacked()?;
         let query_name = query.name.to_string();
 
@@ -697,6 +709,7 @@ impl Query {
             insert_table,
             query_name,
             query_str,
+            has_slices,
         })
     }
 
