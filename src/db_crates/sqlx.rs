@@ -518,35 +518,6 @@ impl DbCrate for Sqlx {
             let database_ident = self.database_ident();
             let row_ident = row.struct_ident();
 
-            let query_as_def = if need_lifetime {
-                quote::quote! {
-                    query_as(&#lifetime_a self)
-                }
-            } else {
-                quote::quote! {
-                     query_as<#lifetime_a>(&#lifetime_a self)
-                }
-            };
-
-            let bind_params = query_ast.fields.iter().map(|f| &f.name).fold(
-                quote::quote! {},
-                |acc, x| quote::quote! {#acc .bind(self.#x)},
-            );
-
-            // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
-            let query_as = quote::quote! {
-                pub fn #query_as_def->sqlx::query::QueryAs<
-                #lifetime_a,
-                #database_ident,
-                #row_ident,
-                <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
-                >{
-                    sqlx::query_as::<_,#row_ident>(
-                                    Self::QUERY,
-                                ) #bind_params
-                }
-            };
-
             let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
 
             let lifetime_generic = if need_lifetime {
@@ -555,110 +526,260 @@ impl DbCrate for Sqlx {
                 quote::quote! {#lifetime_a, #lifetime_b }
             };
 
-            let fn_tt = match (self, query.annotation) {
-                (_, Annotation::One) => {
-                    // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
-                    quote::quote! {
-                        pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
-                        ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
-                        {
-                            async move {
-                                let mut conn = conn.acquire().await?;
-                                let val = self.query_as().fetch_one(&mut *conn).await?;
-
-                                Ok(val)
+            if matches!(self, Sqlx::MySql | Sqlx::Sqlite) && query.has_slices {
+                // MySQL/SQLite slice-aware codegen: dynamic query expansion at runtime
+                let expand_slices = query_ast.fields.iter()
+                    .filter(|f| f.is_sqlc_slice)
+                    .map(|f| {
+                        let name = &f.name;
+                        let marker = syn::LitStr::new(
+                            &format!("/*SLICE:{}*/?", f.name_original.value()),
+                            proc_macro2::Span::call_site(),
+                        );
+                        quote::quote! {
+                            if self.#name.is_empty() {
+                                query = query.replacen(#marker, "NULL", 1);
+                            } else {
+                                query = query.replacen(#marker, &",?".repeat(self.#name.len())[1..], 1);
                             }
                         }
+                    })
+                    .collect::<Vec<_>>();
 
-                        pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
-                        ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
-                        {
-                            async move {
-                                let mut conn = conn.acquire().await?;
-                                let val = self.query_as().fetch_optional(&mut *conn).await?;
+                let expand_query_fn = quote::quote! {
+                    fn expand_query(&self) -> String {
+                        let mut query = Self::QUERY.to_string();
+                        #(#expand_slices)*
+                        query
+                    }
+                };
 
-                                Ok(val)
+                let bind_block = {
+                    let tokens: Vec<_> = query_ast.fields.iter().map(|f| {
+                        let name = &f.name;
+                        if f.is_sqlc_slice {
+                            quote::quote! {
+                                for v in self.#name {
+                                    q = q.bind(v);
+                                }
+                            }
+                        } else {
+                            quote::quote! {
+                                q = q.bind(self.#name);
+                            }
+                        }
+                    }).collect();
+                    quote::quote! { #(#tokens)* }
+                };
+
+                let fn_tt = match query.annotation {
+                    Annotation::One => {
+                        quote::quote! {
+                            pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let query_str = self.expand_query();
+                                    let mut q = sqlx::query_as::<_,#row_ident>(&query_str);
+                                    #bind_block
+                                    let val = q.fetch_one(&mut *conn).await?;
+                                    Ok(val)
+                                }
+                            }
+
+                            pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let query_str = self.expand_query();
+                                    let mut q = sqlx::query_as::<_,#row_ident>(&query_str);
+                                    #bind_block
+                                    let val = q.fetch_optional(&mut *conn).await?;
+                                    Ok(val)
+                                }
                             }
                         }
                     }
-                }
-                (_, Annotation::Many) => {
-                    let row_ident = row.struct_ident();
-
-                    quote::quote! {
-                        pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
-                        ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
-                        {
-                            async move {
-                                let mut conn = conn.acquire().await?;
-                                let vals = self.query_as().fetch_all(&mut *conn).await?;
-
-                                Ok(vals)
-                            }
-                        }
-
-                    }
-                }
-                (_, Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows) => {
-                    quote::quote! {
-                        pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
-                        ->impl Future<Output=Result<<#database_ident as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
-                        where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
-                        {
-                            async move {
-                                let mut conn = conn.acquire().await?;
-                                sqlx::query(
-                                    Self::QUERY,
-                                )  #bind_params .execute(&mut *conn).await
+                    Annotation::Many => {
+                        quote::quote! {
+                            pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let query_str = self.expand_query();
+                                    let mut q = sqlx::query_as::<_,#row_ident>(&query_str);
+                                    #bind_block
+                                    let vals = q.fetch_all(&mut *conn).await?;
+                                    Ok(vals)
+                                }
                             }
                         }
                     }
-                }
-                (Sqlx::Postgres, Annotation::CopyFrom) => {
-                    let add_row = query.fields.iter().map(|x| {
-                        let name = &x.name;
-                        quote::quote! {sink.add(&self.#name).await?;}
-                    });
-                    let sink_ident = CopyDataSink::ident();
-                    let sink_error = CopyDataSink::box_error();
-                    let constraint = CopyDataSink::generic_constraint();
-
-                    quote::quote! {
-                        pub async fn copy_in<PgCopy>(
-                            conn: &PgCopy,
-                        ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<#database_ident>>, sqlx::Error>
-                        where
-                            PgCopy: sqlx::postgres::PgPoolCopyExt,
-                        {
-                            let copy_in = conn.copy_in_raw(Self::QUERY).await?;
-                            Ok(CopyDataSink::new(copy_in))
-                        }
-                        pub async fn copy_in_tx(
-                            conn: &mut sqlx::postgres::PgConnection,
-                        ) -> Result<CopyDataSink<&mut sqlx::postgres::PgConnection>, sqlx::Error> {
-                            let copy_in = conn.copy_in_raw(Self::QUERY).await?;
-                            Ok(CopyDataSink::new(copy_in))
-                        }
-
-                        pub async fn write<C: #constraint>(&self, sink: &mut #sink_ident<C>) -> Result<(), #sink_error> {
-                            sink.insert_row();
-                            #(#add_row)*
-                            Ok(())
+                    Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
+                        quote::quote! {
+                            pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<<#database_ident as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let query_str = self.expand_query();
+                                    let mut q = sqlx::query(&query_str);
+                                    #bind_block
+                                    q.execute(&mut *conn).await
+                                }
+                            }
                         }
                     }
-                }
-                _ => {
-                    // not supported
-                    quote::quote! {}
-                }
-            };
+                    _ => quote::quote! {},
+                };
 
-            quote::quote! {
-                #query_as
-                #fn_tt
+                quote::quote! {
+                    #expand_query_fn
+                    #fn_tt
+                }
+            } else {
+                // Standard codegen: static query string with chained binds
+                let query_as_def = if need_lifetime {
+                    quote::quote! {
+                        query_as(&#lifetime_a self)
+                    }
+                } else {
+                    quote::quote! {
+                         query_as<#lifetime_a>(&#lifetime_a self)
+                    }
+                };
+
+                let bind_params = query_ast.fields.iter().map(|f| &f.name).fold(
+                    quote::quote! {},
+                    |acc, x| quote::quote! {#acc .bind(self.#x)},
+                );
+
+                // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
+                let query_as = quote::quote! {
+                    pub fn #query_as_def->sqlx::query::QueryAs<
+                    #lifetime_a,
+                    #database_ident,
+                    #row_ident,
+                    <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
+                    >{
+                        sqlx::query_as::<_,#row_ident>(
+                                        Self::QUERY,
+                                    ) #bind_params
+                    }
+                };
+
+                let fn_tt = match (self, query.annotation) {
+                    (_, Annotation::One) => {
+                        // See https://docs.rs/sqlx/latest/sqlx/trait.Acquire.html
+                        quote::quote! {
+                            pub fn query_one<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<#row_ident,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let val = self.query_as().fetch_one(&mut *conn).await?;
+
+                                    Ok(val)
+                                }
+                            }
+
+                            pub fn query_opt<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<Option<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let val = self.query_as().fetch_optional(&mut *conn).await?;
+
+                                    Ok(val)
+                                }
+                            }
+                        }
+                    }
+                    (_, Annotation::Many) => {
+                        let row_ident = row.struct_ident();
+
+                        quote::quote! {
+                            pub fn query_many<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<Vec<#row_ident>,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    let vals = self.query_as().fetch_all(&mut *conn).await?;
+
+                                    Ok(vals)
+                                }
+                            }
+
+                        }
+                    }
+                    (_, Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows) => {
+                        quote::quote! {
+                            pub fn execute<#lifetime_generic,A>(&#lifetime_a self,conn:A)
+                            ->impl Future<Output=Result<<#database_ident as sqlx::Database>::QueryResult,sqlx::Error>> + Send + #lifetime_a
+                            where A: sqlx::Acquire<#lifetime_b, Database = #database_ident> + Send + #lifetime_a,
+                            {
+                                async move {
+                                    let mut conn = conn.acquire().await?;
+                                    sqlx::query(
+                                        Self::QUERY,
+                                    )  #bind_params .execute(&mut *conn).await
+                                }
+                            }
+                        }
+                    }
+                    (Sqlx::Postgres, Annotation::CopyFrom) => {
+                        let add_row = query.fields.iter().map(|x| {
+                            let name = &x.name;
+                            quote::quote! {sink.add(&self.#name).await?;}
+                        });
+                        let sink_ident = CopyDataSink::ident();
+                        let sink_error = CopyDataSink::box_error();
+                        let constraint = CopyDataSink::generic_constraint();
+
+                        quote::quote! {
+                            pub async fn copy_in<PgCopy>(
+                                conn: &PgCopy,
+                            ) -> Result<CopyDataSink<sqlx::pool::PoolConnection<#database_ident>>, sqlx::Error>
+                            where
+                                PgCopy: sqlx::postgres::PgPoolCopyExt,
+                            {
+                                let copy_in = conn.copy_in_raw(Self::QUERY).await?;
+                                Ok(CopyDataSink::new(copy_in))
+                            }
+                            pub async fn copy_in_tx(
+                                conn: &mut sqlx::postgres::PgConnection,
+                            ) -> Result<CopyDataSink<&mut sqlx::postgres::PgConnection>, sqlx::Error> {
+                                let copy_in = conn.copy_in_raw(Self::QUERY).await?;
+                                Ok(CopyDataSink::new(copy_in))
+                            }
+
+                            pub async fn write<C: #constraint>(&self, sink: &mut #sink_ident<C>) -> Result<(), #sink_error> {
+                                sink.insert_row();
+                                #(#add_row)*
+                                Ok(())
+                            }
+                        }
+                    }
+                    _ => {
+                        // not supported
+                        quote::quote! {}
+                    }
+                };
+
+                quote::quote! {
+                    #query_as
+                    #fn_tt
+                }
             }
         };
         let fetch_tt = {

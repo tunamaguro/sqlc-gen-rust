@@ -155,7 +155,12 @@ See below for examples with other supported crates.
 | `sqlc.arg`   | ✅      |
 | `sqlc.embed` | ❌      |
 | `sqlc.narg`  | ✅      |
-| `sqlc.slice` | ❌      |
+| `sqlc.slice` | ✅ (sqlx-mysql, sqlx-sqlite) |
+
+> [!NOTE]
+> `sqlc.slice` expands `IN (sqlc.slice("name"))` at runtime for MySQL and SQLite, which don't support native array parameters.
+> For PostgreSQL, use `ANY(sqlc.slice('name')::type[])` which works through the existing array binding support.
+> Empty slices are replaced with `NULL` (matching the Go codegen behavior).
 
 ## Options
 
