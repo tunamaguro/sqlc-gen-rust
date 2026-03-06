@@ -155,12 +155,14 @@ See below for examples with other supported crates.
 | `sqlc.arg`   | ✅      |
 | `sqlc.embed` | ❌      |
 | `sqlc.narg`  | ✅      |
-| `sqlc.slice` | ✅ (sqlx-mysql, sqlx-sqlite) |
+| `sqlc.slice` | ✅ (sqlx-mysql) |
 
 > [!NOTE]
-> `sqlc.slice` expands `IN (sqlc.slice("name"))` at runtime for MySQL and SQLite, which don't support native array parameters.
+> `sqlc.slice` expands `IN (sqlc.slice("name"))` at runtime for MySQL, which doesn't support native array parameters.
 > For PostgreSQL, use `ANY(sqlc.slice('name')::type[])` which works through the existing array binding support.
 > Empty slices are replaced with `NULL` (matching the Go codegen behavior).
+>
+> **SQLite:** The code generator supports `sqlc.slice` for sqlx-sqlite, but sqlc's built-in SQLite parser currently fails to parse queries using `sqlc.slice`. This is an upstream sqlc limitation, not a plugin issue.
 
 ## Options
 

@@ -555,20 +555,24 @@ impl DbCrate for Sqlx {
                 };
 
                 let bind_block = {
-                    let tokens: Vec<_> = query_ast.fields.iter().map(|f| {
-                        let name = &f.name;
-                        if f.is_sqlc_slice {
-                            quote::quote! {
-                                for v in self.#name {
-                                    q = q.bind(v);
+                    let tokens: Vec<_> = query_ast
+                        .fields
+                        .iter()
+                        .map(|f| {
+                            let name = &f.name;
+                            if f.is_sqlc_slice {
+                                quote::quote! {
+                                    for v in self.#name {
+                                        q = q.bind(v);
+                                    }
+                                }
+                            } else {
+                                quote::quote! {
+                                    q = q.bind(self.#name);
                                 }
                             }
-                        } else {
-                            quote::quote! {
-                                q = q.bind(self.#name);
-                            }
-                        }
-                    }).collect();
+                        })
+                        .collect();
                     quote::quote! { #(#tokens)* }
                 };
 

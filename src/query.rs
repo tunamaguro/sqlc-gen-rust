@@ -687,13 +687,15 @@ impl Query {
         let fields = param_names
             .zip(param_types)
             .zip(columns.iter())
-            .map(|(((par_name, par_name_original), par_type), col)| ColumnField {
-                name: par_name,
-                name_original: par_name_original,
-                typ: par_type,
-                attribute: None,
-                is_sqlc_slice: col.is_sqlc_slice,
-            })
+            .map(
+                |(((par_name, par_name_original), par_type), col)| ColumnField {
+                    name: par_name,
+                    name_original: par_name_original,
+                    typ: par_type,
+                    attribute: None,
+                    is_sqlc_slice: col.is_sqlc_slice,
+                },
+            )
             .collect::<Vec<_>>();
 
         let has_slices = fields.iter().any(|f| f.is_sqlc_slice);

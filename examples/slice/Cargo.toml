@@ -1,0 +1,12 @@
+[package]
+name = "slice"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sqlx = { workspace = true}
+
+[dev-dependencies]
+tokio = { workspace = true }
+test-context = { workspace = true }
+test-utils = { workspace = true }
