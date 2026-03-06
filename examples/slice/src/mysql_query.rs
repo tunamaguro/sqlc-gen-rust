@@ -3,141 +3,6 @@
 //! sqlc-gen-rust version: v0.1.11
 
 #[derive(sqlx::FromRow)]
-pub struct GetAuthorRow {
-    #[sqlx(rename = "id")]
-    pub id: i64,
-    #[sqlx(rename = "name")]
-    pub name: String,
-    #[sqlx(rename = "bio")]
-    pub bio: Option<String>,
-}
-pub struct GetAuthor {
-    id: i64,
-}
-impl GetAuthor {
-    pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
-WHERE id = ? LIMIT 1";
-    pub fn query_as<'a>(
-        &'a self,
-    ) -> sqlx::query::QueryAs<
-        'a,
-        sqlx::MySql,
-        GetAuthorRow,
-        <sqlx::MySql as sqlx::Database>::Arguments<'a>,
-    > {
-        sqlx::query_as::<_, GetAuthorRow>(Self::QUERY).bind(self.id)
-    }
-    pub fn query_one<'a, 'b, A>(
-        &'a self,
-        conn: A,
-    ) -> impl Future<Output = Result<GetAuthorRow, sqlx::Error>> + Send + 'a
-    where
-        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
-    {
-        async move {
-            let mut conn = conn.acquire().await?;
-            let val = self.query_as().fetch_one(&mut *conn).await?;
-            Ok(val)
-        }
-    }
-    pub fn query_opt<'a, 'b, A>(
-        &'a self,
-        conn: A,
-    ) -> impl Future<Output = Result<Option<GetAuthorRow>, sqlx::Error>> + Send + 'a
-    where
-        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
-    {
-        async move {
-            let mut conn = conn.acquire().await?;
-            let val = self.query_as().fetch_optional(&mut *conn).await?;
-            Ok(val)
-        }
-    }
-}
-impl GetAuthor {
-    pub const fn builder() -> GetAuthorBuilder<'static, ((),)> {
-        GetAuthorBuilder {
-            fields: ((),),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-pub struct GetAuthorBuilder<'a, Fields = ((),)> {
-    fields: Fields,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-impl<'a> GetAuthorBuilder<'a, ((),)> {
-    pub fn id(self, id: i64) -> GetAuthorBuilder<'a, (i64,)> {
-        let ((),) = self.fields;
-        let _phantom = self._phantom;
-        GetAuthorBuilder {
-            fields: (id,),
-            _phantom,
-        }
-    }
-}
-impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
-        let (id,) = self.fields;
-        GetAuthor { id }
-    }
-}
-#[derive(sqlx::FromRow)]
-pub struct ListAuthorsRow {
-    #[sqlx(rename = "id")]
-    pub id: i64,
-    #[sqlx(rename = "name")]
-    pub name: String,
-    #[sqlx(rename = "bio")]
-    pub bio: Option<String>,
-}
-pub struct ListAuthors;
-impl ListAuthors {
-    pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
-ORDER BY name";
-    pub fn query_as<'a>(
-        &'a self,
-    ) -> sqlx::query::QueryAs<
-        'a,
-        sqlx::MySql,
-        ListAuthorsRow,
-        <sqlx::MySql as sqlx::Database>::Arguments<'a>,
-    > {
-        sqlx::query_as::<_, ListAuthorsRow>(Self::QUERY)
-    }
-    pub fn query_many<'a, 'b, A>(
-        &'a self,
-        conn: A,
-    ) -> impl Future<Output = Result<Vec<ListAuthorsRow>, sqlx::Error>> + Send + 'a
-    where
-        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
-    {
-        async move {
-            let mut conn = conn.acquire().await?;
-            let vals = self.query_as().fetch_all(&mut *conn).await?;
-            Ok(vals)
-        }
-    }
-}
-impl ListAuthors {
-    pub const fn builder() -> ListAuthorsBuilder<'static, ()> {
-        ListAuthorsBuilder {
-            fields: (),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-pub struct ListAuthorsBuilder<'a, Fields = ()> {
-    fields: Fields,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-impl<'a> ListAuthorsBuilder<'a, ()> {
-    pub const fn build(self) -> ListAuthors {
-        let () = self.fields;
-        ListAuthors {}
-    }
-}
-#[derive(sqlx::FromRow)]
 pub struct CreateAuthorRow {}
 pub struct CreateAuthor<'a> {
     name: &'a str,
@@ -147,7 +12,7 @@ impl<'a> CreateAuthor<'a> {
     pub const QUERY: &'static str = r"INSERT INTO authors (
   name, bio
 ) VALUES (
-  ?, ? 
+  ?, ?
 )";
     pub fn query_as(
         &'a self,
@@ -157,14 +22,16 @@ impl<'a> CreateAuthor<'a> {
         CreateAuthorRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateAuthorRow>(Self::QUERY).bind(self.name).bind(self.bio)
+        sqlx::query_as::<_, CreateAuthorRow>(Self::QUERY)
+            .bind(self.name)
+            .bind(self.bio)
     }
     pub fn execute<'b, A>(
         &'a self,
         conn: A,
-    ) -> impl Future<
-        Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>,
-    > + Send + 'a
+    ) -> impl Future<Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
     where
         A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
     {
@@ -201,10 +68,7 @@ impl<'a, Bio> CreateAuthorBuilder<'a, ((), Bio)> {
     }
 }
 impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
-    pub fn bio(
-        self,
-        bio: Option<&'a str>,
-    ) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
+    pub fn bio(self, bio: Option<&'a str>) -> CreateAuthorBuilder<'a, (Name, Option<&'a str>)> {
         let (name, ()) = self.fields;
         let _phantom = self._phantom;
         CreateAuthorBuilder {
@@ -217,67 +81,6 @@ impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
     pub const fn build(self) -> CreateAuthor<'a> {
         let (name, bio) = self.fields;
         CreateAuthor { name, bio }
-    }
-}
-#[derive(sqlx::FromRow)]
-pub struct DeleteAuthorRow {}
-pub struct DeleteAuthor {
-    id: i64,
-}
-impl DeleteAuthor {
-    pub const QUERY: &'static str = r"DELETE FROM authors
-WHERE id = ?";
-    pub fn query_as<'a>(
-        &'a self,
-    ) -> sqlx::query::QueryAs<
-        'a,
-        sqlx::MySql,
-        DeleteAuthorRow,
-        <sqlx::MySql as sqlx::Database>::Arguments<'a>,
-    > {
-        sqlx::query_as::<_, DeleteAuthorRow>(Self::QUERY).bind(self.id)
-    }
-    pub fn execute<'a, 'b, A>(
-        &'a self,
-        conn: A,
-    ) -> impl Future<
-        Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>,
-    > + Send + 'a
-    where
-        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
-    {
-        async move {
-            let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY).bind(self.id).execute(&mut *conn).await
-        }
-    }
-}
-impl DeleteAuthor {
-    pub const fn builder() -> DeleteAuthorBuilder<'static, ((),)> {
-        DeleteAuthorBuilder {
-            fields: ((),),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-pub struct DeleteAuthorBuilder<'a, Fields = ((),)> {
-    fields: Fields,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-impl<'a> DeleteAuthorBuilder<'a, ((),)> {
-    pub fn id(self, id: i64) -> DeleteAuthorBuilder<'a, (i64,)> {
-        let ((),) = self.fields;
-        let _phantom = self._phantom;
-        DeleteAuthorBuilder {
-            fields: (id,),
-            _phantom,
-        }
-    }
-}
-impl<'a> DeleteAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> DeleteAuthor {
-        let (id,) = self.fields;
-        DeleteAuthor { id }
     }
 }
 #[derive(sqlx::FromRow)]
@@ -300,8 +103,7 @@ WHERE id IN (/*SLICE:ids*/?)";
         if self.ids.is_empty() {
             query = query.replacen("/*SLICE:ids*/?", "NULL", 1);
         } else {
-            query = query
-                .replacen("/*SLICE:ids*/?", &",?".repeat(self.ids.len())[1..], 1);
+            query = query.replacen("/*SLICE:ids*/?", &",?".repeat(self.ids.len())[1..], 1);
         }
         query
     }
@@ -373,17 +175,14 @@ WHERE name = ? AND id IN (/*SLICE:ids*/?)";
         if self.ids.is_empty() {
             query = query.replacen("/*SLICE:ids*/?", "NULL", 1);
         } else {
-            query = query
-                .replacen("/*SLICE:ids*/?", &",?".repeat(self.ids.len())[1..], 1);
+            query = query.replacen("/*SLICE:ids*/?", &",?".repeat(self.ids.len())[1..], 1);
         }
         query
     }
     pub fn query_many<'b, A>(
         &'a self,
         conn: A,
-    ) -> impl Future<
-        Output = Result<Vec<GetAuthorsByIdsAndNameRow>, sqlx::Error>,
-    > + Send + 'a
+    ) -> impl Future<Output = Result<Vec<GetAuthorsByIdsAndNameRow>, sqlx::Error>> + Send + 'a
     where
         A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
     {
@@ -413,10 +212,7 @@ pub struct GetAuthorsByIdsAndNameBuilder<'a, Fields = ((), ())> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a, Ids> GetAuthorsByIdsAndNameBuilder<'a, ((), Ids)> {
-    pub fn name(
-        self,
-        name: &'a str,
-    ) -> GetAuthorsByIdsAndNameBuilder<'a, (&'a str, Ids)> {
+    pub fn name(self, name: &'a str) -> GetAuthorsByIdsAndNameBuilder<'a, (&'a str, Ids)> {
         let ((), ids) = self.fields;
         let _phantom = self._phantom;
         GetAuthorsByIdsAndNameBuilder {
@@ -426,10 +222,7 @@ impl<'a, Ids> GetAuthorsByIdsAndNameBuilder<'a, ((), Ids)> {
     }
 }
 impl<'a, Name> GetAuthorsByIdsAndNameBuilder<'a, (Name, ())> {
-    pub fn ids(
-        self,
-        ids: &'a [i64],
-    ) -> GetAuthorsByIdsAndNameBuilder<'a, (Name, &'a [i64])> {
+    pub fn ids(self, ids: &'a [i64]) -> GetAuthorsByIdsAndNameBuilder<'a, (Name, &'a [i64])> {
         let (name, ()) = self.fields;
         let _phantom = self._phantom;
         GetAuthorsByIdsAndNameBuilder {
@@ -441,9 +234,6 @@ impl<'a, Name> GetAuthorsByIdsAndNameBuilder<'a, (Name, ())> {
 impl<'a> GetAuthorsByIdsAndNameBuilder<'a, (&'a str, &'a [i64])> {
     pub const fn build(self) -> GetAuthorsByIdsAndName<'a> {
         let (name, ids) = self.fields;
-        GetAuthorsByIdsAndName {
-            name,
-            ids,
-        }
+        GetAuthorsByIdsAndName { name, ids }
     }
 }
