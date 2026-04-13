@@ -130,6 +130,16 @@ sql:
           output: sqlx_query.rs
           db_crate: sqlx-postgres
 
+  - schema: examples/slice/mysql-schema.sql
+    queries: examples/slice/mysql-queries.sql
+    engine: mysql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/slice/src
+        options:
+          output: mysql_query.rs
+          db_crate: sqlx-mysql
+
   - schema: examples/type-mapping/tokio-postgres/schema.sql
     queries: examples/type-mapping/tokio-postgres/queries.sql
     engine: postgresql
