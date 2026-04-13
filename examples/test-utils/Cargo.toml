@@ -10,6 +10,6 @@ deadpool-postgres = { workspace = true }
 sqlx = { workspace = true }
 rusqlite = { workspace = true }
 tokio = { workspace = true }
-fastrand = "2.4.0"
+fastrand = "2.4.1"
 test-context = { workspace = true }
 url = "2.5.8"
