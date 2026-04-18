@@ -132,3 +132,217 @@ impl<'a> ListAuthorsByIDsBuilder<'a, (&'a [i64],)> {
         ListAuthorsByIDs { ids }
     }
 }
+#[derive(sqlx::FromRow)]
+pub struct ListAuthorsByTwoIdListsRow {
+    #[sqlx(rename = "id")]
+    pub id: i64,
+    #[sqlx(rename = "name")]
+    pub name: String,
+}
+pub struct ListAuthorsByTwoIdLists<'a> {
+    ids: &'a [i64],
+    backup_ids: &'a [i64],
+}
+impl<'a> ListAuthorsByTwoIdLists<'a> {
+    pub const QUERY: &'static str = r"SELECT id, name
+FROM authors
+WHERE id = ANY($1::bigint[])
+   OR id = ANY($2::bigint[])
+ORDER BY id";
+    pub fn query_as(
+        &'a self,
+    ) -> sqlx::query::QueryAs<
+        'a,
+        sqlx::Postgres,
+        ListAuthorsByTwoIdListsRow,
+        <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
+    > {
+        sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(Self::QUERY)
+            .bind(self.ids)
+            .bind(self.backup_ids)
+    }
+    pub fn query_many<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<ListAuthorsByTwoIdListsRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            let vals = self.query_as().fetch_all(&mut *conn).await?;
+            Ok(vals)
+        }
+    }
+}
+impl<'a> ListAuthorsByTwoIdLists<'a> {
+    pub const fn builder() -> ListAuthorsByTwoIdListsBuilder<'a, ((), ())> {
+        ListAuthorsByTwoIdListsBuilder {
+            fields: ((), ()),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct ListAuthorsByTwoIdListsBuilder<'a, Fields = ((), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a, BackupIds> ListAuthorsByTwoIdListsBuilder<'a, ((), BackupIds)> {
+    pub fn ids(self, ids: &'a [i64]) -> ListAuthorsByTwoIdListsBuilder<'a, (&'a [i64], BackupIds)> {
+        let ((), backup_ids) = self.fields;
+        let _phantom = self._phantom;
+        ListAuthorsByTwoIdListsBuilder {
+            fields: (ids, backup_ids),
+            _phantom,
+        }
+    }
+}
+impl<'a, Ids> ListAuthorsByTwoIdListsBuilder<'a, (Ids, ())> {
+    pub fn backup_ids(
+        self,
+        backup_ids: &'a [i64],
+    ) -> ListAuthorsByTwoIdListsBuilder<'a, (Ids, &'a [i64])> {
+        let (ids, ()) = self.fields;
+        let _phantom = self._phantom;
+        ListAuthorsByTwoIdListsBuilder {
+            fields: (ids, backup_ids),
+            _phantom,
+        }
+    }
+}
+impl<'a> ListAuthorsByTwoIdListsBuilder<'a, (&'a [i64], &'a [i64])> {
+    pub const fn build(self) -> ListAuthorsByTwoIdLists<'a> {
+        let (ids, backup_ids) = self.fields;
+        ListAuthorsByTwoIdLists { ids, backup_ids }
+    }
+}
+#[derive(sqlx::FromRow)]
+pub struct ListAuthorsByIDsMixedRow {
+    #[sqlx(rename = "id")]
+    pub id: i64,
+    #[sqlx(rename = "name")]
+    pub name: String,
+}
+pub struct ListAuthorsByIDsMixed<'a> {
+    ids: &'a [i64],
+    min_id: i64,
+    skip_ids: &'a [i64],
+    excluded_name: &'a str,
+}
+impl<'a> ListAuthorsByIDsMixed<'a> {
+    pub const QUERY: &'static str = r"SELECT id, name
+FROM authors
+WHERE id = ANY($1::bigint[])
+  AND id >= $2
+  AND NOT (id = ANY($3::bigint[]))
+  AND name <> $4
+ORDER BY id";
+    pub fn query_as(
+        &'a self,
+    ) -> sqlx::query::QueryAs<
+        'a,
+        sqlx::Postgres,
+        ListAuthorsByIDsMixedRow,
+        <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
+    > {
+        sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(Self::QUERY)
+            .bind(self.ids)
+            .bind(self.min_id)
+            .bind(self.skip_ids)
+            .bind(self.excluded_name)
+    }
+    pub fn query_many<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<Vec<ListAuthorsByIDsMixedRow>, sqlx::Error>> + Send + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            let vals = self.query_as().fetch_all(&mut *conn).await?;
+            Ok(vals)
+        }
+    }
+}
+impl<'a> ListAuthorsByIDsMixed<'a> {
+    pub const fn builder() -> ListAuthorsByIDsMixedBuilder<'a, ((), (), (), ())> {
+        ListAuthorsByIDsMixedBuilder {
+            fields: ((), (), (), ()),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct ListAuthorsByIDsMixedBuilder<'a, Fields = ((), (), (), ())> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a, MinId, SkipIds, ExcludedName>
+    ListAuthorsByIDsMixedBuilder<'a, ((), MinId, SkipIds, ExcludedName)>
+{
+    pub fn ids(
+        self,
+        ids: &'a [i64],
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], MinId, SkipIds, ExcludedName)> {
+        let ((), min_id, skip_ids, excluded_name) = self.fields;
+        let _phantom = self._phantom;
+        ListAuthorsByIDsMixedBuilder {
+            fields: (ids, min_id, skip_ids, excluded_name),
+            _phantom,
+        }
+    }
+}
+impl<'a, Ids, SkipIds, ExcludedName>
+    ListAuthorsByIDsMixedBuilder<'a, (Ids, (), SkipIds, ExcludedName)>
+{
+    pub fn min_id(
+        self,
+        min_id: i64,
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, i64, SkipIds, ExcludedName)> {
+        let (ids, (), skip_ids, excluded_name) = self.fields;
+        let _phantom = self._phantom;
+        ListAuthorsByIDsMixedBuilder {
+            fields: (ids, min_id, skip_ids, excluded_name),
+            _phantom,
+        }
+    }
+}
+impl<'a, Ids, MinId, ExcludedName>
+    ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, (), ExcludedName)>
+{
+    pub fn skip_ids(
+        self,
+        skip_ids: &'a [i64],
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, &'a [i64], ExcludedName)> {
+        let (ids, min_id, (), excluded_name) = self.fields;
+        let _phantom = self._phantom;
+        ListAuthorsByIDsMixedBuilder {
+            fields: (ids, min_id, skip_ids, excluded_name),
+            _phantom,
+        }
+    }
+}
+impl<'a, Ids, MinId, SkipIds> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, SkipIds, ())> {
+    pub fn excluded_name(
+        self,
+        excluded_name: &'a str,
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, SkipIds, &'a str)> {
+        let (ids, min_id, skip_ids, ()) = self.fields;
+        let _phantom = self._phantom;
+        ListAuthorsByIDsMixedBuilder {
+            fields: (ids, min_id, skip_ids, excluded_name),
+            _phantom,
+        }
+    }
+}
+impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> {
+    pub const fn build(self) -> ListAuthorsByIDsMixed<'a> {
+        let (ids, min_id, skip_ids, excluded_name) = self.fields;
+        ListAuthorsByIDsMixed {
+            ids,
+            min_id,
+            skip_ids,
+            excluded_name,
+        }
+    }
+}
