@@ -208,8 +208,15 @@ impl RsColType {
         column: &plugin::Column,
     ) -> Result<Self, QueryError> {
         let rs_type = db_type.get_column_type(column).stacked()?;
-        let dim = usize::try_from(column.array_dims).unwrap_or_default();
-        let optional = !column.not_null;
+        let dim = if column.is_sqlc_slice {
+            1
+        } else {
+            usize::try_from(column.array_dims).unwrap_or_default()
+        };
+
+        // sqlc.slice parameters are never optional.
+        // https://docs.sqlc.dev/en/latest/howto/select.html#mysql-and-sqlite
+        let optional = !column.is_sqlc_slice && !column.not_null;
 
         Ok(Self {
             rs_type,
