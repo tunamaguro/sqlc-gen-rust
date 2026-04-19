@@ -113,7 +113,7 @@ impl QueryAst {
         self.fields.iter().any(|f| f.typ.need_lifetime())
     }
 
-    fn make_builder(&self) -> proc_macro2::TokenStream {
+    fn make_builder_setter(&self) -> proc_macro2::TokenStream {
         use quote::ToTokens;
         let num_params = self.fields.len();
         let fields_tuple = (0..num_params)
@@ -208,6 +208,34 @@ impl QueryAst {
             result
         };
 
+        quote::quote! {
+            #impl_struct_tt
+            #builder_tt
+            #builder_setter_tt
+        }
+    }
+
+    fn make_builder_build(&self) -> proc_macro2::TokenStream {
+        use quote::ToTokens;
+
+        let lifetime = &self.lifetime;
+        let struct_ident = &self.ident;
+        let builder_ident = crate::value_ident(&format!("{}Builder", struct_ident));
+
+        let field_list = self
+            .fields
+            .iter()
+            .map(|f| &f.name)
+            .map(|n| n.to_token_stream())
+            .collect::<Vec<_>>();
+
+        let typ_list = self
+            .fields
+            .iter()
+            .map(|f| &f.typ)
+            .map(|typ| typ.to_param_tokens(lifetime))
+            .collect::<Vec<_>>();
+
         let builder_build_tt = {
             let build_struct = if self.need_lifetime() {
                 quote::quote! {#struct_ident<#lifetime>}
@@ -226,11 +254,16 @@ impl QueryAst {
             }
         };
 
+        builder_build_tt
+    }
+
+    fn make_builder(&self) -> proc_macro2::TokenStream {
+        let setter_tt = self.make_builder_setter();
+        let build_tt = self.make_builder_build();
+
         quote::quote! {
-            #impl_struct_tt
-            #builder_tt
-            #builder_setter_tt
-            #builder_build_tt
+            #setter_tt
+            #build_tt
         }
     }
 }
