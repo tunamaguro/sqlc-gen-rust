@@ -80,6 +80,11 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetAuthor {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -88,7 +93,9 @@ WHERE id = $1 LIMIT 1";
         GetAuthorRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetAuthorRow>(Self::QUERY).bind(self.id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -140,7 +147,7 @@ impl<'a> GetAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
+    pub fn build(self) -> GetAuthor {
         let (id,) = self.fields;
         GetAuthor { id }
     }
@@ -154,6 +161,11 @@ pub struct CreateAuthors<'a> {
 }
 impl<'a> CreateAuthors<'a> {
     pub const QUERY: &'static str = r"COPY authors (id,name,bio) FROM STDIN (FORMAT BINARY)";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateAuthors<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -162,10 +174,11 @@ impl<'a> CreateAuthors<'a> {
         CreateAuthorsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateAuthorsRow>(Self::QUERY)
-            .bind(self.id)
-            .bind(self.name)
-            .bind(self.bio)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        let q = q.bind(self.name);
+        let q = q.bind(self.bio);
+        q
     }
     pub async fn copy_in<PgCopy>(
         conn: &PgCopy,
@@ -239,7 +252,7 @@ impl<'a, Id, Name> CreateAuthorsBuilder<'a, (Id, Name, ())> {
     }
 }
 impl<'a> CreateAuthorsBuilder<'a, (i64, &'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthors<'a> {
+    pub fn build(self) -> CreateAuthors<'a> {
         let (id, name, bio) = self.fields;
         CreateAuthors { id, name, bio }
     }

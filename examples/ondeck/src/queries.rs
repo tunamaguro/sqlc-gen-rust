@@ -28,11 +28,16 @@ impl ListCities {
     pub const QUERY: &'static str = r"SELECT slug, name
 FROM city
 ORDER BY name";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListCities {
     pub async fn query_stream(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -40,16 +45,17 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListCitiesRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListCitiesRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -68,7 +74,7 @@ pub struct ListCitiesBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListCitiesBuilder<'a, ()> {
-    pub const fn build(self) -> ListCities {
+    pub fn build(self) -> ListCities {
         let () = self.fields;
         ListCities {}
     }
@@ -92,11 +98,16 @@ impl<'a> GetCity<'a> {
     pub const QUERY: &'static str = r"SELECT slug, name
 FROM city
 WHERE slug = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> GetCity<'a> {
     pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetCityRow, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetCityRow::from_row(&row)
     }
@@ -104,7 +115,7 @@ WHERE slug = $1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetCityRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetCityRow::from_row(&row)?)),
@@ -112,9 +123,10 @@ WHERE slug = $1";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.slug]
@@ -143,7 +155,7 @@ impl<'a> GetCityBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetCityBuilder<'a, (&'a str,)> {
-    pub const fn build(self) -> GetCity<'a> {
+    pub fn build(self) -> GetCity<'a> {
         let (slug,) = self.fields;
         GetCity { slug }
     }
@@ -172,11 +184,16 @@ impl<'a> CreateCity<'a> {
     $1,
     $2
 ) RETURNING slug, name";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateCity<'a> {
     pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateCityRow, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateCityRow::from_row(&row)
     }
@@ -184,7 +201,7 @@ impl<'a> CreateCity<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateCityRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateCityRow::from_row(&row)?)),
@@ -192,9 +209,10 @@ impl<'a> CreateCity<'a> {
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.slug]
@@ -233,7 +251,7 @@ impl<'a, Name> CreateCityBuilder<'a, (Name, ())> {
     }
 }
 impl<'a> CreateCityBuilder<'a, (&'a str, &'a str)> {
-    pub const fn build(self) -> CreateCity<'a> {
+    pub fn build(self) -> CreateCity<'a> {
         let (name, slug) = self.fields;
         CreateCity { name, slug }
     }
@@ -252,17 +270,23 @@ impl<'a> UpdateCityName<'a> {
     pub const QUERY: &'static str = r"UPDATE city
 SET name = $2
 WHERE slug = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> UpdateCityName<'a> {
     pub async fn execute(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         client.execute(&stmt, &self.as_params()).await
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.slug, &self.name]
@@ -301,7 +325,7 @@ impl<'a, Slug> UpdateCityNameBuilder<'a, (Slug, ())> {
     }
 }
 impl<'a> UpdateCityNameBuilder<'a, (&'a str, &'a str)> {
-    pub const fn build(self) -> UpdateCityName<'a> {
+    pub fn build(self) -> UpdateCityName<'a> {
         let (slug, name) = self.fields;
         UpdateCityName { slug, name }
     }
@@ -342,11 +366,16 @@ impl<'a> ListVenues<'a> {
 FROM venue
 WHERE city = $1
 ORDER BY name";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> ListVenues<'a> {
     pub async fn query_stream(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -354,16 +383,17 @@ ORDER BY name";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<ListVenuesRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListVenuesRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.city]
@@ -392,7 +422,7 @@ impl<'a> ListVenuesBuilder<'a, ((),)> {
     }
 }
 impl<'a> ListVenuesBuilder<'a, (&'a str,)> {
-    pub const fn build(self) -> ListVenues<'a> {
+    pub fn build(self) -> ListVenues<'a> {
         let (city,) = self.fields;
         ListVenues { city }
     }
@@ -409,17 +439,23 @@ pub struct DeleteVenue<'a> {
 impl<'a> DeleteVenue<'a> {
     pub const QUERY: &'static str = r"DELETE FROM venue
 WHERE slug = $1 AND slug = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> DeleteVenue<'a> {
     pub async fn execute(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         client.execute(&stmt, &self.as_params()).await
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.slug]
@@ -448,7 +484,7 @@ impl<'a> DeleteVenueBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteVenueBuilder<'a, (&'a str,)> {
-    pub const fn build(self) -> DeleteVenue<'a> {
+    pub fn build(self) -> DeleteVenue<'a> {
         let (slug,) = self.fields;
         DeleteVenue { slug }
     }
@@ -489,11 +525,16 @@ impl<'a> GetVenue<'a> {
     pub const QUERY: &'static str = r"SELECT id, status, statuses, slug, name, city, spotify_playlist, songkick_id, tags, created_at
 FROM venue
 WHERE slug = $1 AND city = $2";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> GetVenue<'a> {
     pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetVenueRow, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetVenueRow::from_row(&row)
     }
@@ -501,7 +542,7 @@ WHERE slug = $1 AND city = $2";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetVenueRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetVenueRow::from_row(&row)?)),
@@ -509,9 +550,10 @@ WHERE slug = $1 AND city = $2";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.slug, &self.city]
@@ -550,7 +592,7 @@ impl<'a, Slug> GetVenueBuilder<'a, (Slug, ())> {
     }
 }
 impl<'a> GetVenueBuilder<'a, (&'a str, &'a str)> {
-    pub const fn build(self) -> GetVenue<'a> {
+    pub fn build(self) -> GetVenue<'a> {
         let (slug, city) = self.fields;
         GetVenue { slug, city }
     }
@@ -594,11 +636,16 @@ impl<'a> CreateVenue<'a> {
     $6,
     $7
 ) RETURNING id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateVenue<'a> {
     pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<CreateVenueRow, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateVenueRow::from_row(&row)
     }
@@ -606,7 +653,7 @@ impl<'a> CreateVenue<'a> {
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<CreateVenueRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateVenueRow::from_row(&row)?)),
@@ -614,9 +661,10 @@ impl<'a> CreateVenue<'a> {
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 7] {
         [
@@ -786,7 +834,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> CreateVenue<'a> {
+    pub fn build(self) -> CreateVenue<'a> {
         let (slug, name, city, spotify_playlist, status, statuses, tags) = self.fields;
         CreateVenue {
             slug,
@@ -818,11 +866,16 @@ impl<'a> UpdateVenueName<'a> {
 SET name = $2
 WHERE slug = $1
 RETURNING id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> UpdateVenueName<'a> {
     pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<UpdateVenueNameRow, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         UpdateVenueNameRow::from_row(&row)
     }
@@ -830,7 +883,7 @@ RETURNING id";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<UpdateVenueNameRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(UpdateVenueNameRow::from_row(&row)?)),
@@ -838,9 +891,10 @@ RETURNING id";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.slug, &self.name]
@@ -879,7 +933,7 @@ impl<'a, Slug> UpdateVenueNameBuilder<'a, (Slug, ())> {
     }
 }
 impl<'a> UpdateVenueNameBuilder<'a, (&'a str, &'a str)> {
-    pub const fn build(self) -> UpdateVenueName<'a> {
+    pub fn build(self) -> UpdateVenueName<'a> {
         let (slug, name) = self.fields;
         UpdateVenueName { slug, name }
     }
@@ -904,11 +958,16 @@ impl VenueCountByCity {
 FROM venue
 GROUP BY 1
 ORDER BY 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl VenueCountByCity {
     pub async fn query_stream(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::RowStream, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -916,16 +975,17 @@ ORDER BY 1";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Vec<VenueCountByCityRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| VenueCountByCityRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -944,7 +1004,7 @@ pub struct VenueCountByCityBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> VenueCountByCityBuilder<'a, ()> {
-    pub const fn build(self) -> VenueCountByCity {
+    pub fn build(self) -> VenueCountByCity {
         let () = self.fields;
         VenueCountByCity {}
     }

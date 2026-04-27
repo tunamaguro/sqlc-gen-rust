@@ -241,7 +241,7 @@ impl DbCrate for Postgres {
         }
     }
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let query_ast = super::QueryAst::new(query);
+        let query_ast = super::QueryAst::new(query, crate::db_crates::DataBaseKind::Postgres);
 
         let client_ident = quote::format_ident!("client");
         let client_typ = self.generic_client_type(None);
@@ -254,13 +254,13 @@ impl DbCrate for Postgres {
             Annotation::One => {
                 quote::quote! {
                     pub #async_part fn query_one(&self,#client_ident: #client_typ)->Result<#row_ident,#error_typ>{
-                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let stmt = self.prepare(#client_ident) #await_part?;
                         let row = #client_ident.query_one(&stmt, &self.as_params()) #await_part?;
                         #row_ident::from_row(&row)
                     }
 
                     pub #async_part fn query_opt(&self,#client_ident: #client_typ)->Result<Option<#row_ident>,#error_typ>{
-                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let stmt = self.prepare(#client_ident) #await_part?;
                         let row = #client_ident.query_opt(&stmt, &self.as_params()) #await_part?;
                         match row {
                             Some(row) => Ok(Some(#row_ident::from_row(&row)?)),
@@ -277,7 +277,7 @@ impl DbCrate for Postgres {
                                 pub fn query_iter<'row_iter>(&self,#client_ident:&'row_iter mut  impl postgres::GenericClient)
                                 ->Result<postgres::RowIter<'row_iter>,#error_typ>
                                 {
-                                    let stmt = Self::prepare(#client_ident)?;
+                                    let stmt = self.prepare(#client_ident)?;
                                     #client_ident.query_raw(&stmt, self.as_params())
                                 }
                             }
@@ -286,7 +286,7 @@ impl DbCrate for Postgres {
                             quote::quote! {
                                 pub async fn query_stream(&self,#client_ident: #client_typ)
                                 ->Result<tokio_postgres::RowStream,#error_typ>{
-                                    let stmt = Self::prepare(#client_ident).await?;
+                                    let stmt = self.prepare(#client_ident).await?;
                                     let st = #client_ident.query_raw(&stmt, self.as_params()).await?;
                                     Ok(st)
                                 }
@@ -296,7 +296,7 @@ impl DbCrate for Postgres {
                             quote::quote! {
                                  pub async fn query_stream(&self,#client_ident: #client_typ)
                                 ->Result<deadpool_postgres::tokio_postgres::RowStream,#error_typ>{
-                                    let stmt = Self::prepare(#client_ident).await?;
+                                    let stmt = self.prepare(#client_ident).await?;
                                     let st = #client_ident.query_raw(&stmt, self.as_params()).await?;
                                     Ok(st)
                                 }
@@ -307,7 +307,7 @@ impl DbCrate for Postgres {
 
                 let vec_fetch = quote::quote! {
                     pub #async_part fn query_many(&self,#client_ident: #client_typ)->Result<Vec<#row_ident>,#error_typ>{
-                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let stmt = self.prepare(#client_ident) #await_part?;
                         let rows = #client_ident.query(&stmt, &self.as_params()) #await_part?;
                         rows.into_iter().map(|r|#row_ident::from_row(&r)).collect()
                     }
@@ -321,7 +321,7 @@ impl DbCrate for Postgres {
             Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
                 quote::quote! {
                     pub #async_part fn execute(&self,#client_ident: #client_typ)->Result<u64,#error_typ>{
-                        let stmt = Self::prepare(#client_ident) #await_part?;
+                        let stmt = self.prepare(#client_ident) #await_part?;
                         #client_ident.execute(&stmt, &self.as_params()) #await_part
                     }
                 }
@@ -330,7 +330,6 @@ impl DbCrate for Postgres {
         };
 
         let fetch_tt = {
-            let query_str = query.query_str();
             let struct_ident = &query_ast.ident;
             let imp_ident = if query_ast.need_lifetime() {
                 let lifetime = &query_ast.lifetime;
@@ -340,7 +339,7 @@ impl DbCrate for Postgres {
             };
 
             let param_num = proc_macro2::Literal::usize_unsuffixed(query.fields.len());
-            let params = query_ast.fields.iter().map(|f| {
+            let params = query_ast.fields().map(|f| {
                 let name = &f.name;
                 quote::quote! {
                     &self.#name
@@ -351,25 +350,24 @@ impl DbCrate for Postgres {
 
             let prepare_fn = match self {
                 Postgres::Sync => quote::quote! {
-                    pub fn prepare(#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
-                        #client_ident.prepare(Self::QUERY)
+                    pub fn prepare(&self,#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
+                        #client_ident.prepare(self.query_str())
                     }
                 },
                 Postgres::Tokio => quote::quote! {
-                    pub async fn prepare(#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
-                        #client_ident.prepare(Self::QUERY).await
+                    pub async fn prepare(&self,#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
+                        #client_ident.prepare(self.query_str()).await
                     }
                 },
                 Postgres::DeadPool => quote::quote! {
-                    pub async fn prepare(#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
-                        #client_ident.prepare_cached(Self::QUERY).await
+                    pub async fn prepare(&self,#client_ident: #client_typ) -> Result<#stmt_typ, #error_typ> {
+                        #client_ident.prepare_cached(self.query_str()).await
                     }
                 },
             };
 
             quote::quote! {
                 impl #imp_ident {
-                    pub const QUERY:&'static str = #query_str;
                     #query_fns
 
                     #prepare_fn

@@ -97,11 +97,16 @@ impl GetMapping {
     enum_val,
     composite_val
 FROM mapping";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetMapping {
     pub async fn query_one(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<GetMappingRow, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetMappingRow::from_row(&row)
     }
@@ -109,7 +114,7 @@ FROM mapping";
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<Option<GetMappingRow>, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetMappingRow::from_row(&row)?)),
@@ -117,9 +122,10 @@ FROM mapping";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -138,7 +144,7 @@ pub struct GetMappingBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetMappingBuilder<'a, ()> {
-    pub const fn build(self) -> GetMapping {
+    pub fn build(self) -> GetMapping {
         let () = self.fields;
         GetMapping {}
     }
@@ -228,17 +234,23 @@ impl<'a> InsertMapping<'a> {
     $23, 
     $24
 )";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> InsertMapping<'a> {
     pub async fn execute(
         &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<u64, tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         client.execute(&stmt, &self.as_params()).await
     }
     pub async fn prepare(
+        &self,
         client: &impl tokio_postgres::GenericClient,
     ) -> Result<tokio_postgres::Statement, tokio_postgres::Error> {
-        client.prepare(Self::QUERY).await
+        client.prepare(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 24] {
         [
@@ -3897,7 +3909,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> InsertMapping<'a> {
+    pub fn build(self) -> InsertMapping<'a> {
         let (
             bool_val,
             bool_array_val,

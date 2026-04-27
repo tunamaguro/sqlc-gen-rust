@@ -18,11 +18,16 @@ impl CountPilotsRow {
 pub struct CountPilots;
 impl CountPilots {
     pub const QUERY: &'static str = r"SELECT COUNT(*) FROM pilots";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl CountPilots {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CountPilotsRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CountPilotsRow::from_row(&row)
     }
@@ -30,7 +35,7 @@ impl CountPilots {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CountPilotsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CountPilotsRow::from_row(&row)?)),
@@ -38,12 +43,13 @@ impl CountPilots {
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -62,7 +68,7 @@ pub struct CountPilotsBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> CountPilotsBuilder<'a, ()> {
-    pub const fn build(self) -> CountPilots {
+    pub fn build(self) -> CountPilots {
         let () = self.fields;
         CountPilots {}
     }
@@ -84,6 +90,11 @@ impl ListPilotsRow {
 pub struct ListPilots;
 impl ListPilots {
     pub const QUERY: &'static str = r"SELECT id, name FROM pilots LIMIT 5";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListPilots {
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -91,7 +102,7 @@ impl ListPilots {
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -99,19 +110,20 @@ impl ListPilots {
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<ListPilotsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListPilotsRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -130,7 +142,7 @@ pub struct ListPilotsBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListPilotsBuilder<'a, ()> {
-    pub const fn build(self) -> ListPilots {
+    pub fn build(self) -> ListPilots {
         let () = self.fields;
         ListPilots {}
     }
@@ -148,20 +160,26 @@ pub struct DeletePilot {
 }
 impl DeletePilot {
     pub const QUERY: &'static str = r"DELETE FROM pilots WHERE id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl DeletePilot {
     pub async fn execute(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         client.execute(&stmt, &self.as_params()).await
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -190,7 +208,7 @@ impl<'a> DeletePilotBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeletePilotBuilder<'a, (i32,)> {
-    pub const fn build(self) -> DeletePilot {
+    pub fn build(self) -> DeletePilot {
         let (id,) = self.fields;
         DeletePilot { id }
     }

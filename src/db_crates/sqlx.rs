@@ -244,6 +244,16 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
     }
 }
 
+impl From<Sqlx> for crate::db_crates::DataBaseKind {
+    fn from(value: Sqlx) -> Self {
+        match value {
+            Sqlx::Postgres => Self::Postgres,
+            Sqlx::MySql => Self::MySql,
+            Sqlx::Sqlite => Self::Sqlite,
+        }
+    }
+}
+
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let mut row = row.clone();
@@ -425,6 +435,38 @@ impl Sqlx {
             Sqlx::Sqlite => syn::parse_quote! {sqlx::Sqlite},
         }
     }
+
+    fn query_bind(&self, query: &Query, query_ident: syn::Ident) -> proc_macro2::TokenStream {
+        match self {
+            Self::Postgres => query
+                .fields
+                .iter()
+                .map(|f| {
+                    let name = &f.name;
+                    quote::quote! {
+                        let #query_ident =  #query_ident.bind(self.#name);
+                    }
+                })
+                .collect(),
+            Self::MySql | Self::Sqlite => query
+                .fields
+                .iter()
+                .map(|f| {
+                    let name = &f.name;
+
+                    if f.typ.is_array() {
+                        quote::quote! {
+                            let #query_ident =  self.#name.iter().fold(#query_ident, |q, item| q.bind(item));
+                        }
+                    } else {
+                        quote::quote! {
+                            let #query_ident =  #query_ident.bind(self.#name);
+                        }
+                    }
+                })
+                .collect(),
+        }
+    }
 }
 
 impl DbCrate for Sqlx {
@@ -509,7 +551,7 @@ impl DbCrate for Sqlx {
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let query_ast = super::QueryAst::new(query);
+        let query_ast = super::QueryAst::new(query, (*self).into());
         let struct_ident = &query_ast.ident;
         let lifetime_a = &query_ast.lifetime;
         let need_lifetime = query_ast.need_lifetime();
@@ -528,10 +570,7 @@ impl DbCrate for Sqlx {
                 }
             };
 
-            let bind_params = query_ast.fields.iter().map(|f| &f.name).fold(
-                quote::quote! {},
-                |acc, x| quote::quote! {#acc .bind(self.#x)},
-            );
+            let query_bind = self.query_bind(query, quote::format_ident!("q"));
 
             // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
             let query_as = quote::quote! {
@@ -541,9 +580,9 @@ impl DbCrate for Sqlx {
                 #row_ident,
                 <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
                 >{
-                    sqlx::query_as::<_,#row_ident>(
-                                    Self::QUERY,
-                                ) #bind_params
+                    let q = sqlx::query_as(self.query_str());
+                    #query_bind
+                    q
                 }
             };
 
@@ -610,9 +649,9 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query(
-                                    Self::QUERY,
-                                )  #bind_params .execute(&mut *conn).await
+                                let q = sqlx::query(self.query_str());
+                                #query_bind;
+                                q.execute(&mut *conn).await
                             }
                         }
                     }
@@ -662,7 +701,6 @@ impl DbCrate for Sqlx {
             }
         };
         let fetch_tt = {
-            let query_str = query.query_str();
             let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
             } else {
@@ -670,7 +708,6 @@ impl DbCrate for Sqlx {
             };
             quote::quote! {
                 impl #imp_ident {
-                    pub const QUERY:&'static str = #query_str;
                     #query_fns
                 }
             }

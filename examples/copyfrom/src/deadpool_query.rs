@@ -25,11 +25,16 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetAuthor {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetAuthorRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetAuthorRow::from_row(&row)
     }
@@ -37,7 +42,7 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
@@ -45,12 +50,13 @@ WHERE id = $1 LIMIT 1";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -79,7 +85,7 @@ impl<'a> GetAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
+    pub fn build(self) -> GetAuthor {
         let (id,) = self.fields;
         GetAuthor { id }
     }
@@ -99,13 +105,19 @@ pub struct CreateAuthors<'a> {
 }
 impl<'a> CreateAuthors<'a> {
     pub const QUERY: &'static str = r"COPY authors (id,name,bio) FROM STDIN (FORMAT BINARY)";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateAuthors<'a> {
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 3] {
         [&self.id, &self.name, &self.bio]
@@ -157,7 +169,7 @@ impl<'a, Id, Name> CreateAuthorsBuilder<'a, (Id, Name, ())> {
     }
 }
 impl<'a> CreateAuthorsBuilder<'a, (i64, &'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthors<'a> {
+    pub fn build(self) -> CreateAuthors<'a> {
         let (id, name, bio) = self.fields;
         CreateAuthors { id, name, bio }
     }

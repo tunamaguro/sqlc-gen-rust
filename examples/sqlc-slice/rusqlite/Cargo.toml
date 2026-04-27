@@ -1,0 +1,11 @@
+[package]
+name = "sqlc-slice-rusqlite"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rusqlite = { workspace = true }
+
+[dev-dependencies]
+test-utils = { workspace = true }
+test-context = { workspace = true }

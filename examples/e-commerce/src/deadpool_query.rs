@@ -54,11 +54,16 @@ impl<'a> CreateUser<'a> {
     $1, $2, $3, $4
 )
 RETURNING id, username, email, hashed_password, full_name, created_at, updated_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateUser<'a> {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateUserRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateUserRow::from_row(&row)
     }
@@ -66,7 +71,7 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateUserRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateUserRow::from_row(&row)?)),
@@ -74,12 +79,13 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 4] {
         [
@@ -161,7 +167,7 @@ impl<'a, Username, Email, HashedPassword>
     }
 }
 impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateUser<'a> {
+    pub fn build(self) -> CreateUser<'a> {
         let (username, email, hashed_password, full_name) = self.fields;
         CreateUser {
             username,
@@ -201,11 +207,16 @@ pub struct GetUserByEmail<'a> {
 impl<'a> GetUserByEmail<'a> {
     pub const QUERY: &'static str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> GetUserByEmail<'a> {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetUserByEmailRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetUserByEmailRow::from_row(&row)
     }
@@ -213,7 +224,7 @@ WHERE email = $1 LIMIT 1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetUserByEmailRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetUserByEmailRow::from_row(&row)?)),
@@ -221,12 +232,13 @@ WHERE email = $1 LIMIT 1";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.email]
@@ -255,7 +267,7 @@ impl<'a> GetUserByEmailBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
-    pub const fn build(self) -> GetUserByEmail<'a> {
+    pub fn build(self) -> GetUserByEmail<'a> {
         let (email,) = self.fields;
         GetUserByEmail { email }
     }
@@ -289,6 +301,11 @@ impl ListUsers {
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListUsers {
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -296,7 +313,7 @@ OFFSET $2";
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -304,19 +321,20 @@ OFFSET $2";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<ListUsersRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListUsersRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.limit, &self.offset]
@@ -355,7 +373,7 @@ impl<'a, Limit> ListUsersBuilder<'a, (Limit, ())> {
     }
 }
 impl<'a> ListUsersBuilder<'a, (i32, i32)> {
-    pub const fn build(self) -> ListUsers {
+    pub fn build(self) -> ListUsers {
         let (limit, offset) = self.fields;
         ListUsers { limit, offset }
     }
@@ -403,11 +421,16 @@ impl<'a> CreateProduct<'a> {
     $1, $2, $3, $4, $5, $6
 )
 RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateProduct<'a> {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateProductRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateProductRow::from_row(&row)
     }
@@ -415,7 +438,7 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateProductRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateProductRow::from_row(&row)?)),
@@ -423,12 +446,13 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 6] {
         [
@@ -648,7 +672,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> CreateProduct<'a> {
+    pub fn build(self) -> CreateProduct<'a> {
         let (category_id, name, description, price, stock_quantity, attributes) = self.fields;
         CreateProduct {
             category_id,
@@ -708,11 +732,16 @@ JOIN
     categories c ON p.category_id = c.id
 WHERE
     p.id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetProductWithCategory {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetProductWithCategoryRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetProductWithCategoryRow::from_row(&row)
     }
@@ -720,7 +749,7 @@ WHERE
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetProductWithCategoryRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetProductWithCategoryRow::from_row(&row)?)),
@@ -728,12 +757,13 @@ WHERE
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -762,7 +792,7 @@ impl<'a> GetProductWithCategoryBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
-    pub const fn build(self) -> GetProductWithCategory {
+    pub fn build(self) -> GetProductWithCategory {
         let (id,) = self.fields;
         GetProductWithCategory { id }
     }
@@ -824,6 +854,11 @@ ORDER BY
     p.created_at DESC
 LIMIT $1
 OFFSET $2";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> SearchProducts<'a> {
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -831,7 +866,7 @@ OFFSET $2";
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -839,19 +874,20 @@ OFFSET $2";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<SearchProductsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| SearchProductsRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 6] {
         [
@@ -989,7 +1025,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> SearchProducts<'a> {
+    pub fn build(self) -> SearchProducts<'a> {
         let (limit, offset, name, category_ids, min_price, max_price) = self.fields;
         SearchProducts {
             limit,
@@ -1035,6 +1071,11 @@ pub struct GetProductsWithSpecificAttribute<'a> {
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -1042,7 +1083,7 @@ WHERE attributes @> $1::jsonb";
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -1051,19 +1092,20 @@ WHERE attributes @> $1::jsonb";
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<GetProductsWithSpecificAttributeRow>, deadpool_postgres::tokio_postgres::Error>
     {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| GetProductsWithSpecificAttributeRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.column_1]
@@ -1095,7 +1137,7 @@ impl<'a> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
-    pub const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
+    pub fn build(self) -> GetProductsWithSpecificAttribute<'a> {
         let (column_1,) = self.fields;
         GetProductsWithSpecificAttribute { column_1 }
     }
@@ -1116,20 +1158,26 @@ impl UpdateProductStock {
     pub const QUERY: &'static str = r"UPDATE products
 SET stock_quantity = stock_quantity + $2
 WHERE id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl UpdateProductStock {
     pub async fn execute(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         client.execute(&stmt, &self.as_params()).await
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.id, &self.add_quantity]
@@ -1168,7 +1216,7 @@ impl<'a, Id> UpdateProductStockBuilder<'a, (Id, ())> {
     }
 }
 impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
-    pub const fn build(self) -> UpdateProductStock {
+    pub fn build(self) -> UpdateProductStock {
         let (id, add_quantity) = self.fields;
         UpdateProductStock { id, add_quantity }
     }
@@ -1202,11 +1250,16 @@ impl CreateOrder {
     pub const QUERY: &'static str = r"INSERT INTO orders (user_id, status, total_amount)
 VALUES ($1, $2, $3)
 RETURNING id, user_id, status, total_amount, ordered_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl CreateOrder {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateOrderRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateOrderRow::from_row(&row)
     }
@@ -1214,7 +1267,7 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateOrderRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateOrderRow::from_row(&row)?)),
@@ -1222,12 +1275,13 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 3] {
         [&self.user_id, &self.status, &self.total_amount]
@@ -1282,7 +1336,7 @@ impl<'a, UserId, Status> CreateOrderBuilder<'a, (UserId, Status, ())> {
     }
 }
 impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
-    pub const fn build(self) -> CreateOrder {
+    pub fn build(self) -> CreateOrder {
         let (user_id, status, total_amount) = self.fields;
         CreateOrder {
             user_id,
@@ -1321,11 +1375,16 @@ impl CreateOrderItem {
     pub const QUERY: &'static str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
 VALUES ($1, $2, $3, $4)
 RETURNING id, order_id, product_id, quantity, price_at_purchase";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl CreateOrderItem {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateOrderItemRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateOrderItemRow::from_row(&row)
     }
@@ -1333,7 +1392,7 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateOrderItemRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateOrderItemRow::from_row(&row)?)),
@@ -1341,12 +1400,13 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 4] {
         [
@@ -1430,7 +1490,7 @@ impl<'a, OrderId, ProductId, Quantity>
     }
 }
 impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
-    pub const fn build(self) -> CreateOrderItem {
+    pub fn build(self) -> CreateOrderItem {
         let (order_id, product_id, quantity, price_at_purchase) = self.fields;
         CreateOrderItem {
             order_id,
@@ -1479,11 +1539,16 @@ impl GetOrderDetails {
 FROM orders o
 JOIN users u ON o.user_id = u.id
 WHERE o.id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetOrderDetails {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetOrderDetailsRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetOrderDetailsRow::from_row(&row)
     }
@@ -1491,7 +1556,7 @@ WHERE o.id = $1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetOrderDetailsRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetOrderDetailsRow::from_row(&row)?)),
@@ -1499,12 +1564,13 @@ WHERE o.id = $1";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -1533,7 +1599,7 @@ impl<'a> GetOrderDetailsBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetOrderDetails {
+    pub fn build(self) -> GetOrderDetails {
         let (id,) = self.fields;
         GetOrderDetails { id }
     }
@@ -1568,6 +1634,11 @@ impl ListOrderItemsByOrderId {
 FROM order_items oi
 JOIN products p ON oi.product_id = p.id
 WHERE oi.order_id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListOrderItemsByOrderId {
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -1575,7 +1646,7 @@ WHERE oi.order_id = $1";
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -1583,19 +1654,20 @@ WHERE oi.order_id = $1";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<ListOrderItemsByOrderIdRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| ListOrderItemsByOrderIdRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.order_id]
@@ -1624,7 +1696,7 @@ impl<'a> ListOrderItemsByOrderIdBuilder<'a, ((),)> {
     }
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
-    pub const fn build(self) -> ListOrderItemsByOrderId {
+    pub fn build(self) -> ListOrderItemsByOrderId {
         let (order_id,) = self.fields;
         ListOrderItemsByOrderId { order_id }
     }
@@ -1661,11 +1733,16 @@ impl<'a> CreateReview<'a> {
     pub const QUERY: &'static str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
 VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, product_id, rating, comment, created_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateReview<'a> {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<CreateReviewRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         CreateReviewRow::from_row(&row)
     }
@@ -1673,7 +1750,7 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<CreateReviewRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(CreateReviewRow::from_row(&row)?)),
@@ -1681,12 +1758,13 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 4] {
         [&self.user_id, &self.product_id, &self.rating, &self.comment]
@@ -1754,7 +1832,7 @@ impl<'a, UserId, ProductId, Rating> CreateReviewBuilder<'a, (UserId, ProductId, 
     }
 }
 impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)> {
-    pub const fn build(self) -> CreateReview<'a> {
+    pub fn build(self) -> CreateReview<'a> {
         let (user_id, product_id, rating, comment) = self.fields;
         CreateReview {
             user_id,
@@ -1791,11 +1869,16 @@ impl GetProductAverageRating {
 FROM reviews
 WHERE product_id = $1
 GROUP BY product_id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetProductAverageRating {
     pub async fn query_one(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<GetProductAverageRatingRow, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_one(&stmt, &self.as_params()).await?;
         GetProductAverageRatingRow::from_row(&row)
     }
@@ -1803,7 +1886,7 @@ GROUP BY product_id";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Option<GetProductAverageRatingRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let row = client.query_opt(&stmt, &self.as_params()).await?;
         match row {
             Some(row) => Ok(Some(GetProductAverageRatingRow::from_row(&row)?)),
@@ -1811,12 +1894,13 @@ GROUP BY product_id";
         }
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.product_id]
@@ -1848,7 +1932,7 @@ impl<'a> GetProductAverageRatingBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
-    pub const fn build(self) -> GetProductAverageRating {
+    pub fn build(self) -> GetProductAverageRating {
         let (product_id,) = self.fields;
         GetProductAverageRating { product_id }
     }
@@ -1885,6 +1969,11 @@ JOIN orders o ON oi.order_id = o.id
 WHERE o.status IN ('delivered', 'shipped')
 GROUP BY c.id, c.name
 ORDER BY total_sales DESC";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetCategorySalesRanking {
     pub async fn query_stream(
         &self,
         client: &impl deadpool_postgres::GenericClient,
@@ -1892,7 +1981,7 @@ ORDER BY total_sales DESC";
         deadpool_postgres::tokio_postgres::RowStream,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let st = client.query_raw(&stmt, self.as_params()).await?;
         Ok(st)
     }
@@ -1900,19 +1989,20 @@ ORDER BY total_sales DESC";
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<Vec<GetCategorySalesRankingRow>, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         let rows = client.query(&stmt, &self.as_params()).await?;
         rows.into_iter()
             .map(|r| GetCategorySalesRankingRow::from_row(&r))
             .collect()
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -1931,7 +2021,7 @@ pub struct GetCategorySalesRankingBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetCategorySalesRankingBuilder<'a, ()> {
-    pub const fn build(self) -> GetCategorySalesRanking {
+    pub fn build(self) -> GetCategorySalesRanking {
         let () = self.fields;
         GetCategorySalesRanking {}
     }
@@ -1949,20 +2039,26 @@ pub struct DeleteUserAndRelatedData {
 }
 impl DeleteUserAndRelatedData {
     pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl DeleteUserAndRelatedData {
     pub async fn execute(
         &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<u64, deadpool_postgres::tokio_postgres::Error> {
-        let stmt = Self::prepare(client).await?;
+        let stmt = self.prepare(client).await?;
         client.execute(&stmt, &self.as_params()).await
     }
     pub async fn prepare(
+        &self,
         client: &impl deadpool_postgres::GenericClient,
     ) -> Result<
         deadpool_postgres::tokio_postgres::Statement,
         deadpool_postgres::tokio_postgres::Error,
     > {
-        client.prepare_cached(Self::QUERY).await
+        client.prepare_cached(self.query_str()).await
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -1991,7 +2087,7 @@ impl<'a> DeleteUserAndRelatedDataBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
-    pub const fn build(self) -> DeleteUserAndRelatedData {
+    pub fn build(self) -> DeleteUserAndRelatedData {
         let (id,) = self.fields;
         DeleteUserAndRelatedData { id }
     }
