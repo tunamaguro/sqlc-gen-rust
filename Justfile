@@ -62,6 +62,7 @@ generate-release:
     sqlc generate -f _sqlc_dev.yaml
 
     rm _sqlc_dev.yaml
+    just f
 
 build-release:
     #!/usr/bin/env bash
