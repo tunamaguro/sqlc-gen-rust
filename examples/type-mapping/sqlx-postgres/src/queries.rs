@@ -202,7 +202,8 @@ impl GetMapping {
         GetMappingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetMappingRow>(self.query_str())
+        let q = sqlx::query_as::<_, GetMappingRow>(self.query_str());
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -376,42 +377,43 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, InsertMappingRow>(self.query_str())
-            .bind(self.bool_val)
-            .bind(self.bool_array_val)
-            .bind(self.char_val)
-            .bind(self.smallint_val)
-            .bind(self.int_val)
-            .bind(self.int_nullable_val)
-            .bind(self.oid_val)
-            .bind(self.bigint_val)
-            .bind(self.real_val)
-            .bind(self.double_val)
-            .bind(self.text_val)
-            .bind(self.text_nullable_val)
-            .bind(self.bytea_val)
-            .bind(self.hstore_val)
-            .bind(self.timestamp_val)
-            .bind(self.timestamptz_val)
-            .bind(self.date_val)
-            .bind(self.time_val)
-            .bind(self.inet_val)
-            .bind(self.json_val)
-            .bind(self.jsonb_val)
-            .bind(self.uuid_val)
-            .bind(self.enum_val)
-            .bind(self.composite_val)
-            .bind(self.money_val)
-            .bind(self.ltree_val)
-            .bind(self.lquery_val)
-            .bind(self.cube_val)
-            .bind(self.point_val)
-            .bind(self.line_val)
-            .bind(self.lseg_val)
-            .bind(self.box_val)
-            .bind(self.path_val)
-            .bind(self.polygon_val)
-            .bind(self.circle_val)
+        let q = sqlx::query_as::<_, InsertMappingRow>(self.query_str());
+        let q = q.bind(self.bool_val);
+        let q = q.bind(self.bool_array_val);
+        let q = q.bind(self.char_val);
+        let q = q.bind(self.smallint_val);
+        let q = q.bind(self.int_val);
+        let q = q.bind(self.int_nullable_val);
+        let q = q.bind(self.oid_val);
+        let q = q.bind(self.bigint_val);
+        let q = q.bind(self.real_val);
+        let q = q.bind(self.double_val);
+        let q = q.bind(self.text_val);
+        let q = q.bind(self.text_nullable_val);
+        let q = q.bind(self.bytea_val);
+        let q = q.bind(self.hstore_val);
+        let q = q.bind(self.timestamp_val);
+        let q = q.bind(self.timestamptz_val);
+        let q = q.bind(self.date_val);
+        let q = q.bind(self.time_val);
+        let q = q.bind(self.inet_val);
+        let q = q.bind(self.json_val);
+        let q = q.bind(self.jsonb_val);
+        let q = q.bind(self.uuid_val);
+        let q = q.bind(self.enum_val);
+        let q = q.bind(self.composite_val);
+        let q = q.bind(self.money_val);
+        let q = q.bind(self.ltree_val);
+        let q = q.bind(self.lquery_val);
+        let q = q.bind(self.cube_val);
+        let q = q.bind(self.point_val);
+        let q = q.bind(self.line_val);
+        let q = q.bind(self.lseg_val);
+        let q = q.bind(self.box_val);
+        let q = q.bind(self.path_val);
+        let q = q.bind(self.polygon_val);
+        let q = q.bind(self.circle_val);
+        q
     }
     pub fn execute<'b, A>(
         &'a self,
@@ -424,44 +426,43 @@ impl<'a> InsertMapping<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(self.query_str())
-                .bind(self.bool_val)
-                .bind(self.bool_array_val)
-                .bind(self.char_val)
-                .bind(self.smallint_val)
-                .bind(self.int_val)
-                .bind(self.int_nullable_val)
-                .bind(self.oid_val)
-                .bind(self.bigint_val)
-                .bind(self.real_val)
-                .bind(self.double_val)
-                .bind(self.text_val)
-                .bind(self.text_nullable_val)
-                .bind(self.bytea_val)
-                .bind(self.hstore_val)
-                .bind(self.timestamp_val)
-                .bind(self.timestamptz_val)
-                .bind(self.date_val)
-                .bind(self.time_val)
-                .bind(self.inet_val)
-                .bind(self.json_val)
-                .bind(self.jsonb_val)
-                .bind(self.uuid_val)
-                .bind(self.enum_val)
-                .bind(self.composite_val)
-                .bind(self.money_val)
-                .bind(self.ltree_val)
-                .bind(self.lquery_val)
-                .bind(self.cube_val)
-                .bind(self.point_val)
-                .bind(self.line_val)
-                .bind(self.lseg_val)
-                .bind(self.box_val)
-                .bind(self.path_val)
-                .bind(self.polygon_val)
-                .bind(self.circle_val)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.bool_val);
+            let q = q.bind(self.bool_array_val);
+            let q = q.bind(self.char_val);
+            let q = q.bind(self.smallint_val);
+            let q = q.bind(self.int_val);
+            let q = q.bind(self.int_nullable_val);
+            let q = q.bind(self.oid_val);
+            let q = q.bind(self.bigint_val);
+            let q = q.bind(self.real_val);
+            let q = q.bind(self.double_val);
+            let q = q.bind(self.text_val);
+            let q = q.bind(self.text_nullable_val);
+            let q = q.bind(self.bytea_val);
+            let q = q.bind(self.hstore_val);
+            let q = q.bind(self.timestamp_val);
+            let q = q.bind(self.timestamptz_val);
+            let q = q.bind(self.date_val);
+            let q = q.bind(self.time_val);
+            let q = q.bind(self.inet_val);
+            let q = q.bind(self.json_val);
+            let q = q.bind(self.jsonb_val);
+            let q = q.bind(self.uuid_val);
+            let q = q.bind(self.enum_val);
+            let q = q.bind(self.composite_val);
+            let q = q.bind(self.money_val);
+            let q = q.bind(self.ltree_val);
+            let q = q.bind(self.lquery_val);
+            let q = q.bind(self.cube_val);
+            let q = q.bind(self.point_val);
+            let q = q.bind(self.line_val);
+            let q = q.bind(self.lseg_val);
+            let q = q.bind(self.box_val);
+            let q = q.bind(self.path_val);
+            let q = q.bind(self.polygon_val);
+            let q = q.bind(self.circle_val);
+            q.execute(&mut *conn).await
         }
     }
 }

@@ -1,3 +1,5 @@
+use syn::Ident;
+
 use super::DbCrate;
 use crate::{
     query::{Annotation, DbEnum, Query, ReturningRows, RsType, SimpleTypeMap, TypeMapper},
@@ -435,6 +437,38 @@ impl Sqlx {
             Sqlx::Sqlite => syn::parse_quote! {sqlx::Sqlite},
         }
     }
+
+    fn query_bind(&self, query: &Query, query_ident: syn::Ident) -> proc_macro2::TokenStream {
+        match self {
+            Self::Postgres => query
+                .fields
+                .iter()
+                .map(|f| {
+                    let name = &f.name;
+                    quote::quote! {
+                        let #query_ident =  #query_ident.bind(self.#name);
+                    }
+                })
+                .collect(),
+            Self::MySql | Self::Sqlite => query
+                .fields
+                .iter()
+                .map(|f| {
+                    let name = &f.name;
+
+                    if f.typ.is_array() {
+                        quote::quote! {
+                            let #query_ident =  self.#name.iter().fold(#query_ident, |q, item| q.bind(item));
+                        }
+                    } else {
+                        quote::quote! {
+                            let #query_ident =  #query_ident.bind(self.#name);
+                        }
+                    }
+                })
+                .collect(),
+        }
+    }
 }
 
 impl DbCrate for Sqlx {
@@ -538,10 +572,7 @@ impl DbCrate for Sqlx {
                 }
             };
 
-            let bind_params = query_ast.fields().map(|f| &f.name).fold(
-                quote::quote! {},
-                |acc, x| quote::quote! {#acc .bind(self.#x)},
-            );
+            let query_bind = self.query_bind(query, quote::format_ident!("q"));
 
             // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
             let query_as = quote::quote! {
@@ -551,9 +582,9 @@ impl DbCrate for Sqlx {
                 #row_ident,
                 <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
                 >{
-                    sqlx::query_as::<_,#row_ident>(
-                                self.query_str(),
-                                ) #bind_params
+                    let q = sqlx::query_as::<_,#row_ident>(self.query_str());
+                    #query_bind
+                    q
                 }
             };
 
@@ -620,9 +651,9 @@ impl DbCrate for Sqlx {
                         {
                             async move {
                                 let mut conn = conn.acquire().await?;
-                                sqlx::query(
-                                    self.query_str(),
-                                )  #bind_params .execute(&mut *conn).await
+                                let q = sqlx::query(self.query_str());
+                                #query_bind;
+                                q.execute(&mut *conn).await
                             }
                         }
                     }

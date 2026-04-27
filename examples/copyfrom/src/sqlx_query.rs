@@ -93,7 +93,9 @@ impl GetAuthor {
         GetAuthorRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetAuthorRow>(self.query_str()).bind(self.id)
+        let q = sqlx::query_as::<_, GetAuthorRow>(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -172,10 +174,11 @@ impl<'a> CreateAuthors<'a> {
         CreateAuthorsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateAuthorsRow>(self.query_str())
-            .bind(self.id)
-            .bind(self.name)
-            .bind(self.bio)
+        let q = sqlx::query_as::<_, CreateAuthorsRow>(self.query_str());
+        let q = q.bind(self.id);
+        let q = q.bind(self.name);
+        let q = q.bind(self.bio);
+        q
     }
     pub async fn copy_in<PgCopy>(
         conn: &PgCopy,

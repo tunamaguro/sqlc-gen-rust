@@ -30,7 +30,9 @@ impl GetAuthor {
         GetAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetAuthorRow>(self.query_str()).bind(self.id)
+        let q = sqlx::query_as::<_, GetAuthorRow>(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -113,7 +115,8 @@ impl ListAuthors {
         ListAuthorsRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsRow>(self.query_str())
+        let q = sqlx::query_as::<_, ListAuthorsRow>(self.query_str());
+        q
     }
     pub fn query_many<'a, 'b, A>(
         &'a self,
@@ -172,9 +175,10 @@ impl<'a> CreateAuthor<'a> {
         CreateAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateAuthorRow>(self.query_str())
-            .bind(self.name)
-            .bind(self.bio)
+        let q = sqlx::query_as::<_, CreateAuthorRow>(self.query_str());
+        let q = q.bind(self.name);
+        let q = q.bind(self.bio);
+        q
     }
     pub fn execute<'b, A>(
         &'a self,
@@ -187,11 +191,10 @@ impl<'a> CreateAuthor<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(self.query_str())
-                .bind(self.name)
-                .bind(self.bio)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.name);
+            let q = q.bind(self.bio);
+            q.execute(&mut *conn).await
         }
     }
 }
@@ -254,7 +257,9 @@ impl DeleteAuthor {
         DeleteAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, DeleteAuthorRow>(self.query_str()).bind(self.id)
+        let q = sqlx::query_as::<_, DeleteAuthorRow>(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn execute<'a, 'b, A>(
         &'a self,
@@ -267,10 +272,9 @@ impl DeleteAuthor {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(self.query_str())
-                .bind(self.id)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.id);
+            q.execute(&mut *conn).await
         }
     }
 }

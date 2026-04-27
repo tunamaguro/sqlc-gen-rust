@@ -67,7 +67,8 @@ impl GetMapping {
         GetMappingRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetMappingRow>(self.query_str())
+        let q = sqlx::query_as::<_, GetMappingRow>(self.query_str());
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -166,22 +167,23 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, InsertMappingRow>(self.query_str())
-            .bind(self.bool_val)
-            .bind(self.tinyint_val)
-            .bind(self.smallint_val)
-            .bind(self.int_val)
-            .bind(self.int_nullable_val)
-            .bind(self.bigint_val)
-            .bind(self.float_val)
-            .bind(self.double_val)
-            .bind(self.text_val)
-            .bind(self.blob_val)
-            .bind(self.timestamp_val)
-            .bind(self.datetime_val)
-            .bind(self.date_val)
-            .bind(self.time_val)
-            .bind(self.json_val)
+        let q = sqlx::query_as::<_, InsertMappingRow>(self.query_str());
+        let q = q.bind(self.bool_val);
+        let q = q.bind(self.tinyint_val);
+        let q = q.bind(self.smallint_val);
+        let q = q.bind(self.int_val);
+        let q = q.bind(self.int_nullable_val);
+        let q = q.bind(self.bigint_val);
+        let q = q.bind(self.float_val);
+        let q = q.bind(self.double_val);
+        let q = q.bind(self.text_val);
+        let q = q.bind(self.blob_val);
+        let q = q.bind(self.timestamp_val);
+        let q = q.bind(self.datetime_val);
+        let q = q.bind(self.date_val);
+        let q = q.bind(self.time_val);
+        let q = q.bind(self.json_val);
+        q
     }
     pub fn execute<'b, A>(
         &'a self,
@@ -194,24 +196,23 @@ impl<'a> InsertMapping<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(self.query_str())
-                .bind(self.bool_val)
-                .bind(self.tinyint_val)
-                .bind(self.smallint_val)
-                .bind(self.int_val)
-                .bind(self.int_nullable_val)
-                .bind(self.bigint_val)
-                .bind(self.float_val)
-                .bind(self.double_val)
-                .bind(self.text_val)
-                .bind(self.blob_val)
-                .bind(self.timestamp_val)
-                .bind(self.datetime_val)
-                .bind(self.date_val)
-                .bind(self.time_val)
-                .bind(self.json_val)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.bool_val);
+            let q = q.bind(self.tinyint_val);
+            let q = q.bind(self.smallint_val);
+            let q = q.bind(self.int_val);
+            let q = q.bind(self.int_nullable_val);
+            let q = q.bind(self.bigint_val);
+            let q = q.bind(self.float_val);
+            let q = q.bind(self.double_val);
+            let q = q.bind(self.text_val);
+            let q = q.bind(self.blob_val);
+            let q = q.bind(self.timestamp_val);
+            let q = q.bind(self.datetime_val);
+            let q = q.bind(self.date_val);
+            let q = q.bind(self.time_val);
+            let q = q.bind(self.json_val);
+            q.execute(&mut *conn).await
         }
     }
 }

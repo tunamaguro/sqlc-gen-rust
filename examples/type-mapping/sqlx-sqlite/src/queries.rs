@@ -115,7 +115,8 @@ impl GetMapping {
         GetMappingRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetMappingRow>(self.query_str())
+        let q = sqlx::query_as::<_, GetMappingRow>(self.query_str());
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -276,38 +277,39 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, InsertMappingRow>(self.query_str())
-            .bind(self.aff_integer_val)
-            .bind(self.aff_real_val)
-            .bind(self.aff_text_val)
-            .bind(self.aff_blob_val)
-            .bind(self.int_val)
-            .bind(self.integer_val)
-            .bind(self.tinyint_val)
-            .bind(self.smallint_val)
-            .bind(self.mediumint_val)
-            .bind(self.bigint_val)
-            .bind(self.unsigned_big_int_val)
-            .bind(self.int_2_val)
-            .bind(self.int_8_val)
-            .bind(self.character_20_val)
-            .bind(self.varchar_255_val)
-            .bind(self.varying_char_255_val)
-            .bind(self.nchar_55_val)
-            .bind(self.native_char_70_val)
-            .bind(self.nvarchar_100_val)
-            .bind(self.text_val)
-            .bind(self.clob_val)
-            .bind(self.real_val)
-            .bind(self.double_val)
-            .bind(self.double_precision_val)
-            .bind(self.float_val)
-            .bind(self.numeric_val)
-            .bind(self.decimal_10_5_val)
-            .bind(self.boolean_val)
-            .bind(self.date_val)
-            .bind(self.time_val)
-            .bind(self.datetime_val)
+        let q = sqlx::query_as::<_, InsertMappingRow>(self.query_str());
+        let q = q.bind(self.aff_integer_val);
+        let q = q.bind(self.aff_real_val);
+        let q = q.bind(self.aff_text_val);
+        let q = q.bind(self.aff_blob_val);
+        let q = q.bind(self.int_val);
+        let q = q.bind(self.integer_val);
+        let q = q.bind(self.tinyint_val);
+        let q = q.bind(self.smallint_val);
+        let q = q.bind(self.mediumint_val);
+        let q = q.bind(self.bigint_val);
+        let q = q.bind(self.unsigned_big_int_val);
+        let q = q.bind(self.int_2_val);
+        let q = q.bind(self.int_8_val);
+        let q = q.bind(self.character_20_val);
+        let q = q.bind(self.varchar_255_val);
+        let q = q.bind(self.varying_char_255_val);
+        let q = q.bind(self.nchar_55_val);
+        let q = q.bind(self.native_char_70_val);
+        let q = q.bind(self.nvarchar_100_val);
+        let q = q.bind(self.text_val);
+        let q = q.bind(self.clob_val);
+        let q = q.bind(self.real_val);
+        let q = q.bind(self.double_val);
+        let q = q.bind(self.double_precision_val);
+        let q = q.bind(self.float_val);
+        let q = q.bind(self.numeric_val);
+        let q = q.bind(self.decimal_10_5_val);
+        let q = q.bind(self.boolean_val);
+        let q = q.bind(self.date_val);
+        let q = q.bind(self.time_val);
+        let q = q.bind(self.datetime_val);
+        q
     }
     pub fn execute<'b, A>(
         &'a self,
@@ -320,40 +322,39 @@ impl<'a> InsertMapping<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(self.query_str())
-                .bind(self.aff_integer_val)
-                .bind(self.aff_real_val)
-                .bind(self.aff_text_val)
-                .bind(self.aff_blob_val)
-                .bind(self.int_val)
-                .bind(self.integer_val)
-                .bind(self.tinyint_val)
-                .bind(self.smallint_val)
-                .bind(self.mediumint_val)
-                .bind(self.bigint_val)
-                .bind(self.unsigned_big_int_val)
-                .bind(self.int_2_val)
-                .bind(self.int_8_val)
-                .bind(self.character_20_val)
-                .bind(self.varchar_255_val)
-                .bind(self.varying_char_255_val)
-                .bind(self.nchar_55_val)
-                .bind(self.native_char_70_val)
-                .bind(self.nvarchar_100_val)
-                .bind(self.text_val)
-                .bind(self.clob_val)
-                .bind(self.real_val)
-                .bind(self.double_val)
-                .bind(self.double_precision_val)
-                .bind(self.float_val)
-                .bind(self.numeric_val)
-                .bind(self.decimal_10_5_val)
-                .bind(self.boolean_val)
-                .bind(self.date_val)
-                .bind(self.time_val)
-                .bind(self.datetime_val)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.aff_integer_val);
+            let q = q.bind(self.aff_real_val);
+            let q = q.bind(self.aff_text_val);
+            let q = q.bind(self.aff_blob_val);
+            let q = q.bind(self.int_val);
+            let q = q.bind(self.integer_val);
+            let q = q.bind(self.tinyint_val);
+            let q = q.bind(self.smallint_val);
+            let q = q.bind(self.mediumint_val);
+            let q = q.bind(self.bigint_val);
+            let q = q.bind(self.unsigned_big_int_val);
+            let q = q.bind(self.int_2_val);
+            let q = q.bind(self.int_8_val);
+            let q = q.bind(self.character_20_val);
+            let q = q.bind(self.varchar_255_val);
+            let q = q.bind(self.varying_char_255_val);
+            let q = q.bind(self.nchar_55_val);
+            let q = q.bind(self.native_char_70_val);
+            let q = q.bind(self.nvarchar_100_val);
+            let q = q.bind(self.text_val);
+            let q = q.bind(self.clob_val);
+            let q = q.bind(self.real_val);
+            let q = q.bind(self.double_val);
+            let q = q.bind(self.double_precision_val);
+            let q = q.bind(self.float_val);
+            let q = q.bind(self.numeric_val);
+            let q = q.bind(self.decimal_10_5_val);
+            let q = q.bind(self.boolean_val);
+            let q = q.bind(self.date_val);
+            let q = q.bind(self.time_val);
+            let q = q.bind(self.datetime_val);
+            q.execute(&mut *conn).await
         }
     }
 }
