@@ -551,7 +551,7 @@ impl DbCrate for Sqlx {
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let query_ast = super::QueryAst::new(query, self.clone().into());
+        let query_ast = super::QueryAst::new(query, (*self).into());
         let struct_ident = &query_ast.ident;
         let lifetime_a = &query_ast.lifetime;
         let need_lifetime = query_ast.need_lifetime();

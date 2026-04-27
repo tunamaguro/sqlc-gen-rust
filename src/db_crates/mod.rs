@@ -250,17 +250,16 @@ impl<'a> QueryAst<'a> {
             .map(|typ| typ.to_param_tokens(lifetime))
             .collect::<Vec<_>>();
 
-        let builder_build_tt = {
-            let build_struct = if self.need_lifetime() {
-                quote::quote! {#struct_ident<#lifetime>}
-            } else {
-                quote::quote! {#struct_ident}
-            };
+        let build_struct = if self.need_lifetime() {
+            quote::quote! {#struct_ident<#lifetime>}
+        } else {
+            quote::quote! {#struct_ident}
+        };
 
-            if self.need_expand_query() {
-                let query_ident = quote::format_ident!("__query");
+        if self.need_expand_query() {
+            let query_ident = quote::format_ident!("__query");
 
-                let query_builder =
+            let query_builder =
                     self.query
                         .fields
                         .iter()
@@ -284,36 +283,33 @@ impl<'a> QueryAst<'a> {
                             }
                         });
 
-                quote::quote! {
-                      impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                        pub fn build(self)->#build_struct{
-                            let (#(#field_list,)*) = self.fields;
+            quote::quote! {
+                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                    pub fn build(self)->#build_struct{
+                        let (#(#field_list,)*) = self.fields;
 
-                            let #query_ident = #struct_ident::QUERY;
-                            #(#query_builder)*
+                        let #query_ident = #struct_ident::QUERY;
+                        #(#query_builder)*
 
-                            #struct_ident{
-                                #(#field_list,)*
-                                __query: #query_ident.into()
-                            }
-                        }
-                    }
-                }
-            } else {
-                quote::quote! {
-                      impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                        pub fn build(self)->#build_struct{
-                            let (#(#field_list,)*) = self.fields;
-                            #struct_ident{
-                                #(#field_list,)*
-                            }
+                        #struct_ident{
+                            #(#field_list,)*
+                            __query: #query_ident.into()
                         }
                     }
                 }
             }
-        };
-
-        builder_build_tt
+        } else {
+            quote::quote! {
+                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                    pub fn build(self)->#build_struct{
+                        let (#(#field_list,)*) = self.fields;
+                        #struct_ident{
+                            #(#field_list,)*
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn make_builder(&self) -> proc_macro2::TokenStream {
