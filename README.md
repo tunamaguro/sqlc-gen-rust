@@ -155,7 +155,7 @@ See below for examples with other supported crates.
 | `sqlc.arg`   | ✅      |
 | `sqlc.embed` | ❌      |
 | `sqlc.narg`  | ✅      |
-| `sqlc.slice` | ❌      |
+| `sqlc.slice` | ✅      |
 
 ## Options
 
