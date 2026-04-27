@@ -202,7 +202,7 @@ impl GetMapping {
         GetMappingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetMappingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         q
     }
     pub fn query_one<'a, 'b, A>(
@@ -377,7 +377,7 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, InsertMappingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.bool_val);
         let q = q.bind(self.bool_array_val);
         let q = q.bind(self.char_val);

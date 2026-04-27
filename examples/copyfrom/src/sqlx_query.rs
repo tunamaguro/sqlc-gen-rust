@@ -93,7 +93,7 @@ impl GetAuthor {
         GetAuthorRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetAuthorRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         q
     }
@@ -174,7 +174,7 @@ impl<'a> CreateAuthors<'a> {
         CreateAuthorsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateAuthorsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         let q = q.bind(self.name);
         let q = q.bind(self.bio);

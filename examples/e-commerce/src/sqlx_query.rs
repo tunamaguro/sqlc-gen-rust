@@ -122,7 +122,7 @@ impl<'a> CreateUser<'a> {
         CreateUserRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateUserRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.username);
         let q = q.bind(self.email);
         let q = q.bind(self.hashed_password);
@@ -273,7 +273,7 @@ impl<'a> GetUserByEmail<'a> {
         GetUserByEmailRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetUserByEmailRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.email);
         q
     }
@@ -367,7 +367,7 @@ impl ListUsers {
         ListUsersRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListUsersRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.limit);
         let q = q.bind(self.offset);
         q
@@ -473,7 +473,7 @@ impl<'a> CreateProduct<'a> {
         CreateProductRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateProductRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.category_id);
         let q = q.bind(self.name);
         let q = q.bind(self.description);
@@ -782,7 +782,7 @@ impl GetProductWithCategory {
         GetProductWithCategoryRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetProductWithCategoryRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         q
     }
@@ -904,7 +904,7 @@ impl<'a> SearchProducts<'a> {
         SearchProductsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, SearchProductsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.limit);
         let q = q.bind(self.offset);
         let q = q.bind(self.name);
@@ -1104,7 +1104,7 @@ impl<'a> GetProductsWithSpecificAttribute<'a> {
         GetProductsWithSpecificAttributeRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetProductsWithSpecificAttributeRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.column_1);
         q
     }
@@ -1176,7 +1176,7 @@ impl UpdateProductStock {
         UpdateProductStockRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, UpdateProductStockRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         let q = q.bind(self.add_quantity);
         q
@@ -1272,7 +1272,7 @@ impl CreateOrder {
         CreateOrderRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateOrderRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.user_id);
         let q = q.bind(self.status);
         let q = q.bind(self.total_amount);
@@ -1399,7 +1399,7 @@ impl CreateOrderItem {
         CreateOrderItemRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateOrderItemRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.order_id);
         let q = q.bind(self.product_id);
         let q = q.bind(self.quantity);
@@ -1561,7 +1561,7 @@ impl GetOrderDetails {
         GetOrderDetailsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetOrderDetailsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         q
     }
@@ -1656,7 +1656,7 @@ impl ListOrderItemsByOrderId {
         ListOrderItemsByOrderIdRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListOrderItemsByOrderIdRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.order_id);
         q
     }
@@ -1740,7 +1740,7 @@ impl<'a> CreateReview<'a> {
         CreateReviewRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateReviewRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.user_id);
         let q = q.bind(self.product_id);
         let q = q.bind(self.rating);
@@ -1879,7 +1879,7 @@ impl GetProductAverageRating {
         GetProductAverageRatingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetProductAverageRatingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.product_id);
         q
     }
@@ -1979,7 +1979,7 @@ impl GetCategorySalesRanking {
         GetCategorySalesRankingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetCategorySalesRankingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         q
     }
     pub fn query_many<'a, 'b, A>(
@@ -2034,7 +2034,7 @@ impl DeleteUserAndRelatedData {
         DeleteUserAndRelatedDataRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, DeleteUserAndRelatedDataRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         q
     }

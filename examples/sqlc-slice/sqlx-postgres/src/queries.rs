@@ -93,7 +93,7 @@ impl<'a> ListAuthorsByIDs<'a> {
         ListAuthorsByIDsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsByIDsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.ids);
         q
     }
@@ -169,7 +169,7 @@ impl<'a> ListAuthorsByTwoIdLists<'a> {
         ListAuthorsByTwoIdListsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.ids);
         let q = q.bind(self.backup_ids);
         q
@@ -263,7 +263,7 @@ impl<'a> ListAuthorsByIDsMixed<'a> {
         ListAuthorsByIDsMixedRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.ids);
         let q = q.bind(self.min_id);
         let q = q.bind(self.skip_ids);

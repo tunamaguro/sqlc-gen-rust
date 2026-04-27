@@ -93,7 +93,7 @@ impl GetAuthor {
         GetAuthorRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetAuthorRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         q
     }
@@ -178,7 +178,7 @@ impl ListAuthors {
         ListAuthorsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         q
     }
     pub fn query_many<'a, 'b, A>(
@@ -246,7 +246,7 @@ impl<'a> CreateAuthor<'a> {
         CreateAuthorRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, CreateAuthorRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.name);
         let q = q.bind(self.bio);
         q
@@ -337,7 +337,7 @@ impl DeleteAuthor {
         DeleteAuthorRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, DeleteAuthorRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.id);
         q
     }

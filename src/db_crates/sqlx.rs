@@ -580,7 +580,7 @@ impl DbCrate for Sqlx {
                 #row_ident,
                 <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
                 >{
-                    let q = sqlx::query_as::<_,#row_ident>(self.query_str());
+                    let q = sqlx::query_as(self.query_str());
                     #query_bind
                     q
                 }

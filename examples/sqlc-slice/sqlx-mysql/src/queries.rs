@@ -31,7 +31,7 @@ impl<'a> ListAuthorsByIDs<'a> {
         ListAuthorsByIDsRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsByIDsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
         q
     }
@@ -122,7 +122,7 @@ impl<'a> ListAuthorsByTwoIdLists<'a> {
         ListAuthorsByTwoIdListsRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
         let q = self.backup_ids.iter().fold(q, |q, item| q.bind(item));
         q
@@ -242,7 +242,7 @@ impl<'a> ListAuthorsByIDsMixed<'a> {
         ListAuthorsByIDsMixedRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
         let q = q.bind(self.id);
         let q = self.skip_ids.iter().fold(q, |q, item| q.bind(item));

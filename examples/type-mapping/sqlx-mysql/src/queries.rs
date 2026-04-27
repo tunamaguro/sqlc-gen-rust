@@ -67,7 +67,7 @@ impl GetMapping {
         GetMappingRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetMappingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         q
     }
     pub fn query_one<'a, 'b, A>(
@@ -167,7 +167,7 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, InsertMappingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.bool_val);
         let q = q.bind(self.tinyint_val);
         let q = q.bind(self.smallint_val);

@@ -115,7 +115,7 @@ impl GetMapping {
         GetMappingRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, GetMappingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         q
     }
     pub fn query_one<'a, 'b, A>(
@@ -277,7 +277,7 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        let q = sqlx::query_as::<_, InsertMappingRow>(self.query_str());
+        let q = sqlx::query_as(self.query_str());
         let q = q.bind(self.aff_integer_val);
         let q = q.bind(self.aff_real_val);
         let q = q.bind(self.aff_text_val);
