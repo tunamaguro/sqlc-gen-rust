@@ -1769,6 +1769,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlc-slice-rusqlite"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "test-context",
+ "test-utils",
+]
+
+[[package]]
 name = "sqlc-slice-sqlx-mysql"
 version = "0.1.0"
 dependencies = [

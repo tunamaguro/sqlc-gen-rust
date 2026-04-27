@@ -233,3 +233,8 @@ sql:
         options:
           output: queries.rs
           db_crate: sqlx-sqlite
+      - plugin: sqlc-gen-rust
+        out: examples/sqlc-slice/rusqlite/src
+        options:
+          output: queries.rs
+          db_crate: rusqlite

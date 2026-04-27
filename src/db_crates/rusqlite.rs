@@ -229,10 +229,33 @@ impl DbCrate for Rusqlite {
                 quote::quote! {#struct_ident}
             };
 
-            let params = query.fields.iter().map(|f| {
-                let name = &f.name;
-                quote::quote! {self.#name}
-            });
+            let params: proc_macro2::TokenStream = if query_ast.need_expand_query() {
+                let param_it = query.fields.iter().map(|f| {
+                    let name = &f.name;
+                    if f.typ.is_array() {
+                        quote::quote! {
+                            self.#name.iter().map(|v| v as &dyn rusqlite::ToSql)
+                        }
+                    } else {
+                        quote::quote! {core::iter::once(&self.#name as &dyn rusqlite::ToSql)}
+                    }
+                });
+
+                quote::quote! {
+                    rusqlite::params_from_iter(
+                        core::iter::empty()
+                            #(.chain(#param_it))*
+                    )
+                }
+            } else {
+                let param_it = query.fields.iter().map(|f| {
+                    let name = &f.name;
+                    quote::quote! {self.#name}
+                });
+                quote::quote! {
+                    ( #(#param_it,)* )
+                }
+            };
 
             quote::quote! {
                 impl #imp_ident {
@@ -243,7 +266,7 @@ impl DbCrate for Rusqlite {
                     }
 
                     pub fn as_params(&self) -> impl rusqlite::Params {
-                        ( #(#params,)* )
+                        #params
                     }
                 }
             }
