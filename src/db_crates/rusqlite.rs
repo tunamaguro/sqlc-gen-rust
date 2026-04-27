@@ -229,9 +229,6 @@ impl DbCrate for Rusqlite {
                 quote::quote! {#struct_ident}
             };
 
-            let param_types = query_ast
-                .fields()
-                .map(|f| f.typ.to_param_tokens(&query_ast.lifetime));
             let params = query.fields.iter().map(|f| {
                 let name = &f.name;
                 quote::quote! {self.#name}
@@ -245,7 +242,7 @@ impl DbCrate for Rusqlite {
                         client.prepare(self.query_str())
                     }
 
-                    pub fn as_params(&self) -> (#(#param_types,)*) {
+                    pub fn as_params(&self) -> impl rusqlite::Params {
                         ( #(#params,)* )
                     }
                 }

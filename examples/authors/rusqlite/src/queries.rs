@@ -59,7 +59,7 @@ impl GetAuthor {
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
         client.prepare(self.query_str())
     }
-    pub fn as_params(&self) -> (i64,) {
+    pub fn as_params(&self) -> impl rusqlite::Params {
         (self.id,)
     }
 }
@@ -128,7 +128,7 @@ impl ListAuthors {
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
         client.prepare(self.query_str())
     }
-    pub fn as_params(&self) -> () {
+    pub fn as_params(&self) -> impl rusqlite::Params {
         ()
     }
 }
@@ -180,7 +180,7 @@ impl<'a> CreateAuthor<'a> {
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
         client.prepare(self.query_str())
     }
-    pub fn as_params(&self) -> (&'a str, Option<&'a str>) {
+    pub fn as_params(&self) -> impl rusqlite::Params {
         (self.name, self.bio)
     }
 }
@@ -248,7 +248,7 @@ impl DeleteAuthor {
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
         client.prepare(self.query_str())
     }
-    pub fn as_params(&self) -> (i64,) {
+    pub fn as_params(&self) -> impl rusqlite::Params {
         (self.id,)
     }
 }
