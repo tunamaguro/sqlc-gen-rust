@@ -11,8 +11,8 @@ version: "2"
 plugins:
   - name: sqlc-gen-rust
     wasm:
-      url: https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.11/sqlc-gen-rust.wasm
-      sha256: 2244c61f00ee1daaa8bbf55478609bf9f5b4a4e1b4d9178b61ca1c101f58ee6a
+      url: https://github.com/tunamaguro/sqlc-gen-rust/releases/download/v0.1.12/sqlc-gen-rust.wasm
+      sha256: f434350fd09a485a3c9e94df4808c2d58f7f817937ed2e0654e9180eb96aa9ff
 sql:
   - schema: schema.sql
     queries: queries.sql
