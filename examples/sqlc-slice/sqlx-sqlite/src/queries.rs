@@ -74,7 +74,21 @@ impl<'a> ListAuthorsByIDsBuilder<'a, ((),)> {
 impl<'a> ListAuthorsByIDsBuilder<'a, (&'a [i64],)> {
     pub fn build(self) -> ListAuthorsByIDs<'a> {
         let (ids,) = self.fields;
-        ListAuthorsByIDs { ids }
+        let __query = ListAuthorsByIDs::QUERY;
+        let __query = match ids.len() {
+            0 => __query.replace("/*SLICE:ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:ids*/?", &to)
+            }
+        };
+        ListAuthorsByIDs {
+            ids,
+            __query: __query.into(),
+        }
     }
 }
 #[derive(sqlx::FromRow)]
@@ -165,7 +179,32 @@ impl<'a, Ids> ListAuthorsByTwoIdListsBuilder<'a, (Ids, ())> {
 impl<'a> ListAuthorsByTwoIdListsBuilder<'a, (&'a [i64], &'a [i64])> {
     pub fn build(self) -> ListAuthorsByTwoIdLists<'a> {
         let (ids, backup_ids) = self.fields;
-        ListAuthorsByTwoIdLists { ids, backup_ids }
+        let __query = ListAuthorsByTwoIdLists::QUERY;
+        let __query = match ids.len() {
+            0 => __query.replace("/*SLICE:ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:ids*/?", &to)
+            }
+        };
+        let __query = match backup_ids.len() {
+            0 => __query.replace("/*SLICE:backup_ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:backup_ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:backup_ids*/?", &to)
+            }
+        };
+        ListAuthorsByTwoIdLists {
+            ids,
+            backup_ids,
+            __query: __query.into(),
+        }
     }
 }
 #[derive(sqlx::FromRow)]
@@ -297,11 +336,33 @@ impl<'a, Ids, MinId, SkipIds> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, Skip
 impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> {
     pub fn build(self) -> ListAuthorsByIDsMixed<'a> {
         let (ids, min_id, skip_ids, excluded_name) = self.fields;
+        let __query = ListAuthorsByIDsMixed::QUERY;
+        let __query = match ids.len() {
+            0 => __query.replace("/*SLICE:ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:ids*/?", &to)
+            }
+        };
+        let __query = match skip_ids.len() {
+            0 => __query.replace("/*SLICE:skip_ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:skip_ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:skip_ids*/?", &to)
+            }
+        };
         ListAuthorsByIDsMixed {
             ids,
             min_id,
             skip_ids,
             excluded_name,
+            __query: __query.into(),
         }
     }
 }

@@ -1,5 +1,3 @@
-use syn::Ident;
-
 use super::DbCrate;
 use crate::{
     query::{Annotation, DbEnum, Query, ReturningRows, RsType, SimpleTypeMap, TypeMapper},

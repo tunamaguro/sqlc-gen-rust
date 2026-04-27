@@ -256,12 +256,57 @@ impl<'a> QueryAst<'a> {
             } else {
                 quote::quote! {#struct_ident}
             };
-            quote::quote! {
-                  impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                    pub fn build(self)->#build_struct{
-                        let (#(#field_list,)*) = self.fields;
-                        #struct_ident{
-                            #(#field_list,)*
+
+            if self.need_expand_query() {
+                let query_ident = quote::format_ident!("__query");
+
+                let query_builder =
+                    self.query
+                        .fields
+                        .iter()
+                        .filter(|f| f.typ.is_array())
+                        .map(|f| {
+                            let name = &f.name;
+                            let marker = format!("/*SLICE:{}*/?", name);
+                            quote::quote! {
+                                let #query_ident = match #name.len(){
+                                    0 => {
+                                        #query_ident.replace(#marker, "NULL")
+                                    }
+                                    1 => {
+                                        #query_ident.replace(#marker, "?")
+                                    }
+                                    n => {
+                                        let to = core::iter::once("?").chain(core::iter::repeat(",?").take(n - 1)).collect::<String>();
+                                        #query_ident.replace(#marker, &to)
+                                    }
+                                };
+                            }
+                        });
+
+                quote::quote! {
+                      impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                        pub fn build(self)->#build_struct{
+                            let (#(#field_list,)*) = self.fields;
+
+                            let #query_ident = #struct_ident::QUERY;
+                            #(#query_builder)*
+
+                            #struct_ident{
+                                #(#field_list,)*
+                                __query: #query_ident.into()
+                            }
+                        }
+                    }
+                }
+            } else {
+                quote::quote! {
+                      impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
+                        pub fn build(self)->#build_struct{
+                            let (#(#field_list,)*) = self.fields;
+                            #struct_ident{
+                                #(#field_list,)*
+                            }
                         }
                     }
                 }
