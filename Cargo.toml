@@ -13,6 +13,7 @@ members = [
     "examples/e-commerce",
     "examples/jets",
     "examples/ondeck",
+    "examples/sqlc-slice/*",
     "examples/type-mapping/*",
     "examples/test-utils",
 ]

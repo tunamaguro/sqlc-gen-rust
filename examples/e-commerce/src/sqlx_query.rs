@@ -109,6 +109,11 @@ impl<'a> CreateUser<'a> {
     $1, $2, $3, $4
 )
 RETURNING id, username, email, hashed_password, full_name, created_at, updated_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateUser<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -117,11 +122,12 @@ RETURNING id, username, email, hashed_password, full_name, created_at, updated_a
         CreateUserRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateUserRow>(Self::QUERY)
-            .bind(self.username)
-            .bind(self.email)
-            .bind(self.hashed_password)
-            .bind(self.full_name)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.username);
+        let q = q.bind(self.email);
+        let q = q.bind(self.hashed_password);
+        let q = q.bind(self.full_name);
+        q
     }
     pub fn query_one<'b, A>(
         &'a self,
@@ -221,7 +227,7 @@ impl<'a, Username, Email, HashedPassword>
     }
 }
 impl<'a> CreateUserBuilder<'a, (&'a str, &'a str, &'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateUser<'a> {
+    pub fn build(self) -> CreateUser<'a> {
         let (username, email, hashed_password, full_name) = self.fields;
         CreateUser {
             username,
@@ -254,6 +260,11 @@ pub struct GetUserByEmail<'a> {
 impl<'a> GetUserByEmail<'a> {
     pub const QUERY: &'static str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> GetUserByEmail<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -262,7 +273,9 @@ WHERE email = $1 LIMIT 1";
         GetUserByEmailRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetUserByEmailRow>(Self::QUERY).bind(self.email)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.email);
+        q
     }
     pub fn query_one<'b, A>(
         &'a self,
@@ -314,7 +327,7 @@ impl<'a> GetUserByEmailBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetUserByEmailBuilder<'a, (&'a str,)> {
-    pub const fn build(self) -> GetUserByEmail<'a> {
+    pub fn build(self) -> GetUserByEmail<'a> {
         let (email,) = self.fields;
         GetUserByEmail { email }
     }
@@ -341,6 +354,11 @@ impl ListUsers {
 ORDER BY created_at DESC
 LIMIT $1
 OFFSET $2";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListUsers {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -349,9 +367,10 @@ OFFSET $2";
         ListUsersRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListUsersRow>(Self::QUERY)
-            .bind(self.limit)
-            .bind(self.offset)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.limit);
+        let q = q.bind(self.offset);
+        q
     }
     pub fn query_many<'a, 'b, A>(
         &'a self,
@@ -400,7 +419,7 @@ impl<'a, Limit> ListUsersBuilder<'a, (Limit, ())> {
     }
 }
 impl<'a> ListUsersBuilder<'a, (i32, i32)> {
-    pub const fn build(self) -> ListUsers {
+    pub fn build(self) -> ListUsers {
         let (limit, offset) = self.fields;
         ListUsers { limit, offset }
     }
@@ -441,6 +460,11 @@ impl<'a> CreateProduct<'a> {
     $1, $2, $3, $4, $5, $6
 )
 RETURNING id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateProduct<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -449,13 +473,14 @@ RETURNING id, category_id, name, description, price, stock_quantity, attributes,
         CreateProductRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateProductRow>(Self::QUERY)
-            .bind(self.category_id)
-            .bind(self.name)
-            .bind(self.description)
-            .bind(self.price)
-            .bind(self.stock_quantity)
-            .bind(self.attributes)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.category_id);
+        let q = q.bind(self.name);
+        let q = q.bind(self.description);
+        let q = q.bind(self.price);
+        let q = q.bind(self.stock_quantity);
+        let q = q.bind(self.attributes);
+        q
     }
     pub fn query_one<'b, A>(
         &'a self,
@@ -691,7 +716,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> CreateProduct<'a> {
+    pub fn build(self) -> CreateProduct<'a> {
         let (category_id, name, description, price, stock_quantity, attributes) = self.fields;
         CreateProduct {
             category_id,
@@ -744,6 +769,11 @@ JOIN
     categories c ON p.category_id = c.id
 WHERE
     p.id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetProductWithCategory {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -752,7 +782,9 @@ WHERE
         GetProductWithCategoryRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetProductWithCategoryRow>(Self::QUERY).bind(self.id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -804,7 +836,7 @@ impl<'a> GetProductWithCategoryBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductWithCategoryBuilder<'a, (uuid::Uuid,)> {
-    pub const fn build(self) -> GetProductWithCategory {
+    pub fn build(self) -> GetProductWithCategory {
         let (id,) = self.fields;
         GetProductWithCategory { id }
     }
@@ -859,6 +891,11 @@ ORDER BY
     p.created_at DESC
 LIMIT $1
 OFFSET $2";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> SearchProducts<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -867,13 +904,14 @@ OFFSET $2";
         SearchProductsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, SearchProductsRow>(Self::QUERY)
-            .bind(self.limit)
-            .bind(self.offset)
-            .bind(self.name)
-            .bind(self.category_ids)
-            .bind(self.min_price)
-            .bind(self.max_price)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.limit);
+        let q = q.bind(self.offset);
+        let q = q.bind(self.name);
+        let q = q.bind(self.category_ids);
+        let q = q.bind(self.min_price);
+        let q = q.bind(self.max_price);
+        q
     }
     pub fn query_many<'b, A>(
         &'a self,
@@ -1014,7 +1052,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> SearchProducts<'a> {
+    pub fn build(self) -> SearchProducts<'a> {
         let (limit, offset, name, category_ids, min_price, max_price) = self.fields;
         SearchProducts {
             limit,
@@ -1053,6 +1091,11 @@ pub struct GetProductsWithSpecificAttribute<'a> {
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
 WHERE attributes @> $1::jsonb";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1061,7 +1104,9 @@ WHERE attributes @> $1::jsonb";
         GetProductsWithSpecificAttributeRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetProductsWithSpecificAttributeRow>(Self::QUERY).bind(self.column_1)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.column_1);
+        q
     }
     pub fn query_many<'b, A>(
         &'a self,
@@ -1103,7 +1148,7 @@ impl<'a> GetProductsWithSpecificAttributeBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
-    pub const fn build(self) -> GetProductsWithSpecificAttribute<'a> {
+    pub fn build(self) -> GetProductsWithSpecificAttribute<'a> {
         let (column_1,) = self.fields;
         GetProductsWithSpecificAttribute { column_1 }
     }
@@ -1118,6 +1163,11 @@ impl UpdateProductStock {
     pub const QUERY: &'static str = r"UPDATE products
 SET stock_quantity = stock_quantity + $2
 WHERE id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl UpdateProductStock {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1126,9 +1176,10 @@ WHERE id = $1";
         UpdateProductStockRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, UpdateProductStockRow>(Self::QUERY)
-            .bind(self.id)
-            .bind(self.add_quantity)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        let q = q.bind(self.add_quantity);
+        q
     }
     pub fn execute<'a, 'b, A>(
         &'a self,
@@ -1141,11 +1192,10 @@ WHERE id = $1";
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY)
-                .bind(self.id)
-                .bind(self.add_quantity)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.id);
+            let q = q.bind(self.add_quantity);
+            q.execute(&mut *conn).await
         }
     }
 }
@@ -1182,7 +1232,7 @@ impl<'a, Id> UpdateProductStockBuilder<'a, (Id, ())> {
     }
 }
 impl<'a> UpdateProductStockBuilder<'a, (uuid::Uuid, i32)> {
-    pub const fn build(self) -> UpdateProductStock {
+    pub fn build(self) -> UpdateProductStock {
         let (id, add_quantity) = self.fields;
         UpdateProductStock { id, add_quantity }
     }
@@ -1209,6 +1259,11 @@ impl CreateOrder {
     pub const QUERY: &'static str = r"INSERT INTO orders (user_id, status, total_amount)
 VALUES ($1, $2, $3)
 RETURNING id, user_id, status, total_amount, ordered_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl CreateOrder {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1217,10 +1272,11 @@ RETURNING id, user_id, status, total_amount, ordered_at";
         CreateOrderRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateOrderRow>(Self::QUERY)
-            .bind(self.user_id)
-            .bind(self.status)
-            .bind(self.total_amount)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.user_id);
+        let q = q.bind(self.status);
+        let q = q.bind(self.total_amount);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -1298,7 +1354,7 @@ impl<'a, UserId, Status> CreateOrderBuilder<'a, (UserId, Status, ())> {
     }
 }
 impl<'a> CreateOrderBuilder<'a, (uuid::Uuid, OrderStatus, i32)> {
-    pub const fn build(self) -> CreateOrder {
+    pub fn build(self) -> CreateOrder {
         let (user_id, status, total_amount) = self.fields;
         CreateOrder {
             user_id,
@@ -1330,6 +1386,11 @@ impl CreateOrderItem {
     pub const QUERY: &'static str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
 VALUES ($1, $2, $3, $4)
 RETURNING id, order_id, product_id, quantity, price_at_purchase";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl CreateOrderItem {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1338,11 +1399,12 @@ RETURNING id, order_id, product_id, quantity, price_at_purchase";
         CreateOrderItemRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateOrderItemRow>(Self::QUERY)
-            .bind(self.order_id)
-            .bind(self.product_id)
-            .bind(self.quantity)
-            .bind(self.price_at_purchase)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.order_id);
+        let q = q.bind(self.product_id);
+        let q = q.bind(self.quantity);
+        let q = q.bind(self.price_at_purchase);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -1444,7 +1506,7 @@ impl<'a, OrderId, ProductId, Quantity>
     }
 }
 impl<'a> CreateOrderItemBuilder<'a, (i64, uuid::Uuid, i32, i32)> {
-    pub const fn build(self) -> CreateOrderItem {
+    pub fn build(self) -> CreateOrderItem {
         let (order_id, product_id, quantity, price_at_purchase) = self.fields;
         CreateOrderItem {
             order_id,
@@ -1486,6 +1548,11 @@ impl GetOrderDetails {
 FROM orders o
 JOIN users u ON o.user_id = u.id
 WHERE o.id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetOrderDetails {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1494,7 +1561,9 @@ WHERE o.id = $1";
         GetOrderDetailsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetOrderDetailsRow>(Self::QUERY).bind(self.id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -1546,7 +1615,7 @@ impl<'a> GetOrderDetailsBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetOrderDetailsBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetOrderDetails {
+    pub fn build(self) -> GetOrderDetails {
         let (id,) = self.fields;
         GetOrderDetails { id }
     }
@@ -1574,6 +1643,11 @@ impl ListOrderItemsByOrderId {
 FROM order_items oi
 JOIN products p ON oi.product_id = p.id
 WHERE oi.order_id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListOrderItemsByOrderId {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1582,7 +1656,9 @@ WHERE oi.order_id = $1";
         ListOrderItemsByOrderIdRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListOrderItemsByOrderIdRow>(Self::QUERY).bind(self.order_id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.order_id);
+        q
     }
     pub fn query_many<'a, 'b, A>(
         &'a self,
@@ -1621,7 +1697,7 @@ impl<'a> ListOrderItemsByOrderIdBuilder<'a, ((),)> {
     }
 }
 impl<'a> ListOrderItemsByOrderIdBuilder<'a, (i64,)> {
-    pub const fn build(self) -> ListOrderItemsByOrderId {
+    pub fn build(self) -> ListOrderItemsByOrderId {
         let (order_id,) = self.fields;
         ListOrderItemsByOrderId { order_id }
     }
@@ -1651,6 +1727,11 @@ impl<'a> CreateReview<'a> {
     pub const QUERY: &'static str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
 VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, product_id, rating, comment, created_at";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateReview<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1659,11 +1740,12 @@ RETURNING id, user_id, product_id, rating, comment, created_at";
         CreateReviewRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateReviewRow>(Self::QUERY)
-            .bind(self.user_id)
-            .bind(self.product_id)
-            .bind(self.rating)
-            .bind(self.comment)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.user_id);
+        let q = q.bind(self.product_id);
+        let q = q.bind(self.rating);
+        let q = q.bind(self.comment);
+        q
     }
     pub fn query_one<'b, A>(
         &'a self,
@@ -1754,7 +1836,7 @@ impl<'a, UserId, ProductId, Rating> CreateReviewBuilder<'a, (UserId, ProductId, 
     }
 }
 impl<'a> CreateReviewBuilder<'a, (uuid::Uuid, uuid::Uuid, i32, Option<&'a str>)> {
-    pub const fn build(self) -> CreateReview<'a> {
+    pub fn build(self) -> CreateReview<'a> {
         let (user_id, product_id, rating, comment) = self.fields;
         CreateReview {
             user_id,
@@ -1784,6 +1866,11 @@ impl GetProductAverageRating {
 FROM reviews
 WHERE product_id = $1
 GROUP BY product_id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetProductAverageRating {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1792,7 +1879,9 @@ GROUP BY product_id";
         GetProductAverageRatingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetProductAverageRatingRow>(Self::QUERY).bind(self.product_id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.product_id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -1847,7 +1936,7 @@ impl<'a> GetProductAverageRatingBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetProductAverageRatingBuilder<'a, (uuid::Uuid,)> {
-    pub const fn build(self) -> GetProductAverageRating {
+    pub fn build(self) -> GetProductAverageRating {
         let (product_id,) = self.fields;
         GetProductAverageRating { product_id }
     }
@@ -1877,6 +1966,11 @@ JOIN orders o ON oi.order_id = o.id
 WHERE o.status IN ('delivered', 'shipped')
 GROUP BY c.id, c.name
 ORDER BY total_sales DESC";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetCategorySalesRanking {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1885,7 +1979,8 @@ ORDER BY total_sales DESC";
         GetCategorySalesRankingRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetCategorySalesRankingRow>(Self::QUERY)
+        let q = sqlx::query_as(self.query_str());
+        q
     }
     pub fn query_many<'a, 'b, A>(
         &'a self,
@@ -1914,7 +2009,7 @@ pub struct GetCategorySalesRankingBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetCategorySalesRankingBuilder<'a, ()> {
-    pub const fn build(self) -> GetCategorySalesRanking {
+    pub fn build(self) -> GetCategorySalesRanking {
         let () = self.fields;
         GetCategorySalesRanking {}
     }
@@ -1926,6 +2021,11 @@ pub struct DeleteUserAndRelatedData {
 }
 impl DeleteUserAndRelatedData {
     pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl DeleteUserAndRelatedData {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -1934,7 +2034,9 @@ impl DeleteUserAndRelatedData {
         DeleteUserAndRelatedDataRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, DeleteUserAndRelatedDataRow>(Self::QUERY).bind(self.id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn execute<'a, 'b, A>(
         &'a self,
@@ -1947,10 +2049,9 @@ impl DeleteUserAndRelatedData {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY)
-                .bind(self.id)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.id);
+            q.execute(&mut *conn).await
         }
     }
 }
@@ -1977,7 +2078,7 @@ impl<'a> DeleteUserAndRelatedDataBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteUserAndRelatedDataBuilder<'a, (uuid::Uuid,)> {
-    pub const fn build(self) -> DeleteUserAndRelatedData {
+    pub fn build(self) -> DeleteUserAndRelatedData {
         let (id,) = self.fields;
         DeleteUserAndRelatedData { id }
     }

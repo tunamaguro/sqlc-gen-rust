@@ -17,6 +17,11 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = ? LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetAuthor {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -25,7 +30,9 @@ WHERE id = ? LIMIT 1";
         GetAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetAuthorRow>(Self::QUERY).bind(self.id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -77,7 +84,7 @@ impl<'a> GetAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
+    pub fn build(self) -> GetAuthor {
         let (id,) = self.fields;
         GetAuthor { id }
     }
@@ -95,6 +102,11 @@ pub struct ListAuthors;
 impl ListAuthors {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 ORDER BY name";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListAuthors {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -103,7 +115,8 @@ ORDER BY name";
         ListAuthorsRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsRow>(Self::QUERY)
+        let q = sqlx::query_as(self.query_str());
+        q
     }
     pub fn query_many<'a, 'b, A>(
         &'a self,
@@ -132,7 +145,7 @@ pub struct ListAuthorsBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListAuthorsBuilder<'a, ()> {
-    pub const fn build(self) -> ListAuthors {
+    pub fn build(self) -> ListAuthors {
         let () = self.fields;
         ListAuthors {}
     }
@@ -149,6 +162,11 @@ impl<'a> CreateAuthor<'a> {
 ) VALUES (
   ?, ? 
 )";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateAuthor<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -157,9 +175,10 @@ impl<'a> CreateAuthor<'a> {
         CreateAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, CreateAuthorRow>(Self::QUERY)
-            .bind(self.name)
-            .bind(self.bio)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.name);
+        let q = q.bind(self.bio);
+        q
     }
     pub fn execute<'b, A>(
         &'a self,
@@ -172,11 +191,10 @@ impl<'a> CreateAuthor<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY)
-                .bind(self.name)
-                .bind(self.bio)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.name);
+            let q = q.bind(self.bio);
+            q.execute(&mut *conn).await
         }
     }
 }
@@ -213,7 +231,7 @@ impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
     }
 }
 impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthor<'a> {
+    pub fn build(self) -> CreateAuthor<'a> {
         let (name, bio) = self.fields;
         CreateAuthor { name, bio }
     }
@@ -226,6 +244,11 @@ pub struct DeleteAuthor {
 impl DeleteAuthor {
     pub const QUERY: &'static str = r"DELETE FROM authors
 WHERE id = ?";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl DeleteAuthor {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -234,7 +257,9 @@ WHERE id = ?";
         DeleteAuthorRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, DeleteAuthorRow>(Self::QUERY).bind(self.id)
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.id);
+        q
     }
     pub fn execute<'a, 'b, A>(
         &'a self,
@@ -247,10 +272,9 @@ WHERE id = ?";
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY)
-                .bind(self.id)
-                .execute(&mut *conn)
-                .await
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.id);
+            q.execute(&mut *conn).await
         }
     }
 }
@@ -277,7 +301,7 @@ impl<'a> DeleteAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> DeleteAuthor {
+    pub fn build(self) -> DeleteAuthor {
         let (id,) = self.fields;
         DeleteAuthor { id }
     }

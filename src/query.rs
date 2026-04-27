@@ -203,13 +203,24 @@ pub(crate) fn make_column_name(column: &plugin::Column) -> String {
 }
 
 impl RsColType {
+    pub(crate) fn is_array(&self) -> bool {
+        self.dim != 0
+    }
+
     pub(crate) fn new_with_type(
         db_type: &DbTypeMap,
         column: &plugin::Column,
     ) -> Result<Self, QueryError> {
         let rs_type = db_type.get_column_type(column).stacked()?;
-        let dim = usize::try_from(column.array_dims).unwrap_or_default();
-        let optional = !column.not_null;
+        let dim = if column.is_sqlc_slice {
+            1
+        } else {
+            usize::try_from(column.array_dims).unwrap_or_default()
+        };
+
+        // sqlc.slice parameters are never optional.
+        // https://docs.sqlc.dev/en/latest/howto/select.html#mysql-and-sqlite
+        let optional = !column.is_sqlc_slice && !column.not_null;
 
         Ok(Self {
             rs_type,

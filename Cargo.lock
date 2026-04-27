@@ -1769,6 +1769,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlc-slice-rusqlite"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "test-context",
+ "test-utils",
+]
+
+[[package]]
+name = "sqlc-slice-sqlx-mysql"
+version = "0.1.0"
+dependencies = [
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+]
+
+[[package]]
+name = "sqlc-slice-sqlx-postgres"
+version = "0.1.0"
+dependencies = [
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+]
+
+[[package]]
+name = "sqlc-slice-sqlx-sqlite"
+version = "0.1.0"
+dependencies = [
+ "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
+]
+
+[[package]]
 name = "sqlx"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

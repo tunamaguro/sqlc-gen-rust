@@ -203,3 +203,38 @@ sql:
               rs_type: chrono::NaiveDate
             - db_type: time
               rs_type: chrono::NaiveTime
+
+  - schema: examples/sqlc-slice/sqlx-postgres/schema.sql
+    queries: examples/sqlc-slice/sqlx-postgres/queries.sql
+    engine: postgresql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/sqlc-slice/sqlx-postgres/src
+        options:
+          output: queries.rs
+          db_crate: sqlx-postgres
+
+  - schema: examples/sqlc-slice/sqlx-mysql/schema.sql
+    queries: examples/sqlc-slice/sqlx-mysql/queries.sql
+    engine: mysql
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/sqlc-slice/sqlx-mysql/src
+        options:
+          output: queries.rs
+          db_crate: sqlx-mysql
+
+  - schema: examples/sqlc-slice/sqlx-sqlite/schema.sql
+    queries: examples/sqlc-slice/sqlx-sqlite/queries.sql
+    engine: sqlite
+    codegen:
+      - plugin: sqlc-gen-rust
+        out: examples/sqlc-slice/sqlx-sqlite/src
+        options:
+          output: queries.rs
+          db_crate: sqlx-sqlite
+      - plugin: sqlc-gen-rust
+        out: examples/sqlc-slice/rusqlite/src
+        options:
+          output: queries.rs
+          db_crate: rusqlite
