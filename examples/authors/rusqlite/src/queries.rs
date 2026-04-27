@@ -35,22 +35,29 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = ? LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetAuthor {
     pub fn query_one(&self, client: &impl RusqliteClient) -> rusqlite::Result<GetAuthorRow> {
-        Self::prepare(client)?.query_row(self.as_params(), GetAuthorRow::from_row)
+        self.prepare(client)?
+            .query_row(self.as_params(), GetAuthorRow::from_row)
     }
     pub fn query_opt(
         &self,
         client: &impl RusqliteClient,
     ) -> rusqlite::Result<Option<GetAuthorRow>> {
-        Self::prepare(client)?
+        self.prepare(client)?
             .query_map(self.as_params(), GetAuthorRow::from_row)?
             .next()
             .transpose()
     }
     pub fn prepare<'conn>(
+        &self,
         client: &'conn impl RusqliteClient,
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> (i64,) {
         (self.id,)
@@ -79,7 +86,7 @@ impl<'a> GetAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
+    pub fn build(self) -> GetAuthor {
         let (id,) = self.fields;
         GetAuthor { id }
     }
@@ -102,18 +109,24 @@ pub struct ListAuthors;
 impl ListAuthors {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 ORDER BY name";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListAuthors {
     pub fn query_many(
         &self,
         client: &impl RusqliteClient,
     ) -> rusqlite::Result<Vec<ListAuthorsRow>> {
-        Self::prepare(client)?
+        self.prepare(client)?
             .query_map(self.as_params(), ListAuthorsRow::from_row)?
             .collect()
     }
     pub fn prepare<'conn>(
+        &self,
         client: &'conn impl RusqliteClient,
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> () {
         ()
@@ -132,7 +145,7 @@ pub struct ListAuthorsBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListAuthorsBuilder<'a, ()> {
-    pub const fn build(self) -> ListAuthors {
+    pub fn build(self) -> ListAuthors {
         let () = self.fields;
         ListAuthors {}
     }
@@ -153,13 +166,19 @@ impl<'a> CreateAuthor<'a> {
 ) VALUES (
   ?, ? 
 )";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateAuthor<'a> {
     pub fn execute(&self, client: &impl RusqliteClient) -> rusqlite::Result<usize> {
-        Self::prepare(client)?.execute(self.as_params())
+        self.prepare(client)?.execute(self.as_params())
     }
     pub fn prepare<'conn>(
+        &self,
         client: &'conn impl RusqliteClient,
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> (&'a str, Option<&'a str>) {
         (self.name, self.bio)
@@ -198,7 +217,7 @@ impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
     }
 }
 impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthor<'a> {
+    pub fn build(self) -> CreateAuthor<'a> {
         let (name, bio) = self.fields;
         CreateAuthor { name, bio }
     }
@@ -215,13 +234,19 @@ pub struct DeleteAuthor {
 impl DeleteAuthor {
     pub const QUERY: &'static str = r"DELETE FROM authors
 WHERE id = ?";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl DeleteAuthor {
     pub fn execute(&self, client: &impl RusqliteClient) -> rusqlite::Result<usize> {
-        Self::prepare(client)?.execute(self.as_params())
+        self.prepare(client)?.execute(self.as_params())
     }
     pub fn prepare<'conn>(
+        &self,
         client: &'conn impl RusqliteClient,
     ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> (i64,) {
         (self.id,)
@@ -250,7 +275,7 @@ impl<'a> DeleteAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> DeleteAuthor {
+    pub fn build(self) -> DeleteAuthor {
         let (id,) = self.fields;
         DeleteAuthor { id }
     }

@@ -178,7 +178,7 @@ impl DbCrate for Rusqlite {
         query: &crate::query::Query,
     ) -> proc_macro2::TokenStream {
         let row_tt = Self::returning_row(row);
-        let query_ast = super::QueryAst::new(query);
+        let query_ast = super::QueryAst::new(query, crate::db_crates::DataBaseKind::Sqlite);
         let builder_tt = query_ast.make_builder();
 
         let query_fns = match query.annotation {
@@ -186,11 +186,11 @@ impl DbCrate for Rusqlite {
                 let row_ident = row.struct_ident();
                 quote::quote! {
                     pub fn query_one(&self, client: &impl RusqliteClient)->rusqlite::Result<#row_ident>{
-                            Self::prepare(client)?
+                            self.prepare(client)?
                                 .query_row(self.as_params(), #row_ident::from_row)
                     }
                     pub fn query_opt(&self, client: &impl RusqliteClient)->rusqlite::Result<Option<#row_ident>>{
-                            Self::prepare(client)?
+                            self.prepare(client)?
                                 .query_map(self.as_params(), #row_ident::from_row)?
                                 .next()
                                 .transpose()
@@ -201,7 +201,7 @@ impl DbCrate for Rusqlite {
                 let row_ident = row.struct_ident();
                 quote::quote! {
                     pub fn query_many(&self, client: &impl RusqliteClient)->rusqlite::Result<Vec<#row_ident>>{
-                        Self::prepare(client)?
+                        self.prepare(client)?
                             .query_map(self.as_params(), #row_ident::from_row)?
                             .collect()
                     }
@@ -210,7 +210,7 @@ impl DbCrate for Rusqlite {
             Annotation::Exec | Annotation::ExecResult | Annotation::ExecRows => {
                 quote::quote! {
                     pub fn execute(&self, client: &impl RusqliteClient)->rusqlite::Result<usize>{
-                        Self::prepare(client)?
+                        self.prepare(client)?
                             .execute(self.as_params())
                     }
                 }
@@ -221,7 +221,6 @@ impl DbCrate for Rusqlite {
         };
 
         let fetch_tt = {
-            let query_str = query.query_str();
             let struct_ident = &query_ast.ident;
             let imp_ident = if query_ast.need_lifetime() {
                 let lifetime = &query_ast.lifetime;
@@ -231,8 +230,7 @@ impl DbCrate for Rusqlite {
             };
 
             let param_types = query_ast
-                .fields
-                .iter()
+                .fields()
                 .map(|f| f.typ.to_param_tokens(&query_ast.lifetime));
             let params = query.fields.iter().map(|f| {
                 let name = &f.name;
@@ -241,11 +239,10 @@ impl DbCrate for Rusqlite {
 
             quote::quote! {
                 impl #imp_ident {
-                    pub const QUERY:&'static str = #query_str;
                     #query_fns
 
-                    pub fn prepare<'conn>(client:&'conn impl RusqliteClient)->rusqlite::Result<rusqlite::Statement<'conn>>{
-                        client.prepare(Self::QUERY)
+                    pub fn prepare<'conn>(&self,client:&'conn impl RusqliteClient)->rusqlite::Result<rusqlite::Statement<'conn>>{
+                        client.prepare(self.query_str())
                     }
 
                     pub fn as_params(&self) -> (#(#param_types,)*) {

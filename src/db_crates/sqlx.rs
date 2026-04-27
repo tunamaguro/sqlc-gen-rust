@@ -244,6 +244,16 @@ impl<'de> serde::Deserialize<'de> for Sqlx {
     }
 }
 
+impl From<Sqlx> for crate::db_crates::DataBaseKind {
+    fn from(value: Sqlx) -> Self {
+        match value {
+            Sqlx::Postgres => Self::Postgres,
+            Sqlx::MySql => Self::MySql,
+            Sqlx::Sqlite => Self::Sqlite,
+        }
+    }
+}
+
 impl Sqlx {
     fn returning_row(&self, row: &ReturningRows) -> proc_macro2::TokenStream {
         let mut row = row.clone();
@@ -509,7 +519,7 @@ impl DbCrate for Sqlx {
     }
 
     fn generate_query(&self, row: &ReturningRows, query: &Query) -> proc_macro2::TokenStream {
-        let query_ast = super::QueryAst::new(query);
+        let query_ast = super::QueryAst::new(query, self.clone().into());
         let struct_ident = &query_ast.ident;
         let lifetime_a = &query_ast.lifetime;
         let need_lifetime = query_ast.need_lifetime();
@@ -528,7 +538,7 @@ impl DbCrate for Sqlx {
                 }
             };
 
-            let bind_params = query_ast.fields.iter().map(|f| &f.name).fold(
+            let bind_params = query_ast.fields().map(|f| &f.name).fold(
                 quote::quote! {},
                 |acc, x| quote::quote! {#acc .bind(self.#x)},
             );
@@ -542,7 +552,7 @@ impl DbCrate for Sqlx {
                 <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
                 >{
                     sqlx::query_as::<_,#row_ident>(
-                                    Self::QUERY,
+                                self.query_str(),
                                 ) #bind_params
                 }
             };
@@ -611,7 +621,7 @@ impl DbCrate for Sqlx {
                             async move {
                                 let mut conn = conn.acquire().await?;
                                 sqlx::query(
-                                    Self::QUERY,
+                                    self.query_str(),
                                 )  #bind_params .execute(&mut *conn).await
                             }
                         }
@@ -662,7 +672,6 @@ impl DbCrate for Sqlx {
             }
         };
         let fetch_tt = {
-            let query_str = query.query_str();
             let imp_ident = if need_lifetime {
                 quote::quote! {<#lifetime_a> #struct_ident<#lifetime_a>}
             } else {
@@ -670,7 +679,6 @@ impl DbCrate for Sqlx {
             };
             quote::quote! {
                 impl #imp_ident {
-                    pub const QUERY:&'static str = #query_str;
                     #query_fns
                 }
             }

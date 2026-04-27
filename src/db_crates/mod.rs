@@ -91,31 +91,50 @@ fn make_return_row(row: &query::ReturningRows) -> proc_macro2::TokenStream {
     }
 }
 
-struct QueryAst {
-    pub ident: syn::Ident,
-    pub lifetime: syn::Lifetime,
-    pub fields: Vec<query::ColumnField>,
+enum DataBaseKind {
+    Postgres,
+    MySql,
+    Sqlite,
 }
 
-impl QueryAst {
-    fn new(query: &Query) -> Self {
+struct QueryAst<'a> {
+    pub ident: syn::Ident,
+    pub lifetime: syn::Lifetime,
+    query: &'a Query,
+    kind: DataBaseKind,
+}
+
+impl<'a> QueryAst<'a> {
+    fn new(query: &'a Query, kind: DataBaseKind) -> Self {
         let ident = crate::value_ident(&query.query_name);
         let lifetime = syn::Lifetime::new("'a", proc_macro2::Span::call_site());
-        let fields = query.fields.clone();
         Self {
             ident,
             lifetime,
-            fields,
+            query,
+            kind,
         }
     }
 
+    fn fields(&self) -> impl Iterator<Item = &query::ColumnField> {
+        self.query.fields.iter()
+    }
+
     fn need_lifetime(&self) -> bool {
-        self.fields.iter().any(|f| f.typ.need_lifetime())
+        self.fields().any(|f| f.typ.need_lifetime())
+    }
+
+    fn need_expand_query(&self) -> bool {
+        if matches!(self.kind, DataBaseKind::Postgres) {
+            return false;
+        }
+
+        self.fields().any(|f| f.typ.is_array())
     }
 
     fn make_builder_setter(&self) -> proc_macro2::TokenStream {
         use quote::ToTokens;
-        let num_params = self.fields.len();
+        let num_params = self.query.fields.len();
         let fields_tuple = (0..num_params)
             .map(|_| quote::quote! {()})
             .collect::<Vec<_>>();
@@ -125,15 +144,13 @@ impl QueryAst {
         let builder_ident = crate::value_ident(&format!("{}Builder", struct_ident));
 
         let field_list = self
-            .fields
-            .iter()
+            .fields()
             .map(|f| &f.name)
             .map(|n| n.to_token_stream())
             .collect::<Vec<_>>();
 
         let typ_list = self
-            .fields
-            .iter()
+            .fields()
             .map(|f| &f.typ)
             .map(|typ| typ.to_param_tokens(lifetime))
             .collect::<Vec<_>>();
@@ -174,8 +191,7 @@ impl QueryAst {
         // implement `GetXXXBuilder`
         let builder_setter_tt = {
             let typ_generics = self
-                .fields
-                .iter()
+                .fields()
                 .map(|f| &f.name)
                 .map(|n| crate::value_ident(&n.to_string()))
                 .collect::<Vec<_>>();
@@ -223,15 +239,13 @@ impl QueryAst {
         let builder_ident = crate::value_ident(&format!("{}Builder", struct_ident));
 
         let field_list = self
-            .fields
-            .iter()
+            .fields()
             .map(|f| &f.name)
             .map(|n| n.to_token_stream())
             .collect::<Vec<_>>();
 
         let typ_list = self
-            .fields
-            .iter()
+            .fields()
             .map(|f| &f.typ)
             .map(|typ| typ.to_param_tokens(lifetime))
             .collect::<Vec<_>>();
@@ -244,7 +258,7 @@ impl QueryAst {
             };
             quote::quote! {
                   impl <#lifetime> #builder_ident<#lifetime,(#(#typ_list,)*)>{
-                    pub const fn build(self)->#build_struct{
+                    pub fn build(self)->#build_struct{
                         let (#(#field_list,)*) = self.fields;
                         #struct_ident{
                             #(#field_list,)*
@@ -268,9 +282,9 @@ impl QueryAst {
     }
 }
 
-impl quote::ToTokens for QueryAst {
+impl<'a> quote::ToTokens for QueryAst<'a> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let fields = self.fields.iter().map(|f| {
+        let fields = self.fields().map(|f| {
             let name = &f.name;
             let typ = f.typ.to_param_tokens(&self.lifetime);
             quote::quote! {#name:#typ}
@@ -278,11 +292,36 @@ impl quote::ToTokens for QueryAst {
         let ident = &self.ident;
         let lifetime = &self.lifetime;
 
-        let tt = match (self.need_lifetime(), !self.fields.is_empty()) {
+        let query_str = self.query.query_str();
+
+        let tt = match (self.need_lifetime(), !self.query.fields.is_empty()) {
             (true, _) => {
-                quote::quote! {
-                    pub struct #ident<#lifetime>{
-                        #(#fields,)*
+                if self.need_expand_query() {
+                    quote::quote! {
+                        pub struct #ident<#lifetime>{
+                            #(#fields,)*
+                            __query: String
+                        }
+
+                        impl <#lifetime> #ident<#lifetime>{
+                            pub const QUERY : &'static str = #query_str;
+                            pub fn query_str(&self)->&str{
+                                &self.__query
+                            }
+                        }
+                    }
+                } else {
+                    quote::quote! {
+                        pub struct #ident<#lifetime>{
+                            #(#fields,)*
+                        }
+
+                        impl <#lifetime> #ident<#lifetime>{
+                            pub const QUERY : &'static str = #query_str;
+                            pub fn query_str(&self)->&str{
+                                Self::QUERY
+                            }
+                        }
                     }
                 }
             }
@@ -291,11 +330,25 @@ impl quote::ToTokens for QueryAst {
                     pub struct #ident{
                         #(#fields,)*
                     }
+
+                    impl #ident {
+                        pub const QUERY : &'static str = #query_str;
+                        pub fn query_str(&self)->&str{
+                            Self::QUERY
+                        }
+                    }
                 }
             }
             (false, false) => {
                 quote::quote! {
                     pub struct #ident;
+
+                    impl #ident {
+                        pub const QUERY : &'static str = #query_str;
+                        pub fn query_str(&self)->&str{
+                            Self::QUERY
+                        }
+                    }
                 }
             }
         };

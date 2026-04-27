@@ -11,12 +11,18 @@ pub struct ListAuthorsByIDsRow {
 }
 pub struct ListAuthorsByIDs<'a> {
     ids: &'a [i64],
+    __query: String,
 }
 impl<'a> ListAuthorsByIDs<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
 FROM authors
 WHERE id IN (/*SLICE:ids*/?)
 ORDER BY id";
+    pub fn query_str(&self) -> &str {
+        &self.__query
+    }
+}
+impl<'a> ListAuthorsByIDs<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -25,7 +31,7 @@ ORDER BY id";
         ListAuthorsByIDsRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsByIDsRow>(Self::QUERY).bind(self.ids)
+        sqlx::query_as::<_, ListAuthorsByIDsRow>(self.query_str()).bind(self.ids)
     }
     pub fn query_many<'b, A>(
         &'a self,
@@ -64,7 +70,7 @@ impl<'a> ListAuthorsByIDsBuilder<'a, ((),)> {
     }
 }
 impl<'a> ListAuthorsByIDsBuilder<'a, (&'a [i64],)> {
-    pub const fn build(self) -> ListAuthorsByIDs<'a> {
+    pub fn build(self) -> ListAuthorsByIDs<'a> {
         let (ids,) = self.fields;
         ListAuthorsByIDs { ids }
     }
@@ -79,6 +85,7 @@ pub struct ListAuthorsByTwoIdListsRow {
 pub struct ListAuthorsByTwoIdLists<'a> {
     ids: &'a [i64],
     backup_ids: &'a [i64],
+    __query: String,
 }
 impl<'a> ListAuthorsByTwoIdLists<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
@@ -86,6 +93,11 @@ FROM authors
 WHERE id IN (/*SLICE:ids*/?)
    OR id IN (/*SLICE:backup_ids*/?)
 ORDER BY id";
+    pub fn query_str(&self) -> &str {
+        &self.__query
+    }
+}
+impl<'a> ListAuthorsByTwoIdLists<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -94,7 +106,7 @@ ORDER BY id";
         ListAuthorsByTwoIdListsRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(Self::QUERY)
+        sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(self.query_str())
             .bind(self.ids)
             .bind(self.backup_ids)
     }
@@ -148,7 +160,7 @@ impl<'a, Ids> ListAuthorsByTwoIdListsBuilder<'a, (Ids, ())> {
     }
 }
 impl<'a> ListAuthorsByTwoIdListsBuilder<'a, (&'a [i64], &'a [i64])> {
-    pub const fn build(self) -> ListAuthorsByTwoIdLists<'a> {
+    pub fn build(self) -> ListAuthorsByTwoIdLists<'a> {
         let (ids, backup_ids) = self.fields;
         ListAuthorsByTwoIdLists { ids, backup_ids }
     }
@@ -165,6 +177,7 @@ pub struct ListAuthorsByIDsMixed<'a> {
     min_id: i64,
     skip_ids: &'a [i64],
     excluded_name: &'a str,
+    __query: String,
 }
 impl<'a> ListAuthorsByIDsMixed<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
@@ -174,6 +187,11 @@ WHERE id IN (/*SLICE:ids*/?)
   AND id NOT IN (/*SLICE:skip_ids*/?)
   AND name <> ?4
 ORDER BY id";
+    pub fn query_str(&self) -> &str {
+        &self.__query
+    }
+}
+impl<'a> ListAuthorsByIDsMixed<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -182,7 +200,7 @@ ORDER BY id";
         ListAuthorsByIDsMixedRow,
         <sqlx::Sqlite as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(Self::QUERY)
+        sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(self.query_str())
             .bind(self.ids)
             .bind(self.min_id)
             .bind(self.skip_ids)
@@ -273,7 +291,7 @@ impl<'a, Ids, MinId, SkipIds> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, Skip
     }
 }
 impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> {
-    pub const fn build(self) -> ListAuthorsByIDsMixed<'a> {
+    pub fn build(self) -> ListAuthorsByIDsMixed<'a> {
         let (ids, min_id, skip_ids, excluded_name) = self.fields;
         ListAuthorsByIDsMixed {
             ids,

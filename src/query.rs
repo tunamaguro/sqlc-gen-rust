@@ -203,6 +203,10 @@ pub(crate) fn make_column_name(column: &plugin::Column) -> String {
 }
 
 impl RsColType {
+    pub(crate) fn is_array(&self) -> bool {
+        self.dim != 0
+    }
+
     pub(crate) fn new_with_type(
         db_type: &DbTypeMap,
         column: &plugin::Column,

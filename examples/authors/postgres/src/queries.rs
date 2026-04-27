@@ -23,11 +23,16 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetAuthor {
     pub fn query_one(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetAuthorRow, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let row = client.query_one(&stmt, &self.as_params())?;
         GetAuthorRow::from_row(&row)
     }
@@ -35,7 +40,7 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let row = client.query_opt(&stmt, &self.as_params())?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
@@ -43,9 +48,10 @@ WHERE id = $1 LIMIT 1";
         }
     }
     pub fn prepare(
+        &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<postgres::Statement, postgres::Error> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -74,7 +80,7 @@ impl<'a> GetAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
+    pub fn build(self) -> GetAuthor {
         let (id,) = self.fields;
         GetAuthor { id }
     }
@@ -97,27 +103,33 @@ pub struct ListAuthors;
 impl ListAuthors {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 ORDER BY name";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl ListAuthors {
     pub fn query_iter<'row_iter>(
         &self,
         client: &'row_iter mut impl postgres::GenericClient,
     ) -> Result<postgres::RowIter<'row_iter>, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         client.query_raw(&stmt, self.as_params())
     }
     pub fn query_many(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Vec<ListAuthorsRow>, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let rows = client.query(&stmt, &self.as_params())?;
         rows.into_iter()
             .map(|r| ListAuthorsRow::from_row(&r))
             .collect()
     }
     pub fn prepare(
+        &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<postgres::Statement, postgres::Error> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 0] {
         []
@@ -136,7 +148,7 @@ pub struct ListAuthorsBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> ListAuthorsBuilder<'a, ()> {
-    pub const fn build(self) -> ListAuthors {
+    pub fn build(self) -> ListAuthors {
         let () = self.fields;
         ListAuthors {}
     }
@@ -166,11 +178,16 @@ impl<'a> CreateAuthor<'a> {
   $1, $2
 )
 RETURNING id, name, bio";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateAuthor<'a> {
     pub fn query_one(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<CreateAuthorRow, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let row = client.query_one(&stmt, &self.as_params())?;
         CreateAuthorRow::from_row(&row)
     }
@@ -178,7 +195,7 @@ RETURNING id, name, bio";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<CreateAuthorRow>, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let row = client.query_opt(&stmt, &self.as_params())?;
         match row {
             Some(row) => Ok(Some(CreateAuthorRow::from_row(&row)?)),
@@ -186,9 +203,10 @@ RETURNING id, name, bio";
         }
     }
     pub fn prepare(
+        &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<postgres::Statement, postgres::Error> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 2] {
         [&self.name, &self.bio]
@@ -227,7 +245,7 @@ impl<'a, Name> CreateAuthorBuilder<'a, (Name, ())> {
     }
 }
 impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthor<'a> {
+    pub fn build(self) -> CreateAuthor<'a> {
         let (name, bio) = self.fields;
         CreateAuthor { name, bio }
     }
@@ -244,17 +262,23 @@ pub struct DeleteAuthor {
 impl DeleteAuthor {
     pub const QUERY: &'static str = r"DELETE FROM authors
 WHERE id = $1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl DeleteAuthor {
     pub fn execute(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<u64, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         client.execute(&stmt, &self.as_params())
     }
     pub fn prepare(
+        &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<postgres::Statement, postgres::Error> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -283,7 +307,7 @@ impl<'a> DeleteAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> DeleteAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> DeleteAuthor {
+    pub fn build(self) -> DeleteAuthor {
         let (id,) = self.fields;
         DeleteAuthor { id }
     }

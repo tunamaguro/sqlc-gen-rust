@@ -23,11 +23,16 @@ pub struct GetAuthor {
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetAuthor {
     pub fn query_one(
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<GetAuthorRow, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let row = client.query_one(&stmt, &self.as_params())?;
         GetAuthorRow::from_row(&row)
     }
@@ -35,7 +40,7 @@ WHERE id = $1 LIMIT 1";
         &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<Option<GetAuthorRow>, postgres::Error> {
-        let stmt = Self::prepare(client)?;
+        let stmt = self.prepare(client)?;
         let row = client.query_opt(&stmt, &self.as_params())?;
         match row {
             Some(row) => Ok(Some(GetAuthorRow::from_row(&row)?)),
@@ -43,9 +48,10 @@ WHERE id = $1 LIMIT 1";
         }
     }
     pub fn prepare(
+        &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<postgres::Statement, postgres::Error> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 1] {
         [&self.id]
@@ -74,7 +80,7 @@ impl<'a> GetAuthorBuilder<'a, ((),)> {
     }
 }
 impl<'a> GetAuthorBuilder<'a, (i64,)> {
-    pub const fn build(self) -> GetAuthor {
+    pub fn build(self) -> GetAuthor {
         let (id,) = self.fields;
         GetAuthor { id }
     }
@@ -92,10 +98,16 @@ pub struct CreateAuthors<'a> {
 }
 impl<'a> CreateAuthors<'a> {
     pub const QUERY: &'static str = r"COPY authors (id,name,bio) FROM STDIN (FORMAT BINARY)";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> CreateAuthors<'a> {
     pub fn prepare(
+        &self,
         client: &mut impl postgres::GenericClient,
     ) -> Result<postgres::Statement, postgres::Error> {
-        client.prepare(Self::QUERY)
+        client.prepare(self.query_str())
     }
     pub fn as_params(&self) -> [&(dyn ToSql + Sync); 3] {
         [&self.id, &self.name, &self.bio]
@@ -147,7 +159,7 @@ impl<'a, Id, Name> CreateAuthorsBuilder<'a, (Id, Name, ())> {
     }
 }
 impl<'a> CreateAuthorsBuilder<'a, (i64, &'a str, Option<&'a str>)> {
-    pub const fn build(self) -> CreateAuthors<'a> {
+    pub fn build(self) -> CreateAuthors<'a> {
         let (id, name, bio) = self.fields;
         CreateAuthors { id, name, bio }
     }

@@ -80,6 +80,11 @@ impl<'a> ListAuthorsByIDs<'a> {
 FROM authors
 WHERE id = ANY($1::bigint[])
 ORDER BY id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> ListAuthorsByIDs<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -88,7 +93,7 @@ ORDER BY id";
         ListAuthorsByIDsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsByIDsRow>(Self::QUERY).bind(self.ids)
+        sqlx::query_as::<_, ListAuthorsByIDsRow>(self.query_str()).bind(self.ids)
     }
     pub fn query_many<'b, A>(
         &'a self,
@@ -127,7 +132,7 @@ impl<'a> ListAuthorsByIDsBuilder<'a, ((),)> {
     }
 }
 impl<'a> ListAuthorsByIDsBuilder<'a, (&'a [i64],)> {
-    pub const fn build(self) -> ListAuthorsByIDs<'a> {
+    pub fn build(self) -> ListAuthorsByIDs<'a> {
         let (ids,) = self.fields;
         ListAuthorsByIDs { ids }
     }
@@ -149,6 +154,11 @@ FROM authors
 WHERE id = ANY($1::bigint[])
    OR id = ANY($2::bigint[])
 ORDER BY id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> ListAuthorsByTwoIdLists<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -157,7 +167,7 @@ ORDER BY id";
         ListAuthorsByTwoIdListsRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(Self::QUERY)
+        sqlx::query_as::<_, ListAuthorsByTwoIdListsRow>(self.query_str())
             .bind(self.ids)
             .bind(self.backup_ids)
     }
@@ -211,7 +221,7 @@ impl<'a, Ids> ListAuthorsByTwoIdListsBuilder<'a, (Ids, ())> {
     }
 }
 impl<'a> ListAuthorsByTwoIdListsBuilder<'a, (&'a [i64], &'a [i64])> {
-    pub const fn build(self) -> ListAuthorsByTwoIdLists<'a> {
+    pub fn build(self) -> ListAuthorsByTwoIdLists<'a> {
         let (ids, backup_ids) = self.fields;
         ListAuthorsByTwoIdLists { ids, backup_ids }
     }
@@ -237,6 +247,11 @@ WHERE id = ANY($1::bigint[])
   AND NOT (id = ANY($3::bigint[]))
   AND name <> $4
 ORDER BY id";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> ListAuthorsByIDsMixed<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -245,7 +260,7 @@ ORDER BY id";
         ListAuthorsByIDsMixedRow,
         <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(Self::QUERY)
+        sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(self.query_str())
             .bind(self.ids)
             .bind(self.min_id)
             .bind(self.skip_ids)
@@ -336,7 +351,7 @@ impl<'a, Ids, MinId, SkipIds> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, Skip
     }
 }
 impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> {
-    pub const fn build(self) -> ListAuthorsByIDsMixed<'a> {
+    pub fn build(self) -> ListAuthorsByIDsMixed<'a> {
         let (ids, min_id, skip_ids, excluded_name) = self.fields;
         ListAuthorsByIDsMixed {
             ids,

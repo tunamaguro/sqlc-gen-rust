@@ -54,6 +54,11 @@ impl GetMapping {
     time_val,
     json_val
 FROM mapping";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl GetMapping {
     pub fn query_as<'a>(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -62,7 +67,7 @@ FROM mapping";
         GetMappingRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, GetMappingRow>(Self::QUERY)
+        sqlx::query_as::<_, GetMappingRow>(self.query_str())
     }
     pub fn query_one<'a, 'b, A>(
         &'a self,
@@ -104,7 +109,7 @@ pub struct GetMappingBuilder<'a, Fields = ()> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 impl<'a> GetMappingBuilder<'a, ()> {
-    pub const fn build(self) -> GetMapping {
+    pub fn build(self) -> GetMapping {
         let () = self.fields;
         GetMapping {}
     }
@@ -148,6 +153,11 @@ impl<'a> InsertMapping<'a> {
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> InsertMapping<'a> {
     pub fn query_as(
         &'a self,
     ) -> sqlx::query::QueryAs<
@@ -156,7 +166,7 @@ impl<'a> InsertMapping<'a> {
         InsertMappingRow,
         <sqlx::MySql as sqlx::Database>::Arguments<'a>,
     > {
-        sqlx::query_as::<_, InsertMappingRow>(Self::QUERY)
+        sqlx::query_as::<_, InsertMappingRow>(self.query_str())
             .bind(self.bool_val)
             .bind(self.tinyint_val)
             .bind(self.smallint_val)
@@ -184,7 +194,7 @@ impl<'a> InsertMapping<'a> {
     {
         async move {
             let mut conn = conn.acquire().await?;
-            sqlx::query(Self::QUERY)
+            sqlx::query(self.query_str())
                 .bind(self.bool_val)
                 .bind(self.tinyint_val)
                 .bind(self.smallint_val)
@@ -1758,7 +1768,7 @@ impl<'a>
         ),
     >
 {
-    pub const fn build(self) -> InsertMapping<'a> {
+    pub fn build(self) -> InsertMapping<'a> {
         let (
             bool_val,
             tinyint_val,
