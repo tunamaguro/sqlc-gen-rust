@@ -1773,6 +1773,9 @@ name = "sqlc-slice-sqlx-mysql"
 version = "0.1.0"
 dependencies = [
  "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
 ]
 
 [[package]]
@@ -1780,6 +1783,9 @@ name = "sqlc-slice-sqlx-postgres"
 version = "0.1.0"
 dependencies = [
  "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
 ]
 
 [[package]]
@@ -1787,6 +1793,9 @@ name = "sqlc-slice-sqlx-sqlite"
 version = "0.1.0"
 dependencies = [
  "sqlx",
+ "test-context",
+ "test-utils",
+ "tokio",
 ]
 
 [[package]]

@@ -15,7 +15,7 @@ ORDER BY id;
 SELECT id, name
 FROM authors
 WHERE id IN (sqlc.slice('ids'))
-  AND id >= sqlc.arg('min_id')
+  AND id >= ?
   AND id NOT IN (sqlc.slice('skip_ids'))
-  AND name <> sqlc.arg('excluded_name')
+  AND name <> ?
 ORDER BY id;

@@ -216,18 +216,18 @@ pub struct ListAuthorsByIDsMixedRow {
 }
 pub struct ListAuthorsByIDsMixed<'a> {
     ids: &'a [i64],
-    min_id: i64,
+    id: i64,
     skip_ids: &'a [i64],
-    excluded_name: &'a str,
+    name: &'a str,
     __query: String,
 }
 impl<'a> ListAuthorsByIDsMixed<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
 FROM authors
 WHERE id IN (/*SLICE:ids*/?)
-  AND id >= ?2
+  AND id >= ?
   AND id NOT IN (/*SLICE:skip_ids*/?)
-  AND name <> ?4
+  AND name <> ?
 ORDER BY id";
     pub fn query_str(&self) -> &str {
         &self.__query
@@ -244,9 +244,9 @@ impl<'a> ListAuthorsByIDsMixed<'a> {
     > {
         let q = sqlx::query_as::<_, ListAuthorsByIDsMixedRow>(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
-        let q = q.bind(self.min_id);
+        let q = q.bind(self.id);
         let q = self.skip_ids.iter().fold(q, |q, item| q.bind(item));
-        let q = q.bind(self.excluded_name);
+        let q = q.bind(self.name);
         q
     }
     pub fn query_many<'b, A>(
@@ -275,67 +275,58 @@ pub struct ListAuthorsByIDsMixedBuilder<'a, Fields = ((), (), (), ())> {
     fields: Fields,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
-impl<'a, MinId, SkipIds, ExcludedName>
-    ListAuthorsByIDsMixedBuilder<'a, ((), MinId, SkipIds, ExcludedName)>
-{
+impl<'a, Id, SkipIds, Name> ListAuthorsByIDsMixedBuilder<'a, ((), Id, SkipIds, Name)> {
     pub fn ids(
         self,
         ids: &'a [i64],
-    ) -> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], MinId, SkipIds, ExcludedName)> {
-        let ((), min_id, skip_ids, excluded_name) = self.fields;
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], Id, SkipIds, Name)> {
+        let ((), id, skip_ids, name) = self.fields;
         let _phantom = self._phantom;
         ListAuthorsByIDsMixedBuilder {
-            fields: (ids, min_id, skip_ids, excluded_name),
+            fields: (ids, id, skip_ids, name),
             _phantom,
         }
     }
 }
-impl<'a, Ids, SkipIds, ExcludedName>
-    ListAuthorsByIDsMixedBuilder<'a, (Ids, (), SkipIds, ExcludedName)>
-{
-    pub fn min_id(
-        self,
-        min_id: i64,
-    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, i64, SkipIds, ExcludedName)> {
-        let (ids, (), skip_ids, excluded_name) = self.fields;
+impl<'a, Ids, SkipIds, Name> ListAuthorsByIDsMixedBuilder<'a, (Ids, (), SkipIds, Name)> {
+    pub fn id(self, id: i64) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, i64, SkipIds, Name)> {
+        let (ids, (), skip_ids, name) = self.fields;
         let _phantom = self._phantom;
         ListAuthorsByIDsMixedBuilder {
-            fields: (ids, min_id, skip_ids, excluded_name),
+            fields: (ids, id, skip_ids, name),
             _phantom,
         }
     }
 }
-impl<'a, Ids, MinId, ExcludedName>
-    ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, (), ExcludedName)>
-{
+impl<'a, Ids, Id, Name> ListAuthorsByIDsMixedBuilder<'a, (Ids, Id, (), Name)> {
     pub fn skip_ids(
         self,
         skip_ids: &'a [i64],
-    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, &'a [i64], ExcludedName)> {
-        let (ids, min_id, (), excluded_name) = self.fields;
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, Id, &'a [i64], Name)> {
+        let (ids, id, (), name) = self.fields;
         let _phantom = self._phantom;
         ListAuthorsByIDsMixedBuilder {
-            fields: (ids, min_id, skip_ids, excluded_name),
+            fields: (ids, id, skip_ids, name),
             _phantom,
         }
     }
 }
-impl<'a, Ids, MinId, SkipIds> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, SkipIds, ())> {
-    pub fn excluded_name(
+impl<'a, Ids, Id, SkipIds> ListAuthorsByIDsMixedBuilder<'a, (Ids, Id, SkipIds, ())> {
+    pub fn name(
         self,
-        excluded_name: &'a str,
-    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, MinId, SkipIds, &'a str)> {
-        let (ids, min_id, skip_ids, ()) = self.fields;
+        name: &'a str,
+    ) -> ListAuthorsByIDsMixedBuilder<'a, (Ids, Id, SkipIds, &'a str)> {
+        let (ids, id, skip_ids, ()) = self.fields;
         let _phantom = self._phantom;
         ListAuthorsByIDsMixedBuilder {
-            fields: (ids, min_id, skip_ids, excluded_name),
+            fields: (ids, id, skip_ids, name),
             _phantom,
         }
     }
 }
 impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> {
     pub fn build(self) -> ListAuthorsByIDsMixed<'a> {
-        let (ids, min_id, skip_ids, excluded_name) = self.fields;
+        let (ids, id, skip_ids, name) = self.fields;
         let __query = ListAuthorsByIDsMixed::QUERY;
         let __query = match ids.len() {
             0 => __query.replace("/*SLICE:ids*/?", "NULL"),
@@ -359,9 +350,9 @@ impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> 
         };
         ListAuthorsByIDsMixed {
             ids,
-            min_id,
+            id,
             skip_ids,
-            excluded_name,
+            name,
             __query: __query.into(),
         }
     }
