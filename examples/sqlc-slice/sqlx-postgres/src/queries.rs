@@ -365,3 +365,73 @@ impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> 
         }
     }
 }
+#[derive(sqlx::FromRow)]
+pub struct DeleteAuthorsByIDsRow {}
+pub struct DeleteAuthorsByIDs<'a> {
+    ids: &'a [i64],
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub const QUERY: &'static str = r"DELETE FROM authors
+WHERE id = ANY($1::bigint[])";
+    pub fn query_str(&self) -> &str {
+        Self::QUERY
+    }
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub fn query_as(
+        &'a self,
+    ) -> sqlx::query::QueryAs<
+        'a,
+        sqlx::Postgres,
+        DeleteAuthorsByIDsRow,
+        <sqlx::Postgres as sqlx::Database>::Arguments<'a>,
+    > {
+        let q = sqlx::query_as(self.query_str());
+        let q = q.bind(self.ids);
+        q
+    }
+    pub fn execute<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<<sqlx::Postgres as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::Postgres> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            let q = sqlx::query(self.query_str());
+            let q = q.bind(self.ids);
+            q.execute(&mut *conn).await
+        }
+    }
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub const fn builder() -> DeleteAuthorsByIDsBuilder<'a, ((),)> {
+        DeleteAuthorsByIDsBuilder {
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct DeleteAuthorsByIDsBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> DeleteAuthorsByIDsBuilder<'a, ((),)> {
+    pub fn ids(self, ids: &'a [i64]) -> DeleteAuthorsByIDsBuilder<'a, (&'a [i64],)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        DeleteAuthorsByIDsBuilder {
+            fields: (ids,),
+            _phantom,
+        }
+    }
+}
+impl<'a> DeleteAuthorsByIDsBuilder<'a, (&'a [i64],)> {
+    pub fn build(self) -> DeleteAuthorsByIDs<'a> {
+        let (ids,) = self.fields;
+        DeleteAuthorsByIDs { ids }
+    }
+}

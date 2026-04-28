@@ -19,3 +19,7 @@ WHERE id = ANY(sqlc.slice('ids')::bigint[])
   AND NOT (id = ANY(sqlc.slice('skip_ids')::bigint[]))
   AND name <> sqlc.arg('excluded_name')
 ORDER BY id;
+
+-- name: DeleteAuthorsByIDs :exec
+DELETE FROM authors
+WHERE id = ANY(sqlc.slice('ids')::bigint[]);

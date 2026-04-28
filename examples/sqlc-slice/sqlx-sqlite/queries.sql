@@ -19,3 +19,7 @@ WHERE id IN (sqlc.slice('ids'))
   AND id NOT IN (sqlc.slice('skip_ids'))
   AND name <> ?
 ORDER BY id;
+
+-- name: DeleteAuthorsByIDs :exec
+DELETE FROM authors
+WHERE id IN (sqlc.slice('ids'));
