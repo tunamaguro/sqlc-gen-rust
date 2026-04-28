@@ -660,6 +660,7 @@ impl DbCrate for Sqlx {
                                 let mut conn = conn.acquire().await?;
                                 let q = sqlx::query(self.query_str());
                                 #query_bind;
+                                #query_cache;
                                 q.execute(&mut *conn).await
                             }
                         }
