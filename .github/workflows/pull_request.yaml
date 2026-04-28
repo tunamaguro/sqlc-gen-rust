@@ -49,7 +49,7 @@ jobs:
           bins: just
           cache-base: main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}     
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Protoc
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
