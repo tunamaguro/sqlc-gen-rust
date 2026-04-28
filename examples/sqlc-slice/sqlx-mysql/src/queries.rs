@@ -33,6 +33,7 @@ impl<'a> ListAuthorsByIDs<'a> {
     > {
         let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
+        let q = q.persistent(false);
         q
     }
     pub fn query_many<'b, A>(
@@ -125,6 +126,7 @@ impl<'a> ListAuthorsByTwoIdLists<'a> {
         let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
         let q = self.backup_ids.iter().fold(q, |q, item| q.bind(item));
+        let q = q.persistent(false);
         q
     }
     pub fn query_many<'b, A>(
@@ -247,6 +249,7 @@ impl<'a> ListAuthorsByIDsMixed<'a> {
         let q = q.bind(self.id);
         let q = self.skip_ids.iter().fold(q, |q, item| q.bind(item));
         let q = q.bind(self.name);
+        let q = q.persistent(false);
         q
     }
     pub fn query_many<'b, A>(
