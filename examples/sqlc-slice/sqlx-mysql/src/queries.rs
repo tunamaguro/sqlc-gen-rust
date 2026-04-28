@@ -33,6 +33,7 @@ impl<'a> ListAuthorsByIDs<'a> {
     > {
         let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
+        let q = q.persistent(false);
         q
     }
     pub fn query_many<'b, A>(
@@ -125,6 +126,7 @@ impl<'a> ListAuthorsByTwoIdLists<'a> {
         let q = sqlx::query_as(self.query_str());
         let q = self.ids.iter().fold(q, |q, item| q.bind(item));
         let q = self.backup_ids.iter().fold(q, |q, item| q.bind(item));
+        let q = q.persistent(false);
         q
     }
     pub fn query_many<'b, A>(
@@ -247,6 +249,7 @@ impl<'a> ListAuthorsByIDsMixed<'a> {
         let q = q.bind(self.id);
         let q = self.skip_ids.iter().fold(q, |q, item| q.bind(item));
         let q = q.bind(self.name);
+        let q = q.persistent(false);
         q
     }
     pub fn query_many<'b, A>(
@@ -353,6 +356,93 @@ impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> 
             id,
             skip_ids,
             name,
+            __query: __query.into(),
+        }
+    }
+}
+#[derive(sqlx::FromRow)]
+pub struct DeleteAuthorsByIDsRow {}
+pub struct DeleteAuthorsByIDs<'a> {
+    ids: &'a [i64],
+    __query: String,
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub const QUERY: &'static str = r"DELETE FROM authors
+WHERE id IN (/*SLICE:ids*/?)";
+    pub fn query_str(&self) -> &str {
+        &self.__query
+    }
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub fn query_as(
+        &'a self,
+    ) -> sqlx::query::QueryAs<
+        'a,
+        sqlx::MySql,
+        DeleteAuthorsByIDsRow,
+        <sqlx::MySql as sqlx::Database>::Arguments<'a>,
+    > {
+        let q = sqlx::query_as(self.query_str());
+        let q = self.ids.iter().fold(q, |q, item| q.bind(item));
+        let q = q.persistent(false);
+        q
+    }
+    pub fn execute<'b, A>(
+        &'a self,
+        conn: A,
+    ) -> impl Future<Output = Result<<sqlx::MySql as sqlx::Database>::QueryResult, sqlx::Error>>
+    + Send
+    + 'a
+    where
+        A: sqlx::Acquire<'b, Database = sqlx::MySql> + Send + 'a,
+    {
+        async move {
+            let mut conn = conn.acquire().await?;
+            let q = sqlx::query(self.query_str());
+            let q = self.ids.iter().fold(q, |q, item| q.bind(item));
+            let q = q.persistent(false);
+            q.execute(&mut *conn).await
+        }
+    }
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub const fn builder() -> DeleteAuthorsByIDsBuilder<'a, ((),)> {
+        DeleteAuthorsByIDsBuilder {
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct DeleteAuthorsByIDsBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> DeleteAuthorsByIDsBuilder<'a, ((),)> {
+    pub fn ids(self, ids: &'a [i64]) -> DeleteAuthorsByIDsBuilder<'a, (&'a [i64],)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        DeleteAuthorsByIDsBuilder {
+            fields: (ids,),
+            _phantom,
+        }
+    }
+}
+impl<'a> DeleteAuthorsByIDsBuilder<'a, (&'a [i64],)> {
+    pub fn build(self) -> DeleteAuthorsByIDs<'a> {
+        let (ids,) = self.fields;
+        let __query = DeleteAuthorsByIDs::QUERY;
+        let __query = match ids.len() {
+            0 => __query.replace("/*SLICE:ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:ids*/?", &to)
+            }
+        };
+        DeleteAuthorsByIDs {
+            ids,
             __query: __query.into(),
         }
     }

@@ -369,3 +369,78 @@ impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> 
         }
     }
 }
+pub struct DeleteAuthorsByIDsRow {}
+impl DeleteAuthorsByIDsRow {
+    pub fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(Self {})
+    }
+}
+pub struct DeleteAuthorsByIDs<'a> {
+    ids: &'a [i64],
+    __query: String,
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub const QUERY: &'static str = r"DELETE FROM authors
+WHERE id IN (/*SLICE:ids*/?)";
+    pub fn query_str(&self) -> &str {
+        &self.__query
+    }
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub fn execute(&self, client: &impl RusqliteClient) -> rusqlite::Result<usize> {
+        self.prepare(client)?.execute(self.as_params())
+    }
+    pub fn prepare<'conn>(
+        &self,
+        client: &'conn impl RusqliteClient,
+    ) -> rusqlite::Result<rusqlite::Statement<'conn>> {
+        client.prepare(self.query_str())
+    }
+    pub fn as_params(&self) -> impl rusqlite::Params {
+        rusqlite::params_from_iter(
+            core::iter::empty().chain(self.ids.iter().map(|v| v as &dyn rusqlite::ToSql)),
+        )
+    }
+}
+impl<'a> DeleteAuthorsByIDs<'a> {
+    pub const fn builder() -> DeleteAuthorsByIDsBuilder<'a, ((),)> {
+        DeleteAuthorsByIDsBuilder {
+            fields: ((),),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+pub struct DeleteAuthorsByIDsBuilder<'a, Fields = ((),)> {
+    fields: Fields,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+impl<'a> DeleteAuthorsByIDsBuilder<'a, ((),)> {
+    pub fn ids(self, ids: &'a [i64]) -> DeleteAuthorsByIDsBuilder<'a, (&'a [i64],)> {
+        let ((),) = self.fields;
+        let _phantom = self._phantom;
+        DeleteAuthorsByIDsBuilder {
+            fields: (ids,),
+            _phantom,
+        }
+    }
+}
+impl<'a> DeleteAuthorsByIDsBuilder<'a, (&'a [i64],)> {
+    pub fn build(self) -> DeleteAuthorsByIDs<'a> {
+        let (ids,) = self.fields;
+        let __query = DeleteAuthorsByIDs::QUERY;
+        let __query = match ids.len() {
+            0 => __query.replace("/*SLICE:ids*/?", "NULL"),
+            1 => __query.replace("/*SLICE:ids*/?", "?"),
+            n => {
+                let to = core::iter::once("?")
+                    .chain(core::iter::repeat(",?").take(n - 1))
+                    .collect::<String>();
+                __query.replace("/*SLICE:ids*/?", &to)
+            }
+        };
+        DeleteAuthorsByIDs {
+            ids,
+            __query: __query.into(),
+        }
+    }
+}

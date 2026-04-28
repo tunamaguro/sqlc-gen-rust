@@ -28,13 +28,10 @@ jobs:
         uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
         with:
           components: rustfmt
+          bins: just
           cache-base: main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run format
         run: |
           just format-ci
@@ -49,13 +46,10 @@ jobs:
         uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
         with:
           components: clippy
+          bins: just
           cache-base: main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}      
       - name: Setup Protoc
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
@@ -102,13 +96,10 @@ jobs:
         uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
         with:
           targets: wasm32-wasip1
+          bins: just
           cache-base: main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Protoc
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
