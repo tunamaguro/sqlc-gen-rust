@@ -572,7 +572,7 @@ impl DbCrate for Sqlx {
 
             let query_bind = self.query_bind(query, quote::format_ident!("q"));
             let query_cache = if query_ast.need_expand_query() {
-                // expanded query are likely to differ each time, so we disable query cache
+                // expanded queries are likely to differ each time, so we disable query cache
                 Some(quote::quote! {
                     let q = q.persistent(false);
                 })
