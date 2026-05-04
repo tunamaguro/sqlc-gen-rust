@@ -42,7 +42,7 @@ prost-build = "0.14"
 postgres = { version = "0.19" }
 tokio-postgres = { version = "0.7.13" }
 deadpool-postgres = { version = "0.14" }
-postgres-types = { version = "0.2.9", features = [
+postgres-types = { version = "0.2.13", features = [
     "derive",
     "array-impls",
     "with-uuid-1",
@@ -60,7 +60,7 @@ sqlx = { version = "0.8.6", features = [
 ] }
 rusqlite = { version = "0.32" }
 
-tokio = { version = "1.52.1", features = ["full"] }
+tokio = { version = "1.52.2", features = ["full"] }
 
 chrono = { version = "0.4.44" }
 uuid = { version = "1.23" }
