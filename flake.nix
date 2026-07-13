@@ -48,6 +48,50 @@
         }
       );
 
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor system;
+          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          rustPlatform = pkgs.makeRustPlatform {
+            cargo = rustToolchain;
+            rustc = rustToolchain;
+          };
+        in
+        rec {
+          sqlc-gen-rust = rustPlatform.buildRustPackage {
+            pname = "sqlc-gen-rust";
+            version = "0.1.12";
+
+            src = pkgs.lib.cleanSource ./.;
+            cargoLock.lockFile = ./Cargo.lock;
+
+            nativeBuildInputs = [ pkgs.protobuf ];
+            doCheck = false;
+
+            buildPhase = ''
+              runHook preBuild
+              cargo build \
+                --target wasm32-wasip1 \
+                --release \
+                --offline \
+                --package sqlc-gen-rust
+              runHook postBuild
+            '';
+
+            installPhase = ''
+              runHook preInstall
+              install -Dm644 \
+                target/wasm32-wasip1/release/sqlc-gen-rust.wasm \
+                $out/lib/sqlc-gen-rust/sqlc-gen-rust.wasm
+              runHook postInstall
+            '';
+          };
+
+          default = sqlc-gen-rust;
+        }
+      );
+
       formatter = forAllSystems (system: (pkgsFor system).nixfmt-tree);
     };
 }
