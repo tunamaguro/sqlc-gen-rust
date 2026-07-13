@@ -177,7 +177,6 @@ impl DbCrate for Rusqlite {
         row: &crate::query::ReturningRows,
         query: &crate::query::Query,
     ) -> proc_macro2::TokenStream {
-        let row_tt = Self::returning_row(row);
         let query_ast = super::QueryAst::new(query, crate::db_crates::DataBaseKind::Sqlite);
         let builder_tt = query_ast.make_builder();
 
@@ -272,8 +271,13 @@ impl DbCrate for Rusqlite {
             }
         };
 
+        let returning_row = query
+            .annotation
+            .generates_returning_row()
+            .then(|| Self::returning_row(row));
+
         quote::quote! {
-            #row_tt
+            #returning_row
             #query_ast
             #fetch_tt
             #builder_tt

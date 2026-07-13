@@ -146,12 +146,6 @@ impl<'a> GetBookBuilder<'a, (i32,)> {
         GetBook { books_book_id }
     }
 }
-pub struct DeleteBookRow {}
-impl DeleteBookRow {
-    fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
-        Ok(Self {})
-    }
-}
 pub struct DeleteBook {
     books_book_id: i32,
 }
@@ -900,12 +894,6 @@ impl<'a>
         }
     }
 }
-pub struct UpdateBookRow {}
-impl UpdateBookRow {
-    fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
-        Ok(Self {})
-    }
-}
 pub struct UpdateBook<'a> {
     books_title: &'a str,
     books_tags: &'a [String],
@@ -984,12 +972,6 @@ impl<'a> UpdateBookBuilder<'a, (&'a str, &'a [String], i32)> {
             books_tags,
             books_book_id,
         }
-    }
-}
-pub struct UpdateBookIsbnRow {}
-impl UpdateBookIsbnRow {
-    fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
-        Ok(Self {})
     }
 }
 pub struct UpdateBookIsbn<'a> {

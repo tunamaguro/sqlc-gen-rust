@@ -379,7 +379,10 @@ impl DbCrate for Postgres {
             }
         };
 
-        let returning_row = self.returning_row(row);
+        let returning_row = query
+            .annotation
+            .generates_returning_row()
+            .then(|| self.returning_row(row));
         let builder = query_ast.make_builder();
         quote::quote! {
             #returning_row
