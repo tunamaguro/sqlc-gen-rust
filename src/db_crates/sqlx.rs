@@ -581,19 +581,21 @@ impl DbCrate for Sqlx {
             };
 
             // `sqlx::query_as(QUERY).fetch` returns `Stream` trait directly, but we do not add other dependencies
-            let query_as = quote::quote! {
-                pub fn #query_as_def->sqlx::query::QueryAs<
-                #lifetime_a,
-                #database_ident,
-                #row_ident,
-                <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
-                >{
-                    let q = sqlx::query_as(self.query_str());
-                    #query_bind
-                    #query_cache
-                    q
+            let query_as = query.annotation.generates_returning_row().then(|| {
+                quote::quote! {
+                    pub fn #query_as_def->sqlx::query::QueryAs<
+                    #lifetime_a,
+                    #database_ident,
+                    #row_ident,
+                    <#database_ident as sqlx::Database>::Arguments<#lifetime_a>,
+                    >{
+                        let q = sqlx::query_as(self.query_str());
+                        #query_bind
+                        #query_cache
+                        q
+                    }
                 }
-            };
+            });
 
             let lifetime_b = syn::Lifetime::new("'b", proc_macro2::Span::call_site());
 
@@ -723,7 +725,10 @@ impl DbCrate for Sqlx {
             }
         };
 
-        let returning_row = self.returning_row(row);
+        let returning_row = query
+            .annotation
+            .generates_returning_row()
+            .then(|| self.returning_row(row));
         let builder_tt = query_ast.make_builder();
         quote::quote! {
             #returning_row

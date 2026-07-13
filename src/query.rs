@@ -566,6 +566,12 @@ pub(crate) enum Annotation {
     CopyFrom,
 }
 
+impl Annotation {
+    pub(crate) fn generates_returning_row(self) -> bool {
+        self != Self::Exec
+    }
+}
+
 impl std::fmt::Display for Annotation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let txt = match self {
