@@ -28,7 +28,7 @@ impl ListAuthorsByIDsRow {
     }
 }
 pub struct ListAuthorsByIDs<'a> {
-    ids: &'a [i64],
+    pub ids: &'a [i64],
     __query: String,
 }
 impl<'a> ListAuthorsByIDs<'a> {
@@ -116,8 +116,8 @@ impl ListAuthorsByTwoIdListsRow {
     }
 }
 pub struct ListAuthorsByTwoIdLists<'a> {
-    ids: &'a [i64],
-    backup_ids: &'a [i64],
+    pub ids: &'a [i64],
+    pub backup_ids: &'a [i64],
     __query: String,
 }
 impl<'a> ListAuthorsByTwoIdLists<'a> {
@@ -232,10 +232,10 @@ impl ListAuthorsByIDsMixedRow {
     }
 }
 pub struct ListAuthorsByIDsMixed<'a> {
-    ids: &'a [i64],
-    id: i64,
-    skip_ids: &'a [i64],
-    name: &'a str,
+    pub ids: &'a [i64],
+    pub id: i64,
+    pub skip_ids: &'a [i64],
+    pub name: &'a str,
     __query: String,
 }
 impl<'a> ListAuthorsByIDsMixed<'a> {
@@ -370,7 +370,7 @@ impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> 
     }
 }
 pub struct DeleteAuthorsByIDs<'a> {
-    ids: &'a [i64],
+    pub ids: &'a [i64],
     __query: String,
 }
 impl<'a> DeleteAuthorsByIDs<'a> {

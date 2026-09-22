@@ -97,10 +97,10 @@ pub struct CreateUserRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateUser<'a> {
-    username: &'a str,
-    email: &'a str,
-    hashed_password: &'a str,
-    full_name: Option<&'a str>,
+    pub username: &'a str,
+    pub email: &'a str,
+    pub hashed_password: &'a str,
+    pub full_name: Option<&'a str>,
 }
 impl<'a> CreateUser<'a> {
     pub const QUERY: &'static str = r"INSERT INTO users (
@@ -255,7 +255,7 @@ pub struct GetUserByEmailRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetUserByEmail<'a> {
-    email: &'a str,
+    pub email: &'a str,
 }
 impl<'a> GetUserByEmail<'a> {
     pub const QUERY: &'static str = r"SELECT id, username, email, hashed_password, full_name, created_at, updated_at FROM users
@@ -346,8 +346,8 @@ pub struct ListUsersRow {
     pub created_at: chrono::DateTime<chrono::Local>,
 }
 pub struct ListUsers {
-    limit: i32,
-    offset: i32,
+    pub limit: i32,
+    pub offset: i32,
 }
 impl ListUsers {
     pub const QUERY: &'static str = r"SELECT id, username, email, full_name, created_at FROM users
@@ -446,12 +446,12 @@ pub struct CreateProductRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateProduct<'a> {
-    category_id: i32,
-    name: &'a str,
-    description: Option<&'a str>,
-    price: i32,
-    stock_quantity: i32,
-    attributes: Option<&'a serde_json::Value>,
+    pub category_id: i32,
+    pub name: &'a str,
+    pub description: Option<&'a str>,
+    pub price: i32,
+    pub stock_quantity: i32,
+    pub attributes: Option<&'a serde_json::Value>,
 }
 impl<'a> CreateProduct<'a> {
     pub const QUERY: &'static str = r"INSERT INTO products (
@@ -750,7 +750,7 @@ pub struct GetProductWithCategoryRow {
     pub category_slug: String,
 }
 pub struct GetProductWithCategory {
-    id: uuid::Uuid,
+    pub id: uuid::Uuid,
 }
 impl GetProductWithCategory {
     pub const QUERY: &'static str = r"SELECT
@@ -865,12 +865,12 @@ pub struct SearchProductsRow {
     pub average_rating: f64,
 }
 pub struct SearchProducts<'a> {
-    limit: i32,
-    offset: i32,
-    name: Option<&'a str>,
-    category_ids: &'a [i32],
-    min_price: Option<i32>,
-    max_price: Option<i32>,
+    pub limit: i32,
+    pub offset: i32,
+    pub name: Option<&'a str>,
+    pub category_ids: &'a [i32],
+    pub min_price: Option<i32>,
+    pub max_price: Option<i32>,
 }
 impl<'a> SearchProducts<'a> {
     pub const QUERY: &'static str = r"SELECT
@@ -1086,7 +1086,7 @@ pub struct GetProductsWithSpecificAttributeRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct GetProductsWithSpecificAttribute<'a> {
-    column_1: &'a serde_json::Value,
+    pub column_1: &'a serde_json::Value,
 }
 impl<'a> GetProductsWithSpecificAttribute<'a> {
     pub const QUERY: &'static str = r"SELECT id, category_id, name, description, price, stock_quantity, attributes, created_at, updated_at FROM products
@@ -1154,8 +1154,8 @@ impl<'a> GetProductsWithSpecificAttributeBuilder<'a, (&'a serde_json::Value,)> {
     }
 }
 pub struct UpdateProductStock {
-    id: uuid::Uuid,
-    add_quantity: i32,
+    pub id: uuid::Uuid,
+    pub add_quantity: i32,
 }
 impl UpdateProductStock {
     pub const QUERY: &'static str = r"UPDATE products
@@ -1236,9 +1236,9 @@ pub struct CreateOrderRow {
     pub ordered_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateOrder {
-    user_id: uuid::Uuid,
-    status: OrderStatus,
-    total_amount: i32,
+    pub user_id: uuid::Uuid,
+    pub status: OrderStatus,
+    pub total_amount: i32,
 }
 impl CreateOrder {
     pub const QUERY: &'static str = r"INSERT INTO orders (user_id, status, total_amount)
@@ -1362,10 +1362,10 @@ pub struct CreateOrderItemRow {
     pub price_at_purchase: i32,
 }
 pub struct CreateOrderItem {
-    order_id: i64,
-    product_id: uuid::Uuid,
-    quantity: i32,
-    price_at_purchase: i32,
+    pub order_id: i64,
+    pub product_id: uuid::Uuid,
+    pub quantity: i32,
+    pub price_at_purchase: i32,
 }
 impl CreateOrderItem {
     pub const QUERY: &'static str = r"INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
@@ -1519,7 +1519,7 @@ pub struct GetOrderDetailsRow {
     pub email: String,
 }
 pub struct GetOrderDetails {
-    id: i64,
+    pub id: i64,
 }
 impl GetOrderDetails {
     pub const QUERY: &'static str = r"SELECT
@@ -1617,7 +1617,7 @@ pub struct ListOrderItemsByOrderIdRow {
     pub product_name: String,
 }
 pub struct ListOrderItemsByOrderId {
-    order_id: i64,
+    pub order_id: i64,
 }
 impl ListOrderItemsByOrderId {
     pub const QUERY: &'static str = r"SELECT
@@ -1703,10 +1703,10 @@ pub struct CreateReviewRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 pub struct CreateReview<'a> {
-    user_id: uuid::Uuid,
-    product_id: uuid::Uuid,
-    rating: i32,
-    comment: Option<&'a str>,
+    pub user_id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
+    pub rating: i32,
+    pub comment: Option<&'a str>,
 }
 impl<'a> CreateReview<'a> {
     pub const QUERY: &'static str = r"INSERT INTO reviews (user_id, product_id, rating, comment)
@@ -1841,7 +1841,7 @@ pub struct GetProductAverageRatingRow {
     pub review_count: i64,
 }
 pub struct GetProductAverageRating {
-    product_id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
 }
 impl GetProductAverageRating {
     pub const QUERY: &'static str = r"SELECT
@@ -2000,7 +2000,7 @@ impl<'a> GetCategorySalesRankingBuilder<'a, ()> {
     }
 }
 pub struct DeleteUserAndRelatedData {
-    id: uuid::Uuid,
+    pub id: uuid::Uuid,
 }
 impl DeleteUserAndRelatedData {
     pub const QUERY: &'static str = r"DELETE FROM users WHERE id = $1";

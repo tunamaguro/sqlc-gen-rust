@@ -328,7 +328,13 @@ impl<'a> quote::ToTokens for QueryAst<'a> {
         let fields = self.fields().map(|f| {
             let name = &f.name;
             let typ = f.typ.to_param_tokens(&self.lifetime);
-            quote::quote! {#name:#typ}
+            // Public so a consumer can read back the parameters it supplied.
+            // The builder can set them, but without this nothing outside the
+            // generated module can get them out again -- privacy is scoped to
+            // the defining module and its descendants, so even a sibling
+            // module in the same crate is refused. `__query`, emitted
+            // separately below, stays private: it is internal state.
+            quote::quote! {pub #name:#typ}
         });
         let ident = &self.ident;
         let lifetime = &self.lifetime;

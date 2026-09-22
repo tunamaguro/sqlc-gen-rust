@@ -20,7 +20,7 @@ impl GetAuthorRow {
     }
 }
 pub struct GetAuthor {
-    id: i64,
+    pub id: i64,
 }
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
@@ -184,8 +184,8 @@ impl CreateAuthorRow {
     }
 }
 pub struct CreateAuthor<'a> {
-    name: &'a str,
-    bio: Option<&'a str>,
+    pub name: &'a str,
+    pub bio: Option<&'a str>,
 }
 impl<'a> CreateAuthor<'a> {
     pub const QUERY: &'static str = r"INSERT INTO authors (
@@ -270,7 +270,7 @@ impl<'a> CreateAuthorBuilder<'a, (&'a str, Option<&'a str>)> {
     }
 }
 pub struct DeleteAuthor {
-    id: i64,
+    pub id: i64,
 }
 impl DeleteAuthor {
     pub const QUERY: &'static str = r"DELETE FROM authors

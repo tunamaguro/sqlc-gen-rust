@@ -92,7 +92,7 @@ impl GetCityRow {
     }
 }
 pub struct GetCity<'a> {
-    slug: &'a str,
+    pub slug: &'a str,
 }
 impl<'a> GetCity<'a> {
     pub const QUERY: &'static str = r"SELECT slug, name
@@ -173,8 +173,8 @@ impl CreateCityRow {
     }
 }
 pub struct CreateCity<'a> {
-    name: &'a str,
-    slug: &'a str,
+    pub name: &'a str,
+    pub slug: &'a str,
 }
 impl<'a> CreateCity<'a> {
     pub const QUERY: &'static str = r"INSERT INTO city (
@@ -257,8 +257,8 @@ impl<'a> CreateCityBuilder<'a, (&'a str, &'a str)> {
     }
 }
 pub struct UpdateCityName<'a> {
-    slug: &'a str,
-    name: &'a str,
+    pub slug: &'a str,
+    pub name: &'a str,
 }
 impl<'a> UpdateCityName<'a> {
     pub const QUERY: &'static str = r"UPDATE city
@@ -353,7 +353,7 @@ impl ListVenuesRow {
     }
 }
 pub struct ListVenues<'a> {
-    city: &'a str,
+    pub city: &'a str,
 }
 impl<'a> ListVenues<'a> {
     pub const QUERY: &'static str = r"SELECT id, status, statuses, slug, name, city, spotify_playlist, songkick_id, tags, created_at
@@ -422,7 +422,7 @@ impl<'a> ListVenuesBuilder<'a, (&'a str,)> {
     }
 }
 pub struct DeleteVenue<'a> {
-    slug: &'a str,
+    pub slug: &'a str,
 }
 impl<'a> DeleteVenue<'a> {
     pub const QUERY: &'static str = r"DELETE FROM venue
@@ -506,8 +506,8 @@ impl GetVenueRow {
     }
 }
 pub struct GetVenue<'a> {
-    slug: &'a str,
-    city: &'a str,
+    pub slug: &'a str,
+    pub city: &'a str,
 }
 impl<'a> GetVenue<'a> {
     pub const QUERY: &'static str = r"SELECT id, status, statuses, slug, name, city, spotify_playlist, songkick_id, tags, created_at
@@ -596,13 +596,13 @@ impl CreateVenueRow {
     }
 }
 pub struct CreateVenue<'a> {
-    slug: &'a str,
-    name: &'a str,
-    city: &'a str,
-    spotify_playlist: &'a str,
-    status: Status,
-    statuses: Option<&'a [Status]>,
-    tags: Option<&'a [String]>,
+    pub slug: &'a str,
+    pub name: &'a str,
+    pub city: &'a str,
+    pub spotify_playlist: &'a str,
+    pub status: Status,
+    pub statuses: Option<&'a [Status]>,
+    pub tags: Option<&'a [String]>,
 }
 impl<'a> CreateVenue<'a> {
     pub const QUERY: &'static str = r"INSERT INTO venue (
@@ -846,8 +846,8 @@ impl UpdateVenueNameRow {
     }
 }
 pub struct UpdateVenueName<'a> {
-    slug: &'a str,
-    name: &'a str,
+    pub slug: &'a str,
+    pub name: &'a str,
 }
 impl<'a> UpdateVenueName<'a> {
     pub const QUERY: &'static str = r"UPDATE venue

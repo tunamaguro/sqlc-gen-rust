@@ -73,7 +73,7 @@ pub struct ListAuthorsByIDsRow {
     pub name: String,
 }
 pub struct ListAuthorsByIDs<'a> {
-    ids: &'a [i64],
+    pub ids: &'a [i64],
 }
 impl<'a> ListAuthorsByIDs<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
@@ -147,8 +147,8 @@ pub struct ListAuthorsByTwoIdListsRow {
     pub name: String,
 }
 pub struct ListAuthorsByTwoIdLists<'a> {
-    ids: &'a [i64],
-    backup_ids: &'a [i64],
+    pub ids: &'a [i64],
+    pub backup_ids: &'a [i64],
 }
 impl<'a> ListAuthorsByTwoIdLists<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
@@ -237,10 +237,10 @@ pub struct ListAuthorsByIDsMixedRow {
     pub name: String,
 }
 pub struct ListAuthorsByIDsMixed<'a> {
-    ids: &'a [i64],
-    min_id: i64,
-    skip_ids: &'a [i64],
-    excluded_name: &'a str,
+    pub ids: &'a [i64],
+    pub min_id: i64,
+    pub skip_ids: &'a [i64],
+    pub excluded_name: &'a str,
 }
 impl<'a> ListAuthorsByIDsMixed<'a> {
     pub const QUERY: &'static str = r"SELECT id, name
@@ -366,7 +366,7 @@ impl<'a> ListAuthorsByIDsMixedBuilder<'a, (&'a [i64], i64, &'a [i64], &'a str)> 
     }
 }
 pub struct DeleteAuthorsByIDs<'a> {
-    ids: &'a [i64],
+    pub ids: &'a [i64],
 }
 impl<'a> DeleteAuthorsByIDs<'a> {
     pub const QUERY: &'static str = r"DELETE FROM authors

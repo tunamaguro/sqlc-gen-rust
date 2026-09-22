@@ -18,7 +18,7 @@ impl GetAuthorRow {
     }
 }
 pub struct GetAuthor {
-    id: i64,
+    pub id: i64,
 }
 impl GetAuthor {
     pub const QUERY: &'static str = r"SELECT id, name, bio FROM authors
@@ -92,9 +92,9 @@ impl CreateAuthorsRow {
     }
 }
 pub struct CreateAuthors<'a> {
-    id: i64,
-    name: &'a str,
-    bio: Option<&'a str>,
+    pub id: i64,
+    pub name: &'a str,
+    pub bio: Option<&'a str>,
 }
 impl<'a> CreateAuthors<'a> {
     pub const QUERY: &'static str = r"COPY authors (id,name,bio) FROM STDIN (FORMAT BINARY)";

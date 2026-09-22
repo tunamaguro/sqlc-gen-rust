@@ -116,21 +116,21 @@ impl<'a> GetMappingBuilder<'a, ()> {
     }
 }
 pub struct InsertMapping<'a> {
-    bool_val: bool,
-    tinyint_val: i8,
-    smallint_val: i16,
-    int_val: i32,
-    int_nullable_val: Option<i32>,
-    bigint_val: i64,
-    float_val: f32,
-    double_val: f64,
-    text_val: &'a str,
-    blob_val: &'a [u8],
-    timestamp_val: &'a chrono::DateTime<chrono::Utc>,
-    datetime_val: &'a chrono::NaiveDateTime,
-    date_val: &'a chrono::NaiveDate,
-    time_val: sqlx::mysql::types::MySqlTime,
-    json_val: &'a serde_json::Value,
+    pub bool_val: bool,
+    pub tinyint_val: i8,
+    pub smallint_val: i16,
+    pub int_val: i32,
+    pub int_nullable_val: Option<i32>,
+    pub bigint_val: i64,
+    pub float_val: f32,
+    pub double_val: f64,
+    pub text_val: &'a str,
+    pub blob_val: &'a [u8],
+    pub timestamp_val: &'a chrono::DateTime<chrono::Utc>,
+    pub datetime_val: &'a chrono::NaiveDateTime,
+    pub date_val: &'a chrono::NaiveDate,
+    pub time_val: sqlx::mysql::types::MySqlTime,
+    pub json_val: &'a serde_json::Value,
 }
 impl<'a> InsertMapping<'a> {
     pub const QUERY: &'static str = r"INSERT INTO mapping (

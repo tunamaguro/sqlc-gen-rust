@@ -148,7 +148,7 @@ impl<'a> ListPilotsBuilder<'a, ()> {
     }
 }
 pub struct DeletePilot {
-    id: i32,
+    pub id: i32,
 }
 impl DeletePilot {
     pub const QUERY: &'static str = r"DELETE FROM pilots WHERE id = $1";
